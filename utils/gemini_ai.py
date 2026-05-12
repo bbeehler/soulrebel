@@ -1,10 +1,18 @@
 from google import genai
 import os
+import streamlit as st
 from dotenv import load_dotenv
 
-# Load your secret API key from the .env file
+# 1. Load local .env file (used when running on your Mac)
 load_dotenv()
-client = genai.Client()
+
+# 2. Retrieve the API Key
+# This looks in your local environment first, then checks Streamlit Cloud Secrets
+api_key = os.getenv("GEMINI_API_KEY") or st.secrets.get("GEMINI_API_KEY")
+
+# 3. Initialize the Gemini Client
+# We pass the api_key explicitly to ensure the Cloud server sees it
+client = genai.Client(api_key=api_key)
 
 def get_soul_rebel_consultant(user_input, context=""):
     system_instruction = """
@@ -14,11 +22,12 @@ def get_soul_rebel_consultant(user_input, context=""):
     deep, legacy-building narratives. Be direct, insightful, and visionary.
     """
     
+    # Combine instructions, historical context, and new input
     prompt = f"{system_instruction}\n\nContext: {context}\n\nInput: {user_input}"
     
-    # Using Gemini Pro for deep strategy
+    # Generate response using Gemini 1.5 Pro
     response = client.models.generate_content(
-        model="gemini-1.5-pro",
+        model="gemini-2.5-pro",
         contents=prompt
     )
     
