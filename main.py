@@ -1,27 +1,25 @@
-import streamlit as st
-from modules import discovery
+from google import genai
+import os
+from dotenv import load_dotenv
 
-st.set_page_config(page_title="Soul Rebel StratOS", layout="wide")
+# Load your secret API key from the .env file
+load_dotenv()
+client = genai.Client()
 
-def main():
-    st.sidebar.title("Soul Rebel StratOS")
-    st.sidebar.write("---")
+def get_soul_rebel_consultant(user_input, context=""):
+    system_instruction = """
+    You are the 'Soul Rebel' Strategic Consultant. You specialize in the Godzspeed 
+    Methodology: PurpUS, Brand Identity, Brand Experience, and Brand Impact.
+    Your goal is to help businesses move beyond superficial aesthetics into 
+    deep, legacy-building narratives. Be direct, insightful, and visionary.
+    """
     
-    choice = st.sidebar.radio("Navigate Workspace", 
-        ["1. The Soul Sprint", "2. Brand Guardian", "3. O2O Analytics"])
-
-    if choice == "1. The Soul Sprint":
-        discovery.run()
-    elif choice == "2. Brand Guardian":
-        st.title("Brand Guardian")
-        st.write("Coming next: Upload copy and score it against your Brand Soul.")
-    else:
-        st.title("O2O Analytics")
-        st.write("Coming later: Measure physical impact.")
-
-if __name__ == "__main__":
-<<<<<<< HEAD
-    main()
-=======
-    main()
->>>>>>> 75d4b938d184c1e0cf60dedc2b39a4d2518751e0
+    prompt = f"{system_instruction}\n\nContext: {context}\n\nInput: {user_input}"
+    
+    # Using Gemini Pro for deep strategy
+    response = client.models.generate_content(
+        model="gemini-1.5-pro",
+        contents=prompt
+    )
+    
+    return response.text
