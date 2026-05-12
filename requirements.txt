@@ -1,8 +1,6 @@
-```text
-    streamlit
-    google-genai
-    supabase
-    python-dotenv
-    pandas
-    plotly
-    ```
+streamlit
+google-genai
+supabase
+python-dotenv
+pandas
+plotly

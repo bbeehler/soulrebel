@@ -20,4 +20,8 @@ def main():
         st.write("Coming later: Measure physical impact.")
 
 if __name__ == "__main__":
+<<<<<<< HEAD
     main()
+=======
+    main()
+>>>>>>> 75d4b938d184c1e0cf60dedc2b39a4d2518751e0
