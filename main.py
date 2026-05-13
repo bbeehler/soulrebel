@@ -27,7 +27,6 @@ def main():
         apiKey=st.secrets["SUPABASE_KEY"]
     )
 
-    # If no one is logged in, stop execution here
     if not session:
         st.info("Welcome, Rebel. Please sign in or join the movement to access your strategy.")
         st.stop()
@@ -37,42 +36,43 @@ def main():
     user_email = session['user']['email']
 
     # --- INSTANT ROUTING CHECK ---
-    # We check if the user has a profile. 
-    # If they are recognized, they go to the Workspace.
-    # If they are new, they go to the Wizard.
-    
     profile_exists = check_profile_exists(user_id)
 
     if not profile_exists:
-        # NEW USER: Launch Wizard
-        # We check if the wizard is already running to avoid loops
         wizard.run(user_id)
     else:
-        # RECOGNIZED USER: Unlock Workspace
-        st.sidebar.title("Soul Rebel StratOS")
-        st.sidebar.success(f"Rebel Active: {user_email}")
-        
-        logout_button()
-        st.sidebar.write("---")
+        # --- SIDEBAR CONTROL PANEL ---
+        with st.sidebar:
+            st.title("Soul Rebel StratOS")
+            st.success(f"Rebel Active: {user_email}")
+            
+            # This places the logout button inside the sidebar
+            logout_button()
+            
+            st.write("---")
+            
+            choice = st.sidebar.radio("Navigate Workspace", 
+                [
+                    "1. The Soul Sprint", 
+                    "2. Brand Guardian", 
+                    "3. O2O Analytics", 
+                    "⚙️ Profile Settings"
+                ])
+            
+            st.write("---")
 
-        choice = st.sidebar.radio("Navigate Workspace", 
-            [
-                "1. The Soul Sprint", 
-                "2. Brand Guardian", 
-                "3. O2O Analytics", 
-                "⚙️ Profile Settings"
-            ])
-
-        st.sidebar.write("---")
-
+        # --- MAIN WORKSPACE LOGIC ---
         if choice == "1. The Soul Sprint":
             discovery.run(user_id)
+            
         elif choice == "2. Brand Guardian":
             st.title("🛡️ Brand Guardian")
             st.info("Aligning content with your Brand Soul. Coming soon.")
+            
         elif choice == "3. O2O Analytics":
             st.title("📊 O2O Analytics")
             st.info("Module 3: Online-to-Offline attribution. Coming soon.")
+            
         elif choice == "⚙️ Profile Settings":
             profile_settings.run(user_id)
 
