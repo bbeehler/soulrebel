@@ -17,7 +17,7 @@ def run(user_id):
 
     with col1:
         st.title("🔥 The Soul Sprint")
-        st.write("Extracting your brand's foundation...")
+        st.write("Extracting your brand's foundation through voice or text.")
         
         # --- CHAT HISTORY CONTAINER ---
         if "messages" not in st.session_state:
@@ -32,17 +32,24 @@ def run(user_id):
 
         # --- MULTIMODAL INPUT SECTION ---
         st.write("---")
-        # Place the audio recorder directly above the chat input
-        audio_input = st.audio_input("🎤 Answer verbally to capture your soul's tone")
+        
+        # Audio Input with a unique key
+        audio_input = st.audio_input("🎤 Answer verbally to capture your soul's tone", key="soul_audio_recorder")
         prompt = st.chat_input("Or type your thoughts here...")
 
-        # Determine if we have a new input to process
+        # LOGIC GATE: Prevent infinite loops by tracking processed audio IDs
         new_input = None
+        
         if audio_input:
-            new_input = audio_input  # Passing the audio bytes to Gemini
+            # Create a unique fingerprint for the audio file
+            audio_id = hash(audio_input.getvalue())
+            if st.session_state.get("last_audio_id") != audio_id:
+                new_input = audio_input
+                st.session_state.last_audio_id = audio_id
         elif prompt:
             new_input = prompt
 
+        # --- AI PROCESSING LOGIC ---
         if new_input:
             # Display user input in chat
             display_text = "🎤 *Voice Memo Submitted*" if audio_input else prompt
@@ -54,20 +61,20 @@ def run(user_id):
             
             with st.chat_message("assistant"):
                 with st.spinner("Soul Rebel is listening and synthesizing..."):
-                    # Call AI (Gemini 2.5 Flash handles the audio/text switch natively)
+                    # Call Gemini 2.0 Flash (Multimodal)
                     response = get_soul_rebel_consultant(new_input, context)
                     st.markdown(response)
                     st.session_state.messages.append({"role": "assistant", "content": response})
                     
-                    # SAVE TO SUPABASE:
+                    # SAVE TO SUPABASE (Persisting the synthesis)
                     save_brand_data(user_id, response)
                     
-                    # Update local state so Canvas (Column 2) refreshes
+                    # Update local state so Canvas (Column 2) refreshes immediately
                     if not st.session_state.brand_soul:
                         st.session_state.brand_soul = {}
                     st.session_state.brand_soul['purpus_summary'] = response
             
-            # Clear audio state by rerunning if audio was processed
+            # Force a rerun to update the UI and lock in the audio ID
             st.rerun() 
 
     with col2:
