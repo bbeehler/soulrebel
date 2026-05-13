@@ -20,7 +20,7 @@ def check_profile_exists(user_id):
 def main():
     # Initialize session state for onboarding if not already present
     if "onboarded" not in st.session_state:
-        # We are using 'Brian' as the unique ID for now
+        # Using 'Brian' as the unique ID for now
         st.session_state.onboarded = check_profile_exists("Brian")
 
     st.sidebar.title("Soul Rebel StratOS")
@@ -35,10 +35,26 @@ def main():
             ["1. The Soul Sprint", "2. Brand Guardian", "3. O2O Analytics"])
 
         st.sidebar.write("---")
-        if st.sidebar.button("Reset Profile Data"):
-            # Optional: Allow clearing session to see onboarding again
-            st.session_state.onboarded = False
-            st.rerun()
+        
+        # WIPE LOGIC: This now deletes data from the cloud, not just local memory
+        if st.sidebar.button("🗑️ Wipe & Restart Profile"):
+            try:
+                # 1. Delete the profile record
+                supabase.table("profiles").delete().eq("user_id", "Brian").execute()
+                
+                # 2. Delete the strategy record so the Soul Sprint is also fresh
+                supabase.table("brand_strategy").delete().eq("user_id", "Brian").execute()
+                
+                # 3. Clear local state and force a rebuild
+                st.session_state.onboarded = False
+                if "brand_soul" in st.session_state:
+                    del st.session_state.brand_soul
+                if "messages" in st.session_state:
+                    del st.session_state.messages
+                
+                st.rerun()
+            except Exception as e:
+                st.sidebar.error(f"Error wiping data: {e}")
 
         if choice == "1. The Soul Sprint":
             discovery.run()
