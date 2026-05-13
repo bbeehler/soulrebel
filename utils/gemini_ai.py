@@ -61,7 +61,7 @@ def get_soul_rebel_consultant(user_input, context=""):
     # Generate response 
     try:
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             contents=content_parts
         )
         return response.text
