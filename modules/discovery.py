@@ -13,11 +13,10 @@ def run(user_id):
         saved_data = load_brand_data(user_id)
         st.session_state.brand_soul = saved_data if saved_data else {}
     
-    # 2. State Management for the "Individual"
+    # 2. State Management
     if "is_synthesizing" not in st.session_state:
         st.session_state.is_synthesizing = False
     
-    # 3. Track the target chamber for the current sprint
     if "target_chamber" not in st.session_state:
         st.session_state.target_chamber = "purpus_summary"
 
@@ -42,11 +41,15 @@ def run(user_id):
         )
         st.session_state.target_chamber = chamber_map[selected_label]
 
-        # Chat History
+        # --- CHAT HISTORY LOGIC ---
         if "messages" not in st.session_state:
             st.session_state.messages = [{"role": "assistant", "content": f"The Soul Rebel Consultant is active. We are focusing on {selected_label}. Tell me your thoughts."}]
 
-        for message in st.session_state.messages:
+        # Only show the welcome message if the conversation hasn't really started yet
+        for i, message in enumerate(st.session_state.messages):
+            if i == 0 and len(st.session_state.messages) > 2:
+                continue # Hides the initial "The Soul Rebel is active" prompt after first exchange
+                
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
@@ -56,43 +59,38 @@ def run(user_id):
         prompt = st.chat_input("Or type your thoughts...")
 
         new_input = None
-        
-        # Check for Audio Input
         if audio_input:
-            # Generate a unique ID based on file size and name to prevent reprocessing
             audio_id = hash(f"{audio_input.name}_{audio_input.size}")
             if st.session_state.get("last_audio_id") != audio_id:
-                new_input = audio_input  # Passing the actual object for bytes processing
+                new_input = audio_input 
                 st.session_state.last_audio_id = audio_id
-        
-        # Check for Text Input (if no new audio)
         elif prompt:
             new_input = prompt
 
         if new_input:
             st.session_state.is_synthesizing = True
             
-            # Label the input in chat
             display_text = "🎤 *Voice Memo Submitted*" if audio_input else prompt
             st.session_state.messages.append({"role": "user", "content": display_text})
             
-            # Build history context for Gemini
+            # Build history context
             context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
             
             with st.chat_message("assistant"):
-                with st.spinner(f"Synthesizing {selected_label}..."):
-                    # The get_soul_rebel_consultant function now handles bytes vs string
-                    response = get_soul_rebel_consultant(new_input, context)
+                with st.spinner(f"Unearthing {selected_label}..."):
+                    # We inject a hidden 'Strategic Command' to ensure the output is in-depth
+                    strategic_instruction = f"\n\nCOMMAND: Based on this input, synthesize a formal, 3-paragraph strategic definition for the {selected_label} chamber. Use bold headers and professional branding terminology."
+                    
+                    response = get_soul_rebel_consultant(new_input, context + strategic_instruction)
                     
                     st.markdown(response)
                     st.session_state.messages.append({"role": "assistant", "content": response})
                     
-                    # SAVE TO DATABASE
+                    # PERSIST RESULTS
                     target_col = st.session_state.target_chamber
                     save_brand_data(user_id, response, chamber=target_col)
-                    
-                    # UPDATE LOCAL STATE
                     st.session_state.brand_soul[target_col] = response
+                    
                     st.session_state.is_synthesizing = False
             
             st.rerun() 
@@ -124,8 +122,9 @@ def run(user_id):
         st.write("---")
         st.subheader("📋 Strategy Chambers")
         
-        # We use st.session_state.target_chamber to keep the relevant expander open
         for label, key in chamber_map.items():
             is_expanded = (st.session_state.target_chamber == key)
             with st.expander(label, expanded=is_expanded):
-                st.write(brand_data.get(key, "Awaiting deeper discovery..."))
+                # Displays the formal strategic outcome
+                content = brand_data.get(key, "Awaiting deeper discovery...")
+                st.markdown(content)
