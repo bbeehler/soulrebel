@@ -1,7 +1,7 @@
 import streamlit as st
 from utils.supabase_db import supabase
 
-def run():
+def run(user_id): # Fix 1: Accept user_id from main.py
     if "wizard_step" not in st.session_state:
         st.session_state.wizard_step = 1
 
@@ -33,7 +33,9 @@ def run():
         st.subheader("Step 2: The Venture Details")
         company = st.text_input("Company Name")
         industry = st.selectbox("Industry", ["Hospitality", "Technology", "Marketing", "Retail", "Other"])
-        if st.button("Back"): st.session_state.wizard_step = 1; st.rerun()
+        if st.button("Back"): 
+            st.session_state.wizard_step = 1
+            st.rerun()
         if st.button("Continue to Stage"):
             st.session_state.temp_company = company
             st.session_state.temp_industry = industry
@@ -44,7 +46,9 @@ def run():
     elif step == 3:
         st.subheader("Step 3: Growth Stage")
         stage = st.select_slider("Where are you currently?", options=["Concept", "MVP", "Scaling", "Established"])
-        if st.button("Back"): st.session_state.wizard_step = 2; st.rerun()
+        if st.button("Back"): 
+            st.session_state.wizard_step = 2
+            st.rerun()
         if st.button("Finalize Foundation"):
             st.session_state.temp_stage = stage
             st.session_state.wizard_step = 4
@@ -54,17 +58,21 @@ def run():
     elif step == 4:
         st.subheader("Step 4: Establish Your Command Center")
         st.write(f"Reviewing details for **{st.session_state.temp_company}**...")
+        
         if st.button("Initialize StratOS"):
+            # Fix 2: Use user_id variable instead of hardcoded "Brian"
             profile_data = {
-                "user_id": "Brian",
+                "user_id": user_id, 
                 "full_name": st.session_state.temp_name,
                 "email": st.session_state.temp_email,
                 "company_name": st.session_state.temp_company,
                 "industry": st.session_state.temp_industry,
                 "business_stage": st.session_state.temp_stage
             }
+            
+            # This saves the record that makes check_profile_exists() return True next time
             supabase.table("profiles").upsert(profile_data, on_conflict="user_id").execute()
-            st.session_state.authenticated = True
-            st.session_state.wizard_step = 1 # Reset for next time
+            
+            st.session_state.wizard_step = 1 # Reset wizard for future uses
             st.balloons()
-            st.rerun()
+            st.rerun() # This will trigger main.py to re-check and see you now have a profile!
