@@ -17,7 +17,7 @@ else:
     supabase = None
 
 def save_brand_data(user_id, purpus_text):
-    """Saves or updates the PurpUS summary in the database."""
+    """Saves or updates the PurpUS summary for the specific authenticated user."""
     if not supabase:
         return None
     
@@ -25,13 +25,13 @@ def save_brand_data(user_id, purpus_text):
         "user_id": user_id,
         "purpus_summary": purpus_text
     }
-    # upsert handles "update if exists, else insert"
+    # upsert handles "update if exists, else insert" based on the unique user_id
     return supabase.table("brand_strategy").upsert(data, on_conflict="user_id").execute()
 
 def update_chamber_data(user_id, chamber_column, new_text):
     """
-    Updates a specific chamber (column) in the brand_strategy table.
-    chamber_column should be 'purpus_summary', 'brand_identity', etc.
+    Surgically updates a specific chamber column for a specific user.
+    Used by the Profile Settings 'Control Room'.
     """
     if not supabase:
         return None
@@ -40,7 +40,7 @@ def update_chamber_data(user_id, chamber_column, new_text):
     return supabase.table("brand_strategy").update(data).eq("user_id", user_id).execute()
 
 def load_brand_data(user_id):
-    """Retrieves saved brand data for a specific user."""
+    """Retrieves the private brand strategy row for the logged-in user."""
     if not supabase:
         return None
         
