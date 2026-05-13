@@ -7,23 +7,19 @@ except Exception as e:
     st.error(f"Error loading backend modules: {e}")
 
 def run(user_id):
-    # 1. Load existing data from Supabase
+    # 1. Load existing data from Supabase for the specific logged-in user
     if "brand_soul" not in st.session_state:
         saved_data = load_brand_data(user_id)
         st.session_state.brand_soul = saved_data if saved_data else {}
 
-    # Layout: 2 Columns
+    # Layout: 2 Columns (Chat and Live Canvas)
     col1, col2 = st.columns([3, 2])
 
     with col1:
         st.title("🔥 The Soul Sprint")
-        st.write("Speak or type your brand's foundation...")
+        st.write("Extracting your brand's foundation...")
         
-        # --- AUDIO INPUT SECTION ---
-        # Allowing the user to answer questions verbally
-        audio_input = st.audio_input("Record your answer (Voice Memo)")
-
-        # Chat History Container
+        # --- CHAT HISTORY CONTAINER ---
         if "messages" not in st.session_state:
             st.session_state.messages = [
                 {"role": "assistant", "content": "Welcome. I am your Soul Rebel Consultant. Let's begin. What is the fundamental 'Why' behind your business?"}
@@ -34,19 +30,22 @@ def run(user_id):
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        # LOGIC: Handle either Audio or Text Input
-        prompt = st.chat_input("Or enter your thoughts here...")
-        
+        # --- MULTIMODAL INPUT SECTION ---
+        st.write("---")
+        # Place the audio recorder directly above the chat input
+        audio_input = st.audio_input("🎤 Answer verbally to capture your soul's tone")
+        prompt = st.chat_input("Or type your thoughts here...")
+
         # Determine if we have a new input to process
         new_input = None
         if audio_input:
-            new_input = audio_input  # Passing the actual audio object to Gemini
+            new_input = audio_input  # Passing the audio bytes to Gemini
         elif prompt:
             new_input = prompt
 
         if new_input:
             # Display user input in chat
-            display_text = "🎤 *Audio Response Submitted*" if audio_input else prompt
+            display_text = "🎤 *Voice Memo Submitted*" if audio_input else prompt
             st.chat_message("user").markdown(display_text)
             st.session_state.messages.append({"role": "user", "content": display_text})
 
@@ -54,26 +53,28 @@ def run(user_id):
             context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
             
             with st.chat_message("assistant"):
-                with st.spinner("Listening and Synthesizing..."):
-                    # Gemini 2.0 Flash handles both text and audio natively
+                with st.spinner("Soul Rebel is listening and synthesizing..."):
+                    # Call AI (Gemini 2.5 Flash handles the audio/text switch natively)
                     response = get_soul_rebel_consultant(new_input, context)
                     st.markdown(response)
                     st.session_state.messages.append({"role": "assistant", "content": response})
                     
-                    # SAVE TO SUPABASE
+                    # SAVE TO SUPABASE:
                     save_brand_data(user_id, response)
                     
-                    # Update local state for Column 2
+                    # Update local state so Canvas (Column 2) refreshes
                     if not st.session_state.brand_soul:
                         st.session_state.brand_soul = {}
                     st.session_state.brand_soul['purpus_summary'] = response
             
+            # Clear audio state by rerunning if audio was processed
             st.rerun() 
 
     with col2:
         st.subheader("📋 Live Strategy Canvas")
         st.info("Insights stored in your Godzspeed Cloud:")
         
+        # Pull data from the local session state (synced with Supabase)
         brand_data = st.session_state.get('brand_soul', {})
         
         with st.expander("✨ Chamber 1: PurpUS", expanded=True):
