@@ -41,6 +41,21 @@ def get_soul_rebel_consultant(user_input, context=""):
     2. Then, provide the IN-DEPTH STRATEGY within a clear section. Use Markdown headers (###), bullet points, and bold text. 
     3. The strategy must be actionable and "Godzspeed" flavored (PurpUS-led, Soul-driven).
     4. End with your provocative question for the next step.
+
+    1. CONVERSATIONAL REFLECTION: A warm, 1-2 sentence response to the user's voice/text.
+    2. THE STRATEGY DOCUMENT: A formal, polished strategic section wrapped in [DOC] tags.
+    
+    DOCUMENT REQUIREMENTS:
+    - Use professional headers (###).
+    - Use bulleted lists for "Core Pillars."
+    - Ensure the tone is visionary, defiant, and structured.
+    - DO NOT include conversational filler inside the [DOC] section.
+    
+    CHAMBER GUIDELINES:
+    - PurpUS: Define the 'Transcendental Why' and 'Brand Heartbeat'.
+    - Identity: Define the 'Soul Rebel Persona' and 'Archetypal Energy'.
+    - Experience: Define 'Rituals of Engagement' and 'Community Soul-Sync'.
+    - Impact: Define the 'Social Legacy' and 'Transformational Footprint'.
     """
 
     # --- MULTIMODAL HANDSHAKE ---

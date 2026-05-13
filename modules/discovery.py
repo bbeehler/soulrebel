@@ -35,7 +35,7 @@ def run(user_id):
         }
         
         selected_label = st.selectbox(
-            "Which part of the Individual are we unearthing?",
+            "Current Extraction Focus:",
             options=list(chamber_map.keys()),
             index=0
         )
@@ -45,15 +45,14 @@ def run(user_id):
         if "messages" not in st.session_state:
             st.session_state.messages = [{"role": "assistant", "content": f"The Soul Rebel Consultant is active. We are focusing on {selected_label}. Tell me your thoughts."}]
 
-        # Only show the welcome message if the conversation hasn't really started yet
         for i, message in enumerate(st.session_state.messages):
+            # Suppress welcome message after conversation starts
             if i == 0 and len(st.session_state.messages) > 2:
-                continue # Hides the initial "The Soul Rebel is active" prompt after first exchange
-                
+                continue 
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        # --- MULTIMODAL INPUT ---
+        # --- INPUT ---
         st.write("---")
         audio_input = st.audio_input("🎤 Speak your truth", key="soul_audio_recorder")
         prompt = st.chat_input("Or type your thoughts...")
@@ -73,30 +72,45 @@ def run(user_id):
             display_text = "🎤 *Voice Memo Submitted*" if audio_input else prompt
             st.session_state.messages.append({"role": "user", "content": display_text})
             
-            # Build history context
             context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
             
             with st.chat_message("assistant"):
-                with st.spinner(f"Unearthing {selected_label}..."):
-                    # We inject a hidden 'Strategic Command' to ensure the output is in-depth
-                    strategic_instruction = f"\n\nCOMMAND: Based on this input, synthesize a formal, 3-paragraph strategic definition for the {selected_label} chamber. Use bold headers and professional branding terminology."
+                with st.spinner(f"Synthesizing Strategy for {selected_label}..."):
+                    # REFINED INSTRUCTION: Separates Chat from Strategy Document
+                    strategic_instruction = (
+                        f"\n\n--- INSTRUCTION ---\n"
+                        f"1. Provide a warm, brief conversational response first.\n"
+                        f"2. Then, provide the final, polished strategy for {selected_label} "
+                        f"wrapped inside [STRATEGY] and [/STRATEGY] tags.\n"
+                        f"The polished strategy should be structured with headers (###), "
+                        f"be in-depth (3+ paragraphs), and avoid conversational filler."
+                    )
                     
-                    response = get_soul_rebel_consultant(new_input, context + strategic_instruction)
+                    full_response = get_soul_rebel_consultant(new_input, context + strategic_instruction)
                     
-                    st.markdown(response)
-                    st.session_state.messages.append({"role": "assistant", "content": response})
+                    # --- EXTRACTION LOGIC ---
+                    if "[STRATEGY]" in full_response:
+                        parts = full_response.split("[STRATEGY]")
+                        chat_part = parts[0].strip()
+                        strategy_part = parts[1].split("[/STRATEGY]")[0].strip()
+                    else:
+                        chat_part = full_response
+                        strategy_part = full_response
+
+                    # Display chat response
+                    st.markdown(chat_part)
+                    st.session_state.messages.append({"role": "assistant", "content": chat_part})
                     
-                    # PERSIST RESULTS
+                    # PERSIST ONLY THE POLISHED DOCUMENT
                     target_col = st.session_state.target_chamber
-                    save_brand_data(user_id, response, chamber=target_col)
-                    st.session_state.brand_soul[target_col] = response
+                    save_brand_data(user_id, strategy_part, chamber=target_col)
+                    st.session_state.brand_soul[target_col] = strategy_part
                     
                     st.session_state.is_synthesizing = False
             
             st.rerun() 
 
     with col2:
-        # --- THE INDIVIDUAL PERSONA MONITOR ---
         st.subheader("👤 Brand Individual: Vital Signs")
         brand_data = st.session_state.get('brand_soul', {})
         
@@ -106,18 +120,10 @@ def run(user_id):
         
         if st.session_state.is_synthesizing:
             st.info("💓 **Status: Soul Extraction in Progress**")
-            st.caption(f"Analyzing tone and conviction for {selected_label}...")
         else:
             st.write(f"**Soul Alignment:** {int(completion_pct * 100)}%")
             st.progress(completion_pct)
-            
-            if filled_count == 0:
-                st.warning("Status: Latent.")
-            elif filled_count < 4:
-                st.success("Status: Awakening.")
-            else:
-                st.balloons()
-                st.success("Status: Fully Realized.")
+            if filled_count == 4: st.success("Status: Fully Realized.")
 
         st.write("---")
         st.subheader("📋 Strategy Chambers")
@@ -125,6 +131,5 @@ def run(user_id):
         for label, key in chamber_map.items():
             is_expanded = (st.session_state.target_chamber == key)
             with st.expander(label, expanded=is_expanded):
-                # Displays the formal strategic outcome
                 content = brand_data.get(key, "Awaiting deeper discovery...")
                 st.markdown(content)
