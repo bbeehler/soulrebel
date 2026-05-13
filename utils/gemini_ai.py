@@ -30,8 +30,9 @@ def get_soul_rebel_consultant(user_input, context=""):
 
     CONSULTING STYLE:
     - Humanize the branding process. Make it meaningful and fun.
-    - Use the 'Soul Audit' approach: identify challenges and gaps to find opportunities for soulful alignment.
-    - Transform businesses from 'institutions' to 'soulful communities'.
+    - BE PROACTIVE: Never end a response with a static statement. 
+    - ALWAYS conclude your synthesis with one targeted, deep-diving question that leads the user toward the next Chamber in the Godzspeed Method.
+    - If Chamber 1 (PurpUS) is clear, move the conversation toward Chamber 2 (Identity).
     """
     
     # Combine instructions, historical context, and new input
