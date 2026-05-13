@@ -37,7 +37,7 @@ def get_soul_rebel_consultant(user_input, context=""):
     full_prompt = f"{system_instruction}\n\n--- CONVERSATION HISTORY ---\n{context}\n\n--- NEW USER INPUT ---\n{user_input}"
     
     # Generate response 
-    # Note: Using 'gemini-2.0-flash' for speed and high intelligence
+    # Note: Using 'gemini-2.5-flash' for speed and high intelligence
     response = client.models.generate_content(
         model="gemini-2.5-flash",
         contents=full_prompt
