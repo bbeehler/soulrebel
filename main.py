@@ -15,35 +15,38 @@ def check_profile_exists(user_id):
         return False
 
 def main():
-    # 1. THE SECURE GATEWAY
-    # This handles the Login / Sign Up UI using your Supabase Project settings.
-    # It will use the secrets you've already set up.
+    # --- HEADER SECTION ---
+    # This renders at the top of the page regardless of login status
+    st.title("🔥 Soul Rebel StratOS")
+    st.subheader("The Strategic Command Center")
+    st.write("Extracting the soul of your brand to fuel the rebellion.")
+    st.write("---") # Visual separator
+
+    # --- THE SECURE GATEWAY ---
+    # By placing this here, it appears below the title and subheader
     session = login_form(
         url=st.secrets["SUPABASE_URL"],
         apiKey=st.secrets["SUPABASE_KEY"]
     )
 
-    # If no one is logged in, stop here and show the login box
+    # If no one is logged in, stop execution here (preserving the header above)
     if not session:
-        st.title("🔥 Soul Rebel StratOS")
-        st.info("The strategic command center for brands with a soul. Please log in to continue.")
+        st.info("Welcome, Rebel. Please sign in or join the movement to access your strategy.")
         st.stop()
 
-    # 2. CAPTURE AUTHENTICATED USER DATA
+    # --- AUTHENTICATED SESSION DATA ---
     user_id = session['user']['id']
     user_email = session['user']['email']
 
-    # 3. PROFILE CHECK & NAVIGATION
-    # We check if this specific UUID has completed the Wizard yet.
+    # --- NAVIGATION LOGIC ---
     if not check_profile_exists(user_id):
         # New user -> Force the Wizard to establish the foundation
         wizard.run(user_id)
     else:
-        # Existing user -> Unlock the Workspace
+        # Existing user -> Unlock the Workspace Sidebar
         st.sidebar.title("Soul Rebel StratOS")
         st.sidebar.success(f"Rebel Active: {user_email}")
         
-        # Logout button provided by the auth library
         logout_button()
         st.sidebar.write("---")
 
@@ -57,20 +60,19 @@ def main():
 
         st.sidebar.write("---")
 
+        # Load Modules based on selection
         if choice == "1. The Soul Sprint":
-            # Pass the user_id so they only see THEIR strategy
             discovery.run(user_id)
             
         elif choice == "2. Brand Guardian":
             st.title("🛡️ Brand Guardian")
-            st.info("Aligning content with your Brand Soul.")
+            st.info("Aligning content with your Brand Soul. Coming soon.")
             
         elif choice == "3. O2O Analytics":
             st.title("📊 O2O Analytics")
-            st.info("Module 3 coming soon.")
+            st.info("Module 3: Online-to-Offline attribution. Coming soon.")
             
         elif choice == "⚙️ Profile Settings":
-            # Pass the user_id for the 'Tombstone' and editing logic
             profile_settings.run(user_id)
 
 if __name__ == "__main__":
