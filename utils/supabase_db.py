@@ -28,6 +28,17 @@ def save_brand_data(user_id, purpus_text):
     # upsert handles "update if exists, else insert"
     return supabase.table("brand_strategy").upsert(data, on_conflict="user_id").execute()
 
+def update_chamber_data(user_id, chamber_column, new_text):
+    """
+    Updates a specific chamber (column) in the brand_strategy table.
+    chamber_column should be 'purpus_summary', 'brand_identity', etc.
+    """
+    if not supabase:
+        return None
+        
+    data = {chamber_column: new_text}
+    return supabase.table("brand_strategy").update(data).eq("user_id", user_id).execute()
+
 def load_brand_data(user_id):
     """Retrieves saved brand data for a specific user."""
     if not supabase:

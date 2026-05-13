@@ -1,5 +1,5 @@
 import streamlit as st
-from modules import onboarding, discovery
+from modules import onboarding, discovery, profile_settings
 from utils.supabase_db import supabase
 
 # Set page configuration
@@ -31,39 +31,32 @@ def main():
         onboarding.run()
     else:
         # Main Navigation Workspace
+        # Added Gear icon for Profile Settings as the Control Room
         choice = st.sidebar.radio("Navigate Workspace", 
-            ["1. The Soul Sprint", "2. Brand Guardian", "3. O2O Analytics"])
+            [
+                "1. The Soul Sprint", 
+                "2. Brand Guardian", 
+                "3. O2O Analytics", 
+                "⚙️ Profile Settings"
+            ])
 
         st.sidebar.write("---")
         
-        # WIPE LOGIC: This now deletes data from the cloud, not just local memory
-        if st.sidebar.button("🗑️ Wipe & Restart Profile"):
-            try:
-                # 1. Delete the profile record
-                supabase.table("profiles").delete().eq("user_id", "Brian").execute()
-                
-                # 2. Delete the strategy record so the Soul Sprint is also fresh
-                supabase.table("brand_strategy").delete().eq("user_id", "Brian").execute()
-                
-                # 3. Clear local state and force a rebuild
-                st.session_state.onboarded = False
-                if "brand_soul" in st.session_state:
-                    del st.session_state.brand_soul
-                if "messages" in st.session_state:
-                    del st.session_state.messages
-                
-                st.rerun()
-            except Exception as e:
-                st.sidebar.error(f"Error wiping data: {e}")
-
+        # Navigation logic
         if choice == "1. The Soul Sprint":
             discovery.run()
+            
         elif choice == "2. Brand Guardian":
             st.title("🛡️ Brand Guardian")
             st.info("Module 2: Aligning your content with your Brand Soul. Coming soon.")
-        else:
+            
+        elif choice == "3. O2O Analytics":
             st.title("📊 O2O Analytics")
             st.info("Module 3: Online-to-Offline attribution and KPIs. Coming soon.")
+            
+        elif choice == "⚙️ Profile Settings":
+            # This is where editing and the 'Tombstone' deletion now live
+            profile_settings.run()
 
 if __name__ == "__main__":
     main()
