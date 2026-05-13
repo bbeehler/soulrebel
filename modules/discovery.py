@@ -28,7 +28,6 @@ def run(user_id):
         st.write("Extracting the essence of your brand Individual.")
         
         # --- CHAMBER SELECTOR ---
-        # This tells the system where to store the upcoming synthesis
         chamber_map = {
             "✨ Chamber 1: PurpUS": "purpus_summary",
             "🎭 Chamber 2: Brand Identity": "brand_identity",
@@ -51,39 +50,48 @@ def run(user_id):
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        # Multimodal Input
+        # --- MULTIMODAL INPUT ---
         st.write("---")
         audio_input = st.audio_input("🎤 Speak your truth", key="soul_audio_recorder")
         prompt = st.chat_input("Or type your thoughts...")
 
         new_input = None
+        
+        # Check for Audio Input
         if audio_input:
-            audio_id = hash(audio_input.getvalue())
+            # Generate a unique ID based on file size and name to prevent reprocessing
+            audio_id = hash(f"{audio_input.name}_{audio_input.size}")
             if st.session_state.get("last_audio_id") != audio_id:
-                new_input = audio_input
+                new_input = audio_input  # Passing the actual object for bytes processing
                 st.session_state.last_audio_id = audio_id
+        
+        # Check for Text Input (if no new audio)
         elif prompt:
             new_input = prompt
 
         if new_input:
             st.session_state.is_synthesizing = True
+            
+            # Label the input in chat
             display_text = "🎤 *Voice Memo Submitted*" if audio_input else prompt
             st.session_state.messages.append({"role": "user", "content": display_text})
             
-            # Context for Gemini
+            # Build history context for Gemini
             context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
             
             with st.chat_message("assistant"):
                 with st.spinner(f"Synthesizing {selected_label}..."):
+                    # The get_soul_rebel_consultant function now handles bytes vs string
                     response = get_soul_rebel_consultant(new_input, context)
+                    
                     st.markdown(response)
                     st.session_state.messages.append({"role": "assistant", "content": response})
                     
-                    # SAVE TO THE TARGETED CHAMBER
+                    # SAVE TO DATABASE
                     target_col = st.session_state.target_chamber
                     save_brand_data(user_id, response, chamber=target_col)
                     
-                    # Update local state immediately so progress moves
+                    # UPDATE LOCAL STATE
                     st.session_state.brand_soul[target_col] = response
                     st.session_state.is_synthesizing = False
             
@@ -92,16 +100,12 @@ def run(user_id):
     with col2:
         # --- THE INDIVIDUAL PERSONA MONITOR ---
         st.subheader("👤 Brand Individual: Vital Signs")
-        
-        # Pull current data
         brand_data = st.session_state.get('brand_soul', {})
         
-        # Logic for progress
         chambers = ['purpus_summary', 'brand_identity', 'brand_experience', 'brand_impact']
         filled_count = sum(1 for k in chambers if brand_data.get(k))
         completion_pct = (filled_count / 4)
         
-        # Heartbeat logic
         if st.session_state.is_synthesizing:
             st.info("💓 **Status: Soul Extraction in Progress**")
             st.caption(f"Analyzing tone and conviction for {selected_label}...")
@@ -120,14 +124,8 @@ def run(user_id):
         st.write("---")
         st.subheader("📋 Strategy Chambers")
         
-        with st.expander("✨ Chamber 1: PurpUS", expanded=(st.session_state.target_chamber == "purpus_summary")):
-            st.write(brand_data.get('purpus_summary', "Awaiting deeper discovery..."))
-            
-        with st.expander("🎭 Chamber 2: Brand Identity", expanded=(st.session_state.target_chamber == "brand_identity")):
-            st.write(brand_data.get('brand_identity', "Defining your Soul Rebel persona..."))
-
-        with st.expander("🌟 Chamber 3: Brand Experience", expanded=(st.session_state.target_chamber == "brand_experience")):
-            st.write(brand_data.get('brand_experience', "Mapping the customer journey..."))
-
-        with st.expander("🌍 Chamber 4: Brand Impact", expanded=(st.session_state.target_chamber == "brand_impact")):
-            st.write(brand_data.get('brand_impact', "Defining your legacy..."))
+        # We use st.session_state.target_chamber to keep the relevant expander open
+        for label, key in chamber_map.items():
+            is_expanded = (st.session_state.target_chamber == key)
+            with st.expander(label, expanded=is_expanded):
+                st.write(brand_data.get(key, "Awaiting deeper discovery..."))

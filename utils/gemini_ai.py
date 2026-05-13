@@ -1,4 +1,5 @@
 from google import genai
+from google.genai import types
 import os
 import streamlit as st
 from dotenv import load_dotenv
@@ -14,36 +15,55 @@ client = genai.Client(api_key=api_key)
 
 def get_soul_rebel_consultant(user_input, context=""):
     system_instruction = """
-    ou are the 'Soul Rebel' Strategic Consultant, powered by the Godzspeed Methodology. 
+    You are the 'Soul Rebel' Strategic Consultant, powered by the Godzspeed Methodology. 
     You do not build institutions; you unearth Individuals.
     
     CORE FRAMEWORK (The Anatomy of the Brand):
-    1. SOUL (PurpUS): The nucleus and central nervous system. It answers "Why do we exist?" and "Who are we?" It is the transcendental fire that fuels the brand.
-    2. MIND (Identity & Strategy): Where the passion of the Soul meets strategic clarity. It defines the persona, tone, and the roadmap for sharing the Soul with the world.
-    3. BODY (Experience & Impact): The vehicle. It is the physical expression of the brand where the promise is delivered to the community.
+    1. SOUL (PurpUS): The nucleus and central nervous system.
+    2. MIND (Identity & Strategy): Where passion meets clarity.
+    3. BODY (Experience & Impact): The physical expression and legacy.
     
-    THE 4 CHAMBERS OF THE STRATOS CANVAS:
-    - CHAMBER 1: PurpUS (The Soul) -> Focus on authenticity and the 'internal fire'.
-    - CHAMBER 2: Brand Identity (The Mind) -> Focus on the unique fingerprint and persona.
-    - CHAMBER 3: Brand Experience (The Body) -> Focus on community engagement and soulful growth.
-    - CHAMBER 4: Brand Impact (The Legacy) -> Focus on the "Social Footprint" and long-term transformation.
+    THE 4 CHAMBERS:
+    - CHAMBER 1: PurpUS (The Soul)
+    - CHAMBER 2: Brand Identity (The Mind)
+    - CHAMBER 3: Brand Experience (The Body)
+    - CHAMBER 4: Brand Impact (The Legacy)
 
     CONSULTING STYLE:
-    - Humanize the branding process. Make it meaningful and fun.
-    - BE PROACTIVE: Never end a response with a static statement. 
-    - ALWAYS conclude your synthesis with one targeted, deep-diving question that leads the user toward the next Chamber in the Godzspeed Method.
-    - If Chamber 1 (PurpUS) is clear, move the conversation toward Chamber 2 (Identity).
+    - Humanize the branding process. 
+    - BE PROACTIVE: Always conclude with a deep-diving question.
+    - If Chamber 1 is clear, move toward Chamber 2.
     """
-    
-    # Combine instructions, historical context, and new input
-    # We use a structured format to help the model distinguish between instructions and chat
-    full_prompt = f"{system_instruction}\n\n--- CONVERSATION HISTORY ---\n{context}\n\n--- NEW USER INPUT ---\n{user_input}"
-    
+
+    # --- MULTIMODAL HANDSHAKE ---
+    # We build a list of "Parts" for Gemini to process
+    content_parts = [
+        types.Part.from_text(text=f"{system_instruction}\n\n--- CONVERSATION HISTORY ---\n{context}\n\n--- NEW USER INPUT ---")
+    ]
+
+    # Check if user_input is a Streamlit UploadedFile (Audio) or a String
+    if hasattr(user_input, "read"):
+        # Reset file pointer to beginning and read bytes
+        user_input.seek(0)
+        audio_bytes = user_input.read()
+        
+        # Add the audio part
+        content_parts.append(
+            types.Part.from_bytes(
+                data=audio_bytes,
+                mime_type="audio/wav" # Streamlit audio_input records as wav
+            )
+        )
+    else:
+        # Add the text part
+        content_parts.append(types.Part.from_text(text=str(user_input)))
+
     # Generate response 
-    # Note: Using 'gemini-2.5-flash' for speed and high intelligence
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=full_prompt
-    )
-    
-    return response.text
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=content_parts
+        )
+        return response.text
+    except Exception as e:
+        return f"I encountered a soul-searching error: {str(e)}"
