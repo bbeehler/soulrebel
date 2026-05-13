@@ -16,6 +16,10 @@ def run(user_id):
     # 2. State Management for the "Individual"
     if "is_synthesizing" not in st.session_state:
         st.session_state.is_synthesizing = False
+    
+    # 3. Track the target chamber for the current sprint
+    if "target_chamber" not in st.session_state:
+        st.session_state.target_chamber = "purpus_summary"
 
     col1, col2 = st.columns([3, 2])
 
@@ -23,9 +27,25 @@ def run(user_id):
         st.title("🔥 The Soul Sprint")
         st.write("Extracting the essence of your brand Individual.")
         
+        # --- CHAMBER SELECTOR ---
+        # This tells the system where to store the upcoming synthesis
+        chamber_map = {
+            "✨ Chamber 1: PurpUS": "purpus_summary",
+            "🎭 Chamber 2: Brand Identity": "brand_identity",
+            "🌟 Chamber 3: Brand Experience": "brand_experience",
+            "🌍 Chamber 4: Brand Impact": "brand_impact"
+        }
+        
+        selected_label = st.selectbox(
+            "Which part of the Individual are we unearthing?",
+            options=list(chamber_map.keys()),
+            index=0
+        )
+        st.session_state.target_chamber = chamber_map[selected_label]
+
         # Chat History
         if "messages" not in st.session_state:
-            st.session_state.messages = [{"role": "assistant", "content": "The Soul Rebel Consultant is active. Tell me, what is the core 'Why' that keeps your brand's soul burning?"}]
+            st.session_state.messages = [{"role": "assistant", "content": f"The Soul Rebel Consultant is active. We are focusing on {selected_label}. Tell me your thoughts."}]
 
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
@@ -50,16 +70,21 @@ def run(user_id):
             display_text = "🎤 *Voice Memo Submitted*" if audio_input else prompt
             st.session_state.messages.append({"role": "user", "content": display_text})
             
+            # Context for Gemini
             context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
             
             with st.chat_message("assistant"):
-                with st.spinner("Synthesizing your Persona..."):
+                with st.spinner(f"Synthesizing {selected_label}..."):
                     response = get_soul_rebel_consultant(new_input, context)
                     st.markdown(response)
                     st.session_state.messages.append({"role": "assistant", "content": response})
                     
-                    save_brand_data(user_id, response)
-                    st.session_state.brand_soul['purpus_summary'] = response
+                    # SAVE TO THE TARGETED CHAMBER
+                    target_col = st.session_state.target_chamber
+                    save_brand_data(user_id, response, chamber=target_col)
+                    
+                    # Update local state immediately so progress moves
+                    st.session_state.brand_soul[target_col] = response
                     st.session_state.is_synthesizing = False
             
             st.rerun() 
@@ -71,40 +96,38 @@ def run(user_id):
         # Pull current data
         brand_data = st.session_state.get('brand_soul', {})
         
-        # Logic for the "Heartbeat" of the Individual
+        # Logic for progress
+        chambers = ['purpus_summary', 'brand_identity', 'brand_experience', 'brand_impact']
+        filled_count = sum(1 for k in chambers if brand_data.get(k))
+        completion_pct = (filled_count / 4)
+        
+        # Heartbeat logic
         if st.session_state.is_synthesizing:
             st.info("💓 **Status: Soul Extraction in Progress**")
-            st.caption("The Individual is evolving. Gemini is listening to your tone and conviction.")
+            st.caption(f"Analyzing tone and conviction for {selected_label}...")
         else:
-            # Simple progress logic: how many chambers are filled?
-            chambers_filled = sum(1 for k in ['purpus_summary', 'brand_identity', 'brand_experience', 'brand_impact'] if brand_data.get(k))
-            completion_pct = (chambers_filled / 4)
-            
             st.write(f"**Soul Alignment:** {int(completion_pct * 100)}%")
             st.progress(completion_pct)
             
-            if chambers_filled == 0:
-                st.warning("Status: Latent. (Awaiting first extraction)")
-            elif chambers_filled < 4:
+            if filled_count == 0:
+                st.warning("Status: Latent.")
+            elif filled_count < 4:
                 st.success("Status: Awakening.")
             else:
                 st.balloons()
-                st.success("Status: Fully Realized Individual.")
+                st.success("Status: Fully Realized.")
 
         st.write("---")
         st.subheader("📋 Strategy Chambers")
         
-        with st.expander("✨ Chamber 1: PurpUS", expanded=True):
-            if st.session_state.is_synthesizing:
-                st.warning("⚡ Synthesizing 'The Soul'...")
-            else:
-                st.write(brand_data.get('purpus_summary', "Awaiting deeper discovery..."))
+        with st.expander("✨ Chamber 1: PurpUS", expanded=(st.session_state.target_chamber == "purpus_summary")):
+            st.write(brand_data.get('purpus_summary', "Awaiting deeper discovery..."))
             
-        with st.expander("🎭 Chamber 2: Brand Identity"):
+        with st.expander("🎭 Chamber 2: Brand Identity", expanded=(st.session_state.target_chamber == "brand_identity")):
             st.write(brand_data.get('brand_identity', "Defining your Soul Rebel persona..."))
 
-        with st.expander("🌟 Chamber 3: Brand Experience"):
+        with st.expander("🌟 Chamber 3: Brand Experience", expanded=(st.session_state.target_chamber == "brand_experience")):
             st.write(brand_data.get('brand_experience', "Mapping the customer journey..."))
 
-        with st.expander("🌍 Chamber 4: Brand Impact"):
+        with st.expander("🌍 Chamber 4: Brand Impact", expanded=(st.session_state.target_chamber == "brand_impact")):
             st.write(brand_data.get('brand_impact', "Defining your legacy..."))
