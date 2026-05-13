@@ -7,18 +7,22 @@ except Exception as e:
     st.error(f"Error loading backend modules: {e}")
 
 def run(user_id):
-    # 1. Load existing data from Supabase for the specific logged-in user
+    # 1. Load existing data from Supabase
     if "brand_soul" not in st.session_state:
         saved_data = load_brand_data(user_id)
         st.session_state.brand_soul = saved_data if saved_data else {}
 
-    # Layout: 2 Columns (Chat and Live Canvas)
+    # Layout: 2 Columns
     col1, col2 = st.columns([3, 2])
 
     with col1:
         st.title("🔥 The Soul Sprint")
-        st.write("Extracting your brand's foundation...")
+        st.write("Speak or type your brand's foundation...")
         
+        # --- AUDIO INPUT SECTION ---
+        # Allowing the user to answer questions verbally
+        audio_input = st.audio_input("Record your answer (Voice Memo)")
+
         # Chat History Container
         if "messages" not in st.session_state:
             st.session_state.messages = [
@@ -30,27 +34,36 @@ def run(user_id):
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        # Chat Input logic
-        if prompt := st.chat_input("Enter your thoughts..."):
-            st.chat_message("user").markdown(prompt)
-            st.session_state.messages.append({"role": "user", "content": prompt})
+        # LOGIC: Handle either Audio or Text Input
+        prompt = st.chat_input("Or enter your thoughts here...")
+        
+        # Determine if we have a new input to process
+        new_input = None
+        if audio_input:
+            new_input = audio_input  # Passing the actual audio object to Gemini
+        elif prompt:
+            new_input = prompt
+
+        if new_input:
+            # Display user input in chat
+            display_text = "🎤 *Audio Response Submitted*" if audio_input else prompt
+            st.chat_message("user").markdown(display_text)
+            st.session_state.messages.append({"role": "user", "content": display_text})
 
             # Create context for Gemini
             context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
             
             with st.chat_message("assistant"):
-                with st.spinner("Synthesizing..."):
-                    # Call AI with current prompt and conversation history
-                    response = get_soul_rebel_consultant(prompt, context)
+                with st.spinner("Listening and Synthesizing..."):
+                    # Gemini 2.0 Flash handles both text and audio natively
+                    response = get_soul_rebel_consultant(new_input, context)
                     st.markdown(response)
                     st.session_state.messages.append({"role": "assistant", "content": response})
                     
-                    # SAVE TO SUPABASE:
-                    # Note: For now, we save AI responses to purpus_summary. 
-                    # Later we will add logic to route responses to specific chambers.
+                    # SAVE TO SUPABASE
                     save_brand_data(user_id, response)
                     
-                    # Update local state so the Canvas (Column 2) refreshes immediately
+                    # Update local state for Column 2
                     if not st.session_state.brand_soul:
                         st.session_state.brand_soul = {}
                     st.session_state.brand_soul['purpus_summary'] = response
@@ -61,7 +74,6 @@ def run(user_id):
         st.subheader("📋 Live Strategy Canvas")
         st.info("Insights stored in your Godzspeed Cloud:")
         
-        # Pull data from the local session state (synced with Supabase)
         brand_data = st.session_state.get('brand_soul', {})
         
         with st.expander("✨ Chamber 1: PurpUS", expanded=True):
@@ -73,6 +85,5 @@ def run(user_id):
         with st.expander("🌟 Chamber 3: Brand Experience"):
             st.write(brand_data.get('brand_experience', "Mapping the customer journey..."))
 
-        # ADDED CHAMBER 4: BRAND IMPACT
         with st.expander("🌍 Chamber 4: Brand Impact"):
             st.write(brand_data.get('brand_impact', "Defining your legacy and global footprint..."))
