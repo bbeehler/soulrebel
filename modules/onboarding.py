@@ -22,20 +22,28 @@ def run():
         submitted = st.form_submit_button("Initialize StratOS")
         
         if submitted:
-            # Save to Supabase 'profiles' table
+            # Prepare data for Supabase
             profile_data = {
-                "user_id": "Brian", # We'll keep this hardcoded for now until we add Auth
+                "user_id": "Brian", # Unique ID for session tracking
                 "full_name": full_name,
                 "email": email,
                 "company_name": company,
                 "industry": industry,
                 "business_stage": stage
             }
+            
             try:
+                # Save to Supabase 'profiles' table
                 supabase.table("profiles").upsert(profile_data, on_conflict="user_id").execute()
+                
+                # Update Session State to flip the 'onboarded' gate
+                st.session_state.onboarded = True
+                
                 st.success("Foundation established! You are ready for the Soul Sprint.")
                 st.balloons()
-                # Store in session so we can bypass this screen next time
-                st.session_state.onboarded = True
+                
+                # Force a rerun to show the sidebar menu immediately
+                st.rerun()
+                
             except Exception as e:
                 st.error(f"Error saving profile: {e}")
