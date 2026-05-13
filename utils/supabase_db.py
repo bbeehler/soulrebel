@@ -16,16 +16,22 @@ if url and key:
 else:
     supabase = None
 
-def save_brand_data(user_id, purpus_text):
-    """Saves or updates the PurpUS summary for the specific authenticated user."""
+def save_brand_data(user_id, text, chamber="purpus_summary"):
+    """
+    Saves or updates a specific chamber in the brand_strategy table.
+    Defaults to 'purpus_summary' but can now target 'brand_identity', 
+    'brand_experience', or 'brand_impact'.
+    """
     if not supabase:
         return None
     
     data = {
         "user_id": user_id,
-        "purpus_summary": purpus_text
+        chamber: text
     }
+    
     # upsert handles "update if exists, else insert" based on the unique user_id
+    # This is perfect for the Soul Sprint as the AI refines its synthesis.
     return supabase.table("brand_strategy").upsert(data, on_conflict="user_id").execute()
 
 def update_chamber_data(user_id, chamber_column, new_text):
@@ -40,7 +46,7 @@ def update_chamber_data(user_id, chamber_column, new_text):
     return supabase.table("brand_strategy").update(data).eq("user_id", user_id).execute()
 
 def load_brand_data(user_id):
-    """Retrieves the private brand strategy row for the logged-in user."""
+    """Retrieves the full 4-chamber brand strategy row for the logged-in user."""
     if not supabase:
         return None
         

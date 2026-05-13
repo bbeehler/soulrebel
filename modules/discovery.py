@@ -46,7 +46,8 @@ def run(user_id):
                     st.session_state.messages.append({"role": "assistant", "content": response})
                     
                     # SAVE TO SUPABASE:
-                    # Persist the AI synthesis to the specific user's strategy row
+                    # Note: For now, we save AI responses to purpus_summary. 
+                    # Later we will add logic to route responses to specific chambers.
                     save_brand_data(user_id, response)
                     
                     # Update local state so the Canvas (Column 2) refreshes immediately
@@ -64,11 +65,14 @@ def run(user_id):
         brand_data = st.session_state.get('brand_soul', {})
         
         with st.expander("✨ Chamber 1: PurpUS", expanded=True):
-            purpus_text = brand_data.get('purpus_summary', "Awaiting deeper discovery...")
-            st.write(purpus_text)
+            st.write(brand_data.get('purpus_summary', "Awaiting deeper discovery..."))
             
         with st.expander("🎭 Chamber 2: Brand Identity"):
             st.write(brand_data.get('brand_identity', "Defining your Soul Rebel persona..."))
 
         with st.expander("🌟 Chamber 3: Brand Experience"):
-            st.write("Mapping the customer journey...")
+            st.write(brand_data.get('brand_experience', "Mapping the customer journey..."))
+
+        # ADDED CHAMBER 4: BRAND IMPACT
+        with st.expander("🌍 Chamber 4: Brand Impact"):
+            st.write(brand_data.get('brand_impact', "Defining your legacy and global footprint..."))
