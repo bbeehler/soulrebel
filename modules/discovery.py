@@ -19,7 +19,6 @@ def run(user_id):
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # CLEAN LABELS: Keeps the UI elegant while mapping to DB columns
     chamber_map = {
         "✨ Soul (PurpUS)": "purpus_summary",
         "🎭 Mind (Identity)": "brand_identity",
@@ -74,7 +73,7 @@ def run(user_id):
         brand_data = st.session_state.get('brand_soul', {})
         if all(brand_data.get(k) for k in chamber_sequence):
             st.success("🎉 **Foundation Complete.**")
-            if st.button("✨ Proceed to Soul Illumination"):
+            if st.button("✨ Proceed to Soul Illumination", use_container_width=True):
                 st.session_state.target_page = "2. ✨ The Soul Guide"
                 st.rerun()
 
@@ -95,7 +94,6 @@ def run(user_id):
                     current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == new_target])
                     full_response = get_soul_rebel_consultant(prompt, methodology + current_context + instruction)
 
-                    # Simple Split
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
                         chat_part = parts[0].strip()
@@ -121,7 +119,38 @@ def run(user_id):
 
         st.write("---")
         st.subheader("📋 Documented Vision")
+        
+        # RESTORED: Manual Edit Toggle
+        edit_mode = st.toggle("🛠️ Enable Manual Edit Mode")
+
         for label, key in chamber_map.items():
-            with st.expander(label, expanded=(current_chamber_key == key)):
+            is_expanded = (current_chamber_key == key)
+            with st.expander(label, expanded=is_expanded):
                 content = brand_data.get(key, "")
-                st.markdown(content if content else "*Awaiting Soul Audit...*")
+                
+                if edit_mode:
+                    # Dynamic widget key to allow reset
+                    dk = f"widget_{key}_{st.session_state.widget_seeds[key]}"
+                    new_val = st.text_area(f"Refine {label}:", value=content, height=200, key=dk)
+                    
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        if st.button(f"💾 Save {label}", key=f"save_{key}"):
+                            st.session_state.brand_soul[key] = new_val
+                            save_brand_data(user_id, new_val, chamber=key)
+                            st.success("Updated.")
+                            time.sleep(0.5)
+                            st.rerun()
+                    with c2:
+                        if st.button(f"🗑️ Clear {label}", key=f"clear_{key}"):
+                            st.session_state.brand_soul[key] = ""
+                            save_brand_data(user_id, "", chamber=key)
+                            # Purge messages for this chamber to restart conversation
+                            st.session_state.messages = [m for m in st.session_state.messages if m.get("chamber") != key]
+                            st.session_state.widget_seeds[key] += 1
+                            st.rerun()
+                else:
+                    if content:
+                        st.markdown(content)
+                    else:
+                        st.caption("Awaiting Soul Audit...")
