@@ -98,7 +98,7 @@ def main():
         if st.session_state.current_nav == "1. The Soul Sprint":
             discovery.run(user_id)
 
-        elif st.session_state.current_nav == "2. ✨ The Soul Guide":
+        elif st.session_state.current_nav == "2. The Soul Guide":
             illumination.run(user_id)
             
         elif st.session_state.current_nav == "3. Brand Guardian":
