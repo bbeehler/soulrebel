@@ -1,76 +1,89 @@
 import streamlit as st
 import time
 from utils.gemini_ai import get_soul_rebel_consultant
-from utils.supabase_db import save_brand_data
+from utils.supabase_db import save_brand_data, load_brand_data
 
 def run(user_id):
     st.title("✨ The Soul Guide")
     st.write("---")
 
-    # 1. Access the unearthed data
+    # 1. Check for existing Soul Guide in Session State or DB
+    if "final_soul_guide" not in st.session_state:
+        db_data = load_brand_data(user_id)
+        # Pulling specifically from the new column in brand_strategy
+        st.session_state.final_soul_guide = db_data.get("soul_guide", "") if db_data else ""
+
     brand_data = st.session_state.get('brand_soul', {})
     
-    # 2. Validation Gate
+    # 2. Requirements Check
     chambers = ["purpus_summary", "brand_identity", "brand_experience", "brand_impact"]
-    missing = [label for label, key in [
-        ("PurpUS", "purpus_summary"), 
-        ("Identity", "brand_identity"), 
-        ("Experience", "brand_experience"), 
-        ("Impact", "brand_impact")
-    ] if not brand_data.get(key)]
+    missing = [k for k in chambers if not brand_data.get(k)]
 
-    if missing:
-        st.warning(f"The Individual is not yet fully formed. Please complete the following chambers in the Soul Sprint: {', '.join(missing)}")
-        if st.button("Return to the Sprint"):
-            st.session_state.page = "discovery" # If using page state
-            st.rerun()
+    if missing and not st.session_state.final_soul_guide:
+        st.warning("The Individual is not yet fully formed. Please complete the Soul Sprint chambers first.")
         return
 
-    # 3. The Illumination Interface
-    col1, col2 = st.columns([2, 1])
-
-    with col2:
-        st.info("### The Godzspeed Framework\nWe are now fusing your Soul, Mind, and Body into a single Strategic Individual.")
-        
-
-    with col1:
+    # 3. GENERATION INTERFACE
+    if not st.session_state.final_soul_guide:
+        st.info("The four chambers are aligned. The Individual is ready for Illumination.")
         if st.button("🔥 Illuminate the Soul Guide", use_container_width=True):
-            with st.spinner("Synthesizing the Brand Individual..."):
-                
-                # The "Master Weaver" Prompt
+            with st.spinner("Weaving the Soul, Mind, and Body..."):
+                # Master Synthesis Prompt
                 illumination_prompt = f"""
-                You are the Soul Rebel Consultant. You have extracted four core chambers of a brand.
-                Now, synthesize them into a formal 'Soul Guide' using the Godzspeed methodology.
+                You are the Soul Rebel Consultant. Synthesize a Godzspeed Soul Guide based on:
                 
-                DATA INPUTS:
-                - SOUL (The Fire): {brand_data.get('purpus_summary')}
-                - MIND (The Persona): {brand_data.get('brand_identity')}
-                - BODY (The Ritual): {brand_data.get('brand_experience')}
-                - BODY (The Legacy): {brand_data.get('brand_impact')}
+                SOUL (PurpUS): {brand_data.get('purpus_summary')}
+                MIND (Identity): {brand_data.get('brand_identity')}
+                BODY (Experience): {brand_data.get('brand_experience')}
+                BODY (Impact): {brand_data.get('brand_impact')}
                 
-                STRUCTURE YOUR RESPONSE:
-                1. THE BIG IDEA: A singular, visceral hook that defines this brand's existence.
-                2. THE SOUL: Define the transcendental 'Why' and the internal fire.
-                3. THE MIND: Define the Strategic Persona—how the Soul thinks and speaks.
-                4. THE BODY: Define the Brand Ritual (Experience) and the ultimate Social Footprint (Impact).
+                Deliver a cohesive strategic narrative including:
+                - THE BIG IDEA
+                - THE SOUL (Why/Fire)
+                - THE MIND (Persona/Voice)
+                - THE BODY (Ritual/Legacy)
                 """
                 
-                final_guide = get_soul_rebel_consultant("Illuminate my Soul Guide.", illumination_prompt)
-                st.session_state.soul_guide_content = final_guide
+                guide_content = get_soul_rebel_consultant("Illuminate my Soul Guide.", illumination_prompt)
                 
-                # Optional: Save this synthesis back to Supabase in a dedicated 'soul_guide' column
-                # save_brand_data(user_id, final_guide, chamber="soul_guide")
+                # Persist to Session State and Database
+                st.session_state.final_soul_guide = guide_content
+                save_brand_data(user_id, guide_content, chamber="soul_guide")
+                st.rerun()
 
-        if "soul_guide_content" in st.session_state:
-            st.markdown("### 📜 Your Illuminated Soul Guide")
-            st.write("---")
-            st.markdown(st.session_state.soul_guide_content)
-            
-            st.write("---")
-            c1, c2 = st.columns(2)
-            with c1:
-                st.button("📄 Export to PDF (Coming Soon)")
-            with c2:
-                if st.button("🔄 Re-Illuminate"):
-                    del st.session_state.soul_guide_content
+    # 4. THE MASTER DOCUMENT WORKSPACE
+    else:
+        st.subheader("📜 Master Strategy Document")
+        
+        # This text area allows the user to refine the AI's output
+        edited_guide = st.text_area(
+            "Final Soul Guide Content:", 
+            value=st.session_state.final_soul_guide, 
+            height=600,
+            key="soul_guide_editor"
+        )
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("💾 Save to Profile", use_container_width=True):
+                st.session_state.final_soul_guide = edited_guide
+                save_brand_data(user_id, edited_guide, chamber="soul_guide")
+                st.success("Strategy Saved.")
+        
+        with col2:
+            if st.button("📄 Prepare PDF", use_container_width=True):
+                st.toast("PDF Export logic warming up...")
+        
+        with col3:
+            if st.button("🗑️ Reset Guide", use_container_width=True):
+                # Using a session state flag for confirmation is safer
+                st.session_state.confirm_reset = True
+                
+            if st.session_state.get("confirm_reset"):
+                st.warning("This will delete the synthesized guide. Are you sure?")
+                if st.button("Yes, Clear Master Guide"):
+                    st.session_state.final_soul_guide = ""
+                    save_brand_data(user_id, "", chamber="soul_guide")
+                    st.session_state.confirm_reset = False
                     st.rerun()

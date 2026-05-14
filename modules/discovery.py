@@ -39,42 +39,43 @@ def run(user_id):
     with col1:
         st.title("🔥 The Soul Sprint")
         
-        # Track dropdown state
+        # --- DYNAMIC SELECTOR ---
         current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
+        chamber_labels = list(chamber_map.keys())
         chamber_keys = list(chamber_map.values())
         current_idx = chamber_keys.index(current_chamber_key) if current_chamber_key in chamber_keys else 0
 
-        selected_label = st.selectbox("Current Extraction Focus:", options=list(chamber_map.keys()), index=current_idx)
+        selected_label = st.selectbox("Current Extraction Focus:", options=chamber_labels, index=current_idx)
         new_target = chamber_map[selected_label]
 
-        # Sync target chamber
+        # Sync target chamber state
         if st.session_state.get("target_chamber") != new_target:
             st.session_state.target_chamber = new_target
             st.rerun()
 
-        # Ensure the opening prompt exists
+        # Ensure opening prompt exists for the current chamber
         chamber_has_messages = any(m.get("chamber") == new_target for m in st.session_state.messages)
         if not chamber_has_messages:
             st.session_state.messages.append({"role": "assistant", "content": chamber_prompts[new_target], "chamber": new_target})
 
-        # Filtered Chat
+        # --- CHAT DISPLAY ---
         active_messages = [m for m in st.session_state.messages if m.get("chamber") == new_target]
         for i, message in enumerate(active_messages):
+            # Suppress initial greeting once the conversation goes deep
             if i == 0 and len(active_messages) > 3: continue
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        # Check for Sprint Completion
+        # Check for Sprint Completion (all 4 fields populated)
         brand_data = st.session_state.get('brand_soul', {})
-        is_complete = all(brand_data.get(k) for k in chamber_sequence)
+        is_sprint_finished = all(brand_data.get(k) for k in chamber_sequence)
 
-        if is_complete:
-            st.success("🎉 **The Soul Sprint is complete!** Your Brand Individual has been unearthed.")
-            if st.button("✨ Proceed to Soul Illumination", use_container_width=True):
-                # This matches the label in your main.py sidebar radio
-                st.info("Navigating to your Soul Guide...")
-                time.sleep(1)
-                st.rerun() # In main.py, the user will now manually select or we can automate page state if added
+        if is_sprint_finished:
+            st.success("🎉 **The Soul Sprint is complete!**")
+            st.info("Your brand anatomy has been unearthed. Ready for Illumination.")
+            st.markdown("### ➡️ Select **'2. ✨ The Soul Guide'** in the sidebar to begin.")
+            if st.button("Celebrate Completion"):
+                st.balloons()
 
         # --- INPUT HANDLING ---
         st.write("---")
@@ -95,18 +96,19 @@ def run(user_id):
             
             with st.chat_message("assistant"):
                 with st.spinner("Synthesizing Strategy..."):
+                    # Calculate next step in the sequence
                     next_idx = chamber_sequence.index(new_target) + 1
                     next_chamber_key = chamber_sequence[next_idx] if next_idx < len(chamber_sequence) else "COMPLETE"
                     
                     instruction = (
-                        f"Provide a reflection. Provide formal strategy inside [STRATEGY] tags. "
+                        f"Provide a warm reflection. Provide formal strategy inside [STRATEGY] tags. "
                         f"If complete, add [MOVE_TO_CHAMBER:{next_chamber_key}] at the end."
                     )
                     
                     current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == new_target])
                     full_response = get_soul_rebel_consultant(user_input_content, current_context + f"\n\n{instruction}")
 
-                    # --- CLEANING & PARSING ---
+                    # 1. Extract Strategy Content
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
                         chat_part = parts[0].strip()
@@ -114,9 +116,11 @@ def run(user_id):
                     else:
                         chat_part, strategy_part = full_response, full_response
 
+                    # 2. Handle Transition Tags
                     if "[MOVE_TO_CHAMBER:" in chat_part:
                         move_tag = chat_part.split("[MOVE_TO_CHAMBER:")[1].split("]")[0]
                         chat_part = chat_part.split("[MOVE_TO_CHAMBER:")[0].strip()
+                        
                         if move_tag != "COMPLETE":
                             st.session_state.target_chamber = move_tag
                             st.session_state.messages.append({
@@ -127,8 +131,10 @@ def run(user_id):
                         else:
                             st.balloons()
 
+                    # 3. Clean and Sanitize display text
                     clean_chat = chat_part.replace("[STRATEGY]", "").replace("[/STRATEGY]", "").replace("[DOC]", "").replace("[/DOC]", "").strip()
 
+                    # 4. Update State and Database
                     st.session_state.messages.append({"role": "assistant", "content": clean_chat, "chamber": new_target})
                     st.session_state.brand_soul[new_target] = strategy_part
                     save_brand_data(user_id, strategy_part, chamber=new_target)
@@ -137,18 +143,23 @@ def run(user_id):
 
     with col2:
         st.subheader("👤 Brand Individual: Vital Signs")
+        brand_data = st.session_state.get('brand_soul', {})
         filled = sum(1 for k in chamber_sequence if brand_data.get(k))
-        st.progress(filled/4)
+        progress = filled / 4
+        st.write(f"**Soul Alignment:** {int(progress * 100)}%")
+        st.progress(progress)
 
         st.write("---")
         st.subheader("📋 Strategy Chambers")
         edit_mode = st.toggle("🛠️ Enable Manual Edit Mode")
 
         for label, key in chamber_map.items():
+            # Auto-expand the chamber currently being discussed
             is_expanded = (st.session_state.get("target_chamber") == key)
             with st.expander(label, expanded=is_expanded):
                 content = brand_data.get(key, "")
                 if edit_mode:
+                    # Dynamic widget key ensures text area clears on 'Clear'
                     dk = f"widget_{key}_{st.session_state.widget_seeds[key]}"
                     new_val = st.text_area(f"Refine {label}:", value=content, height=200, key=dk)
                     c1, c2 = st.columns(2)
@@ -156,13 +167,19 @@ def run(user_id):
                         if st.button(f"💾 Update {label}", key=f"s_{key}"):
                             st.session_state.brand_soul[key] = new_val
                             save_brand_data(user_id, new_val, chamber=key)
+                            st.success("Updated.")
+                            time.sleep(0.5)
                             st.rerun()
                     with c2:
                         if st.button(f"🗑️ Clear {label}", key=f"d_{key}"):
                             st.session_state.brand_soul[key] = ""
                             save_brand_data(user_id, "", chamber=key)
+                            # Purge specific chat history for this chamber
                             st.session_state.messages = [m for m in st.session_state.messages if m.get("chamber") != key]
                             st.session_state.widget_seeds[key] += 1
                             st.rerun()
                 else:
-                    st.markdown(content if content else "Awaiting discovery...")
+                    if content:
+                        st.markdown(content)
+                    else:
+                        st.caption("Awaiting discovery...")
