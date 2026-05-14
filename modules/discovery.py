@@ -13,7 +13,15 @@ def run(user_id):
         saved_data = load_brand_data(user_id)
         st.session_state.brand_soul = saved_data if saved_data else {}
     
-    # 2. State Management for UI and Processing
+    # 2. Initialize Version History & State
+    if "chamber_history" not in st.session_state:
+        st.session_state.chamber_history = {
+            "purpus_summary": [],
+            "brand_identity": [],
+            "brand_experience": [],
+            "brand_impact": []
+        }
+    
     if "is_synthesizing" not in st.session_state:
         st.session_state.is_synthesizing = False
     
@@ -45,18 +53,17 @@ def run(user_id):
         )
         new_target = chamber_map[selected_label]
 
-        # Initialize messages if empty
         if "messages" not in st.session_state:
             st.session_state.messages = []
 
-        # Trigger opening question if chamber changes or is new
+        # Trigger opening question if chamber changes
         if st.session_state.get("target_chamber") != new_target:
             st.session_state.target_chamber = new_target
             opening_q = chamber_prompts[new_target]
             st.session_state.messages.append({"role": "assistant", "content": opening_q})
             st.rerun()
 
-        # Display Chat History (Skipping the very first message once conversation flows)
+        # Display Chat History (Suppresses welcome message after conversation starts)
         for i, message in enumerate(st.session_state.messages):
             if i == 0 and len(st.session_state.messages) > 3:
                 continue
@@ -86,7 +93,6 @@ def run(user_id):
             
             with st.chat_message("assistant"):
                 with st.spinner(f"Synthesizing Strategy for {selected_label}..."):
-                    # Command ensures the output is formatted for extraction
                     strategic_instruction = (
                         f"\n\n--- INSTRUCTION ---\n"
                         f"1. Provide a warm conversational reflection.\n"
@@ -108,8 +114,13 @@ def run(user_id):
                     st.markdown(chat_part)
                     st.session_state.messages.append({"role": "assistant", "content": chat_part})
                     
-                    # Persist Polished Result
+                    # Store current version in history before updating
                     target_col = st.session_state.target_chamber
+                    old_content = st.session_state.brand_soul.get(target_col, "")
+                    if old_content:
+                        st.session_state.chamber_history[target_col].append(old_content)
+                    
+                    # Persist Polished Result
                     save_brand_data(user_id, strategy_part, chamber=target_col)
                     st.session_state.brand_soul[target_col] = strategy_part
                     
@@ -120,9 +131,7 @@ def run(user_id):
         st.subheader("👤 Brand Individual: Vital Signs")
         brand_data = st.session_state.get('brand_soul', {})
         
-        # Calculate Progress
-        chambers = list(chamber_map.values())
-        filled = sum(1 for k in chambers if brand_data.get(k))
+        filled = sum(1 for k in chamber_map.values() if brand_data.get(k))
         progress = filled / 4
 
         if st.session_state.is_synthesizing:
@@ -134,7 +143,44 @@ def run(user_id):
         st.write("---")
         st.subheader("📋 Strategy Chambers")
         
+        edit_mode = st.toggle("🛠️ Enable Manual Edit Mode")
+
         for label, key in chamber_map.items():
             is_expanded = (st.session_state.target_chamber == key)
             with st.expander(label, expanded=is_expanded):
-                st.markdown(brand_data.get(key, "Awaiting deeper discovery..."))
+                current_content = brand_data.get(key, "")
+
+                if edit_mode:
+                    # History Reversion UI
+                    history = st.session_state.chamber_history.get(key, [])
+                    if history:
+                        with st.popover("🕒 Version History"):
+                            for idx, old_ver in enumerate(reversed(history)):
+                                if st.button(f"Restore Version {len(history)-idx}", key=f"rev_{key}_{idx}"):
+                                    save_brand_data(user_id, old_ver, chamber=key)
+                                    st.session_state.brand_soul[key] = old_ver
+                                    st.rerun()
+
+                    # Editing UI
+                    new_content = st.text_area(f"Refine {label}:", value=current_content, height=200, key=f"edit_{key}")
+                    
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        if st.button(f"💾 Update {label}", key=f"save_{key}"):
+                            # Add to history before updating
+                            if current_content:
+                                st.session_state.chamber_history[key].append(current_content)
+                            save_brand_data(user_id, new_content, chamber=key)
+                            st.session_state.brand_soul[key] = new_content
+                            st.success("Updated.")
+                            st.rerun()
+                    with c2:
+                        if st.button(f"🗑️ Clear {label}", key=f"delete_{key}"):
+                            save_brand_data(user_id, "", chamber=key)
+                            st.session_state.brand_soul[key] = ""
+                            st.rerun()
+                else:
+                    if current_content:
+                        st.markdown(current_content)
+                    else:
+                        st.caption("Awaiting discovery...")
