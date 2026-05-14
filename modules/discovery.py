@@ -13,7 +13,6 @@ def run(user_id):
         saved_data = load_brand_data(user_id)
         st.session_state.brand_soul = saved_data if saved_data else {}
     
-    # Initialize widget seeds to force-clear text areas
     if "widget_seeds" not in st.session_state:
         st.session_state.widget_seeds = {
             "purpus_summary": 0, "brand_identity": 0, 
@@ -30,7 +29,6 @@ def run(user_id):
         "🌍 Chamber 4: Brand Impact": "brand_impact"
     }
     
-    # Reversed map to help the AI move to the "Next" key
     chamber_sequence = ["purpus_summary", "brand_identity", "brand_experience", "brand_impact"]
 
     chamber_prompts = {
@@ -45,7 +43,6 @@ def run(user_id):
     with col1:
         st.title("🔥 The Soul Sprint")
         
-        # Determine current index for the selectbox based on session state
         current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
         chamber_labels = list(chamber_map.keys())
         chamber_keys = list(chamber_map.values())
@@ -57,7 +54,7 @@ def run(user_id):
         if "messages" not in st.session_state:
             st.session_state.messages = []
 
-        # TRIGGER: Switch chamber logic
+        # TRIGGER: Manual selection switch
         if st.session_state.get("target_chamber") != new_target:
             st.session_state.target_chamber = new_target
             chamber_has_messages = any(m.get("chamber") == new_target for m in st.session_state.messages)
@@ -101,21 +98,18 @@ def run(user_id):
             
             with st.chat_message("assistant"):
                 with st.spinner(f"Synthesizing Strategy..."):
-                    # Finding the next chamber in the sequence
                     next_idx = chamber_sequence.index(new_target) + 1
-                    next_chamber_name = chamber_sequence[next_idx] if next_idx < len(chamber_sequence) else "COMPLETE"
+                    next_chamber_key = chamber_sequence[next_idx] if next_idx < len(chamber_sequence) else "COMPLETE"
                     
                     strategic_instruction = (
                         f"\n\n--- INSTRUCTION ---\n"
                         f"1. Provide a warm reflection.\n"
                         f"2. Provide formal strategy wrapped in [STRATEGY] tags.\n"
-                        f"3. EVALUATE: If the strategy is complete, provide the instruction [MOVE_TO_CHAMBER:{next_chamber_name}] at the very end of your response."
-                        f"If it needs more depth, ask one targeted follow-up question instead."
+                        f"3. EVALUATE: If the strategy is complete, provide the instruction [MOVE_TO_CHAMBER:{next_chamber_key}] at the end."
                     )
                     
                     full_response = get_soul_rebel_consultant(new_input, context + strategic_instruction)
                     
-                    # Extraction Logic
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
                         chat_part = parts[0].strip()
@@ -123,19 +117,26 @@ def run(user_id):
                     else:
                         chat_part, strategy_part = full_response, full_response
 
-                    # Automatic Transition Logic
-                    if "[MOVE_TO_CHAMBER:" in full_response:
-                        target_next = full_response.split("[MOVE_TO_CHAMBER:")[1].split("]")[0]
-                        if target_next != "COMPLETE":
-                            st.session_state.target_chamber = target_next
-                            # Clean the trigger from the UI text
-                            chat_part = chat_part.replace(f"[MOVE_TO_CHAMBER:{target_next}]", "✅ Chamber Complete. Transitioning...")
-
-                    st.markdown(chat_part)
+                    # Tag assistant response for CURRENT chamber before moving
                     st.session_state.messages.append({"role": "assistant", "content": chat_part, "chamber": new_target})
                     
+                    # PERSIST CURRENT
                     save_brand_data(user_id, strategy_part, chamber=new_target)
                     st.session_state.brand_soul[new_target] = strategy_part
+
+                    # AUTOMATIC TRANSITION ENHANCEMENT
+                    if f"[MOVE_TO_CHAMBER:{next_chamber_key}]" in full_response and next_chamber_key != "COMPLETE":
+                        # 1. Update the state to the next chamber
+                        st.session_state.target_chamber = next_chamber_key
+                        
+                        # 2. MANUALLY INJECT the next question immediately
+                        next_q = chamber_prompts[next_chamber_key]
+                        st.session_state.messages.append({
+                            "role": "assistant", 
+                            "content": f"✅ **Chamber Complete.**\n\n{next_q}", 
+                            "chamber": next_chamber_key
+                        })
+                        
                     st.session_state.is_synthesizing = False
             st.rerun() 
 
@@ -154,7 +155,6 @@ def run(user_id):
             is_expanded = (st.session_state.target_chamber == key)
             with st.expander(label, expanded=is_expanded):
                 current_content = brand_data.get(key, "")
-
                 if edit_mode:
                     dynamic_key = f"widget_{key}_{st.session_state.widget_seeds[key]}"
                     new_content = st.text_area(f"Refine {label}:", value=current_content, height=200, key=dynamic_key)
@@ -170,11 +170,6 @@ def run(user_id):
                             save_brand_data(user_id, "", chamber=key)
                             st.session_state.messages = [m for m in st.session_state.messages if m.get("chamber") != key]
                             st.session_state.widget_seeds[key] += 1
-                            st.warning(f"{label} & Thread Cleared.")
-                            time.sleep(0.5)
                             st.rerun()
                 else:
-                    if current_content:
-                        st.markdown(current_content)
-                    else:
-                        st.caption("Awaiting discovery...")
+                    st.markdown(current_content if current_content else "Awaiting discovery...")
