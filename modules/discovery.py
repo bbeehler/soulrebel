@@ -109,7 +109,6 @@ def run(user_id):
                     
                     full_response = get_soul_rebel_consultant(new_input, context + strategic_instruction)
                     
-                    # Extraction Logic
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
                         chat_part = parts[0].strip()
@@ -121,7 +120,6 @@ def run(user_id):
                     st.markdown(chat_part)
                     st.session_state.messages.append({"role": "assistant", "content": chat_part, "chamber": new_target})
                     
-                    # Persist Result
                     target_col = st.session_state.target_chamber
                     save_brand_data(user_id, strategy_part, chamber=target_col)
                     st.session_state.brand_soul[target_col] = strategy_part
@@ -152,6 +150,7 @@ def run(user_id):
                 current_content = brand_data.get(key, "")
 
                 if edit_mode:
+                    # Version History
                     history = st.session_state.chamber_history.get(key, [])
                     if history:
                         with st.popover("🕒 Version History"):
@@ -161,33 +160,29 @@ def run(user_id):
                                     save_brand_data(user_id, old_ver, chamber=key)
                                     st.rerun()
 
-                    new_content = st.text_area(f"Refine {label}:", value=current_content, height=200, key=f"edit_{key}")
+                    # Editing UI - Using 'value' to bind to state safely
+                    new_content = st.text_area(
+                        f"Refine {label}:", 
+                        value=current_content, 
+                        height=200, 
+                        key=f"widget_{key}"
+                    )
                     
                     c1, c2 = st.columns(2)
                     with c1:
                         if st.button(f"💾 Update {label}", key=f"save_{key}"):
-                            # Instant UI Update
                             st.session_state.brand_soul[key] = new_content
                             if current_content:
                                 st.session_state.chamber_history[key].append(current_content)
-                            
-                            # Backend Persist
                             save_brand_data(user_id, new_content, chamber=key)
                             st.success("Updated.")
                             time.sleep(0.5)
                             st.rerun()
                     with c2:
                         if st.button(f"🗑️ Clear {label}", key=f"delete_{key}"):
-                            # 1. Clear the local state that feeds the expander
+                            # We reset the source of truth; the 'value' param above handles the UI wipe
                             st.session_state.brand_soul[key] = ""
-                            
-                            # 2. CLEAR THE WIDGET VALUE (The text box itself)
-                            if f"edit_{key}" in st.session_state:
-                                st.session_state[f"edit_{key}"] = ""
-                            
-                            # 3. Persist the wipe to the database
                             save_brand_data(user_id, "", chamber=key)
-                            
                             st.warning(f"{label} Cleared.")
                             time.sleep(0.4)
                             st.rerun()
