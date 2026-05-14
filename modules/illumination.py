@@ -26,7 +26,7 @@ def generate_pdf(content):
     return bytes(pdf.output())
 
 def run(user_id):
-    st.title("✨ Phase 03: Illumination")
+    st.title("✨ Illumination")
     st.caption("The Soul Guide: The ultimate reference, resource, and authority for your brand’s identity.")
     st.write("---")
     
@@ -43,7 +43,7 @@ def run(user_id):
         st.info("The Soul Guide requires a solidified foundation. Please complete your Soul Audit.")
         for key in missing_chambers:
             st.write(f"- {key.replace('_', ' ').title()}")
-        if st.button("⬅️ Return to Phase 02: Foundation", use_container_width=True):
+        if st.button("⬅️ Return to The Soul Sprint", use_container_width=True):
             st.session_state.target_page = "1. The Soul Sprint"
             st.rerun()
         return
