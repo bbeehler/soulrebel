@@ -8,19 +8,16 @@ except Exception as e:
     st.error(f"Error loading backend modules: {e}")
 
 def run(user_id):
-    # 1. Load existing data
+    # 1. Load data & Initialize State
     if "brand_soul" not in st.session_state:
         saved_data = load_brand_data(user_id)
         st.session_state.brand_soul = saved_data if saved_data else {}
     
     if "widget_seeds" not in st.session_state:
-        st.session_state.widget_seeds = {
-            "purpus_summary": 0, "brand_identity": 0, 
-            "brand_experience": 0, "brand_impact": 0
-        }
+        st.session_state.widget_seeds = {k: 0 for k in ["purpus_summary", "brand_identity", "brand_experience", "brand_impact"]}
     
-    if "is_synthesizing" not in st.session_state:
-        st.session_state.is_synthesizing = False
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
     chamber_map = {
         "✨ Chamber 1: PurpUS": "purpus_summary",
@@ -30,7 +27,6 @@ def run(user_id):
     }
     
     chamber_sequence = ["purpus_summary", "brand_identity", "brand_experience", "brand_impact"]
-
     chamber_prompts = {
         "purpus_summary": "We are entering the Nucleus. Forget what you sell—Why must this brand exist? What is the 'internal fire' that fuels you?",
         "brand_identity": "Let's define the Individual. If your brand walked into a room, what is the 'vibe' it projects? Describe its unique persona.",
@@ -43,78 +39,65 @@ def run(user_id):
     with col1:
         st.title("🔥 The Soul Sprint")
         
-        # --- DYNAMIC SELECTOR LOGIC ---
+        # Track dropdown state
         current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
-        chamber_labels = list(chamber_map.keys())
         chamber_keys = list(chamber_map.values())
-        
-        # Ensure we don't crash if state is out of sync
         current_idx = chamber_keys.index(current_chamber_key) if current_chamber_key in chamber_keys else 0
 
-        selected_label = st.selectbox("Current Extraction Focus:", options=chamber_labels, index=current_idx)
+        selected_label = st.selectbox("Current Extraction Focus:", options=list(chamber_map.keys()), index=current_idx)
         new_target = chamber_map[selected_label]
 
-        if "messages" not in st.session_state:
-            st.session_state.messages = []
-
-        # TRIGGER: Manual selection switch via dropdown
+        # Auto-trigger first question if chamber is empty
         if st.session_state.get("target_chamber") != new_target:
             st.session_state.target_chamber = new_target
-            chamber_has_messages = any(m.get("chamber") == new_target for m in st.session_state.messages)
-            if not chamber_has_messages:
-                st.session_state.messages.append({
-                    "role": "assistant", 
-                    "content": chamber_prompts[new_target], 
-                    "chamber": new_target
-                })
             st.rerun()
 
-        # --- FILTERED CHAT DISPLAY ---
-        active_messages = [m for m in st.session_state.messages if m.get("chamber") == new_target]
+        # Ensure the opening prompt exists for the current chamber
+        chamber_has_messages = any(m.get("chamber") == new_target for m in st.session_state.messages)
+        if not chamber_has_messages:
+            st.session_state.messages.append({"role": "assistant", "content": chamber_prompts[new_target], "chamber": new_target})
 
+        # Filtered Chat
+        active_messages = [m for m in st.session_state.messages if m.get("chamber") == new_target]
         for i, message in enumerate(active_messages):
-            if i == 0 and len(active_messages) > 3:
-                continue
+            if i == 0 and len(active_messages) > 3: continue
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        # --- INPUT ---
+        # --- INPUT HANDLING ---
         st.write("---")
         audio_input = st.audio_input("🎤 Speak your truth", key="soul_audio_recorder")
         prompt = st.chat_input("Or type your thoughts...")
 
-        new_input = None
+        user_input_content = None
         if audio_input:
             audio_id = hash(f"{audio_input.name}_{audio_input.size}")
             if st.session_state.get("last_audio_id") != audio_id:
-                new_input = audio_input 
+                user_input_content = "🎤 *Voice Memo Submitted*"
                 st.session_state.last_audio_id = audio_id
         elif prompt:
-            new_input = prompt
+            user_input_content = prompt
 
-        if new_input:
-            st.session_state.is_synthesizing = True
-            display_text = "🎤 *Voice Memo Submitted*" if audio_input else prompt
-            st.session_state.messages.append({"role": "user", "content": display_text, "chamber": new_target})
+        if user_input_content:
+            # 1. Add user message to state immediately
+            st.session_state.messages.append({"role": "user", "content": user_input_content, "chamber": new_target})
             
-            context = "\n".join([f"{m['role']}: {m['content']}" for m in active_messages])
-            
+            # 2. Process with AI
             with st.chat_message("assistant"):
-                with st.spinner(f"Synthesizing Strategy..."):
-                    # Calculate the potential next step
+                with st.spinner("Synthesizing Strategy..."):
                     next_idx = chamber_sequence.index(new_target) + 1
                     next_chamber_key = chamber_sequence[next_idx] if next_idx < len(chamber_sequence) else "COMPLETE"
                     
-                    strategic_instruction = (
-                        f"\n\n--- INSTRUCTION ---\n"
-                        f"1. Provide a warm reflection.\n"
-                        f"2. Provide formal strategy wrapped in [STRATEGY] tags.\n"
-                        f"3. EVALUATE: If the strategy is complete, provide the instruction [MOVE_TO_CHAMBER:{next_chamber_key}] at the very end."
+                    instruction = (
+                        f"Provide a warm reflection. Then provide formal strategy wrapped in [STRATEGY] tags. "
+                        f"If the strategy is complete, add [MOVE_TO_CHAMBER:{next_chamber_key}] at the end."
                     )
                     
-                    full_response = get_soul_rebel_consultant(new_input, context + strategic_instruction)
-                    
-                    # Extract strategy content
+                    # Get fresh context
+                    current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == new_target])
+                    full_response = get_soul_rebel_consultant(user_input_content, current_context + f"\n\n{instruction}")
+
+                    # 3. Parse and Save
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
                         chat_part = parts[0].strip()
@@ -122,32 +105,24 @@ def run(user_id):
                     else:
                         chat_part, strategy_part = full_response, full_response
 
-                    # Tag and Save CURRENT
                     st.session_state.messages.append({"role": "assistant", "content": chat_part, "chamber": new_target})
-                    save_brand_data(user_id, strategy_part, chamber=new_target)
                     st.session_state.brand_soul[new_target] = strategy_part
+                    save_brand_data(user_id, strategy_part, chamber=new_target)
 
-                    # --- HARD TRANSITION LOGIC ---
+                    # 4. Handle auto-transition
                     if f"[MOVE_TO_CHAMBER:{next_chamber_key}]" in full_response and next_chamber_key != "COMPLETE":
-                        # Set the global state to the new chamber
                         st.session_state.target_chamber = next_chamber_key
-                        
-                        # Add next prompt to the thread immediately so it shows after rerun
-                        next_q = chamber_prompts[next_chamber_key]
                         st.session_state.messages.append({
                             "role": "assistant", 
-                            "content": f"✅ **Chamber Complete.**\n\n{next_q}", 
+                            "content": f"✅ **Chamber Complete.**\n\n{chamber_prompts[next_chamber_key]}", 
                             "chamber": next_chamber_key
                         })
-                        
-                    st.session_state.is_synthesizing = False
-            st.rerun() 
+            st.rerun()
 
     with col2:
         st.subheader("👤 Brand Individual: Vital Signs")
         brand_data = st.session_state.get('brand_soul', {})
         filled = sum(1 for k in chamber_map.values() if brand_data.get(k))
-        st.write(f"**Soul Alignment:** {int((filled/4) * 100)}%")
         st.progress(filled/4)
 
         st.write("---")
@@ -155,25 +130,24 @@ def run(user_id):
         edit_mode = st.toggle("🛠️ Enable Manual Edit Mode")
 
         for label, key in chamber_map.items():
-            # The expander follows the target_chamber state
             is_expanded = (st.session_state.get("target_chamber") == key)
             with st.expander(label, expanded=is_expanded):
-                current_content = brand_data.get(key, "")
+                content = brand_data.get(key, "")
                 if edit_mode:
-                    dynamic_key = f"widget_{key}_{st.session_state.widget_seeds[key]}"
-                    new_content = st.text_area(f"Refine {label}:", value=current_content, height=200, key=dynamic_key)
+                    dk = f"widget_{key}_{st.session_state.widget_seeds[key]}"
+                    new_val = st.text_area(f"Refine {label}:", value=content, height=200, key=dk)
                     c1, c2 = st.columns(2)
                     with c1:
-                        if st.button(f"💾 Update {label}", key=f"save_{key}"):
-                            st.session_state.brand_soul[key] = new_content
-                            save_brand_data(user_id, new_content, chamber=key)
+                        if st.button(f"💾 Update {label}", key=f"s_{key}"):
+                            st.session_state.brand_soul[key] = new_val
+                            save_brand_data(user_id, new_val, chamber=key)
                             st.rerun()
                     with c2:
-                        if st.button(f"🗑️ Clear {label}", key=f"delete_{key}"):
+                        if st.button(f"🗑️ Clear {label}", key=f"d_{key}"):
                             st.session_state.brand_soul[key] = ""
                             save_brand_data(user_id, "", chamber=key)
                             st.session_state.messages = [m for m in st.session_state.messages if m.get("chamber") != key]
                             st.session_state.widget_seeds[key] += 1
                             st.rerun()
                 else:
-                    st.markdown(current_content if current_content else "Awaiting discovery...")
+                    st.markdown(content if content else "Awaiting discovery...")
