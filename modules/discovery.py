@@ -29,7 +29,7 @@ def run(user_id):
     chamber_sequence = ["purpus_summary", "brand_identity", "brand_experience", "brand_impact"]
     
     chamber_prompts = {
-        "purpus_summary": "Phase 02: Foundation. Why MUST this brand exist? What is the 'internal fire'?",
+        "purpus_summary": "We are entering the Nucleus. Forget what you sell—Why must this brand exist? What is the 'internal fire' that fuels you?",
         "brand_identity": "Designing the Individual. If this brand were a person, what are its core values?",
         "brand_experience": "Remarkable Experiences. Describe the ritual that turns clients into ambassadors.",
         "brand_impact": "The Legacy. How does this Individual solve urgent community problems?"
