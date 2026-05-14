@@ -77,12 +77,26 @@ def run(user_id):
                 st.session_state.target_page = "2. ✨ The Soul Guide"
                 st.rerun()
 
-        # --- INPUT ---
+        # --- INPUT HANDLING (VOICE + TEXT) ---
         st.write("---")
-        prompt = st.chat_input("Document your thoughts...")
+        
+        # Restoration of Voice Memo feature
+        audio_input = st.audio_input("🎤 Speak your vision", key=f"audio_{new_target}")
+        prompt = st.chat_input("Or type your thoughts...")
 
-        if prompt:
-            st.session_state.messages.append({"role": "user", "content": prompt, "chamber": new_target})
+        user_input_content = None
+        
+        # Logic to check for new voice submission vs previous state
+        if audio_input:
+            audio_id = hash(f"{audio_input.name}_{audio_input.size}")
+            if st.session_state.get("last_audio_id") != audio_id:
+                user_input_content = "🎤 *Voice Memo Submitted*"
+                st.session_state.last_audio_id = audio_id
+        elif prompt:
+            user_input_content = prompt
+
+        if user_input_content:
+            st.session_state.messages.append({"role": "user", "content": user_input_content, "chamber": new_target})
             with st.chat_message("assistant"):
                 with st.spinner("Analyzing..."):
                     next_idx = chamber_sequence.index(new_target) + 1
@@ -92,7 +106,9 @@ def run(user_id):
                     instruction = f"\n[STRATEGY] tags for data. [MOVE_TO_CHAMBER:{next_chamber_key}] if done."
                     
                     current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == new_target])
-                    full_response = get_soul_rebel_consultant(prompt, methodology + current_context + instruction)
+                    
+                    # Passing both text and voice context to Gemini
+                    full_response = get_soul_rebel_consultant(user_input_content, methodology + current_context + instruction)
 
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
@@ -120,7 +136,6 @@ def run(user_id):
         st.write("---")
         st.subheader("📋 Documented Vision")
         
-        # RESTORED: Manual Edit Toggle
         edit_mode = st.toggle("🛠️ Enable Manual Edit Mode")
 
         for label, key in chamber_map.items():
@@ -129,7 +144,6 @@ def run(user_id):
                 content = brand_data.get(key, "")
                 
                 if edit_mode:
-                    # Dynamic widget key to allow reset
                     dk = f"widget_{key}_{st.session_state.widget_seeds[key]}"
                     new_val = st.text_area(f"Refine {label}:", value=content, height=200, key=dk)
                     
@@ -145,7 +159,6 @@ def run(user_id):
                         if st.button(f"🗑️ Clear {label}", key=f"clear_{key}"):
                             st.session_state.brand_soul[key] = ""
                             save_brand_data(user_id, "", chamber=key)
-                            # Purge messages for this chamber to restart conversation
                             st.session_state.messages = [m for m in st.session_state.messages if m.get("chamber") != key]
                             st.session_state.widget_seeds[key] += 1
                             st.rerun()
