@@ -19,14 +19,14 @@ def main():
     # These strings must be matched EXACTLY by any redirect buttons in your modules.
     nav_options = [
         "1. The Soul Sprint", 
-        "2. ✨ The Soul Guide", 
+        "2. The Soul Guide", 
         "3. Brand Guardian", 
         "4. O2O Analytics", 
         "⚙️ Profile Settings"
     ]
 
     # --- HEADER SECTION ---
-    st.title("🔥 Soul Rebel StratOS")
+    st.title("Soul Rebel StratOS")
     st.subheader("The Strategic Command Center")
     st.write("Extracting the soul of your brand to fuel the rebellion.")
     st.write("---") 
