@@ -8,51 +8,62 @@ except Exception as e:
     st.error(f"Error loading backend modules: {e}")
 
 def run(user_id):
-    # 1. Load existing data
+    # 1. Load existing data from Supabase
     if "brand_soul" not in st.session_state:
         saved_data = load_brand_data(user_id)
         st.session_state.brand_soul = saved_data if saved_data else {}
     
-    # 2. State Management
+    # 2. State Management for UI and Processing
     if "is_synthesizing" not in st.session_state:
         st.session_state.is_synthesizing = False
     
-    if "target_chamber" not in st.session_state:
-        st.session_state.target_chamber = "purpus_summary"
+    # 3. Chamber Mapping & Opening Inquiries
+    chamber_map = {
+        "✨ Chamber 1: PurpUS": "purpus_summary",
+        "🎭 Chamber 2: Brand Identity": "brand_identity",
+        "🌟 Chamber 3: Brand Experience": "brand_experience",
+        "🌍 Chamber 4: Brand Impact": "brand_impact"
+    }
+
+    chamber_prompts = {
+        "purpus_summary": "We are entering the Nucleus. Forget what you sell—Why must this brand exist in a world that already has enough noise? What is the 'internal fire' that fuels you?",
+        "brand_identity": "Let's define the Individual. If your brand walked into a room, what is the 'vibe' it projects? Describe its unique fingerprint and persona.",
+        "brand_experience": "How does a person *feel* the moment they touch your brand? Describe the ritual of engagement—how do you turn a customer into a believer?",
+        "brand_impact": "The Legacy. Fifty years from now, what is the social footprint this Individual leaves behind? How has the world changed because of your work?"
+    }
 
     col1, col2 = st.columns([3, 2])
 
     with col1:
         st.title("🔥 The Soul Sprint")
-        st.write("Extracting the essence of your brand Individual.")
         
-        # --- CHAMBER SELECTOR ---
-        chamber_map = {
-            "✨ Chamber 1: PurpUS": "purpus_summary",
-            "🎭 Chamber 2: Brand Identity": "brand_identity",
-            "🌟 Chamber 3: Brand Experience": "brand_experience",
-            "🌍 Chamber 4: Brand Impact": "brand_impact"
-        }
-        
+        # --- PROACTIVE CHAMBER SELECTOR ---
         selected_label = st.selectbox(
             "Current Extraction Focus:",
             options=list(chamber_map.keys()),
             index=0
         )
-        st.session_state.target_chamber = chamber_map[selected_label]
+        new_target = chamber_map[selected_label]
 
-        # --- CHAT HISTORY LOGIC ---
+        # Initialize messages if empty
         if "messages" not in st.session_state:
-            st.session_state.messages = [{"role": "assistant", "content": f"The Soul Rebel Consultant is active. We are focusing on {selected_label}. Tell me your thoughts."}]
+            st.session_state.messages = []
 
+        # Trigger opening question if chamber changes or is new
+        if st.session_state.get("target_chamber") != new_target:
+            st.session_state.target_chamber = new_target
+            opening_q = chamber_prompts[new_target]
+            st.session_state.messages.append({"role": "assistant", "content": opening_q})
+            st.rerun()
+
+        # Display Chat History (Skipping the very first message once conversation flows)
         for i, message in enumerate(st.session_state.messages):
-            # Suppress welcome message after conversation starts
-            if i == 0 and len(st.session_state.messages) > 2:
-                continue 
+            if i == 0 and len(st.session_state.messages) > 3:
+                continue
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        # --- INPUT ---
+        # --- MULTIMODAL INPUT ---
         st.write("---")
         audio_input = st.audio_input("🎤 Speak your truth", key="soul_audio_recorder")
         prompt = st.chat_input("Or type your thoughts...")
@@ -68,7 +79,6 @@ def run(user_id):
 
         if new_input:
             st.session_state.is_synthesizing = True
-            
             display_text = "🎤 *Voice Memo Submitted*" if audio_input else prompt
             st.session_state.messages.append({"role": "user", "content": display_text})
             
@@ -76,54 +86,50 @@ def run(user_id):
             
             with st.chat_message("assistant"):
                 with st.spinner(f"Synthesizing Strategy for {selected_label}..."):
-                    # REFINED INSTRUCTION: Separates Chat from Strategy Document
+                    # Command ensures the output is formatted for extraction
                     strategic_instruction = (
                         f"\n\n--- INSTRUCTION ---\n"
-                        f"1. Provide a warm, brief conversational response first.\n"
-                        f"2. Then, provide the final, polished strategy for {selected_label} "
-                        f"wrapped inside [STRATEGY] and [/STRATEGY] tags.\n"
-                        f"The polished strategy should be structured with headers (###), "
-                        f"be in-depth (3+ paragraphs), and avoid conversational filler."
+                        f"1. Provide a warm conversational reflection.\n"
+                        f"2. Provide the formal strategy for {selected_label} wrapped in [STRATEGY] tags.\n"
+                        f"3. End with a question for the next step."
                     )
                     
                     full_response = get_soul_rebel_consultant(new_input, context + strategic_instruction)
                     
-                    # --- EXTRACTION LOGIC ---
+                    # Extraction Logic
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
                         chat_part = parts[0].strip()
-                        strategy_part = parts[1].split("[/STRATEGY]")[0].strip()
+                        strategy_part = parts[1].split("[/STRATEGY]")[0].strip() if "[/STRATEGY]" in parts[1] else parts[1].strip()
                     else:
                         chat_part = full_response
                         strategy_part = full_response
 
-                    # Display chat response
                     st.markdown(chat_part)
                     st.session_state.messages.append({"role": "assistant", "content": chat_part})
                     
-                    # PERSIST ONLY THE POLISHED DOCUMENT
+                    # Persist Polished Result
                     target_col = st.session_state.target_chamber
                     save_brand_data(user_id, strategy_part, chamber=target_col)
                     st.session_state.brand_soul[target_col] = strategy_part
                     
                     st.session_state.is_synthesizing = False
-            
             st.rerun() 
 
     with col2:
         st.subheader("👤 Brand Individual: Vital Signs")
         brand_data = st.session_state.get('brand_soul', {})
         
-        chambers = ['purpus_summary', 'brand_identity', 'brand_experience', 'brand_impact']
-        filled_count = sum(1 for k in chambers if brand_data.get(k))
-        completion_pct = (filled_count / 4)
-        
+        # Calculate Progress
+        chambers = list(chamber_map.values())
+        filled = sum(1 for k in chambers if brand_data.get(k))
+        progress = filled / 4
+
         if st.session_state.is_synthesizing:
             st.info("💓 **Status: Soul Extraction in Progress**")
         else:
-            st.write(f"**Soul Alignment:** {int(completion_pct * 100)}%")
-            st.progress(completion_pct)
-            if filled_count == 4: st.success("Status: Fully Realized.")
+            st.write(f"**Soul Alignment:** {int(progress * 100)}%")
+            st.progress(progress)
 
         st.write("---")
         st.subheader("📋 Strategy Chambers")
@@ -131,5 +137,4 @@ def run(user_id):
         for label, key in chamber_map.items():
             is_expanded = (st.session_state.target_chamber == key)
             with st.expander(label, expanded=is_expanded):
-                content = brand_data.get(key, "Awaiting deeper discovery...")
-                st.markdown(content)
+                st.markdown(brand_data.get(key, "Awaiting deeper discovery..."))
