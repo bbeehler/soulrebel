@@ -39,7 +39,7 @@ def run(user_id):
 
     with col1:
         st.title("🔥 The Soul Audit")
-        st.caption("Phase 02: Foundation — Reaching the deepest level of understanding.")
+        st.caption("Foundation — Reaching the deepest level of understanding.")
         
         # --- DYNAMIC SELECTOR ---
         current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
