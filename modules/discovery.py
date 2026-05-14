@@ -64,6 +64,18 @@ def run(user_id):
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
+        # Check for Sprint Completion
+        brand_data = st.session_state.get('brand_soul', {})
+        is_complete = all(brand_data.get(k) for k in chamber_sequence)
+
+        if is_complete:
+            st.success("🎉 **The Soul Sprint is complete!** Your Brand Individual has been unearthed.")
+            if st.button("✨ Proceed to Soul Illumination", use_container_width=True):
+                # This matches the label in your main.py sidebar radio
+                st.info("Navigating to your Soul Guide...")
+                time.sleep(1)
+                st.rerun() # In main.py, the user will now manually select or we can automate page state if added
+
         # --- INPUT HANDLING ---
         st.write("---")
         audio_input = st.audio_input("🎤 Speak your truth", key="soul_audio_recorder")
@@ -95,7 +107,6 @@ def run(user_id):
                     full_response = get_soul_rebel_consultant(user_input_content, current_context + f"\n\n{instruction}")
 
                     # --- CLEANING & PARSING ---
-                    # 1. Extract Strategy
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
                         chat_part = parts[0].strip()
@@ -103,7 +114,6 @@ def run(user_id):
                     else:
                         chat_part, strategy_part = full_response, full_response
 
-                    # 2. Check for Move Command and Strip it from the chat view
                     if "[MOVE_TO_CHAMBER:" in chat_part:
                         move_tag = chat_part.split("[MOVE_TO_CHAMBER:")[1].split("]")[0]
                         chat_part = chat_part.split("[MOVE_TO_CHAMBER:")[0].strip()
@@ -114,8 +124,9 @@ def run(user_id):
                                 "content": f"✅ **Chamber Complete.**\n\n{chamber_prompts[move_tag]}", 
                                 "chamber": move_tag
                             })
+                        else:
+                            st.balloons()
 
-                    # 3. Final sanitization (removes any accidental leftovers)
                     clean_chat = chat_part.replace("[STRATEGY]", "").replace("[/STRATEGY]", "").replace("[DOC]", "").replace("[/DOC]", "").strip()
 
                     st.session_state.messages.append({"role": "assistant", "content": clean_chat, "chamber": new_target})
@@ -126,7 +137,6 @@ def run(user_id):
 
     with col2:
         st.subheader("👤 Brand Individual: Vital Signs")
-        brand_data = st.session_state.get('brand_soul', {})
         filled = sum(1 for k in chamber_sequence if brand_data.get(k))
         st.progress(filled/4)
 

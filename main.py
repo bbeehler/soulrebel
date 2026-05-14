@@ -1,6 +1,6 @@
 import streamlit as st
 from streamlit_supabase_auth import login_form, logout_button
-from modules import discovery, profile_settings, wizard
+from modules import discovery, illumination, profile_settings, wizard
 from utils.supabase_db import supabase
 
 # Set page configuration
@@ -46,7 +46,7 @@ def main():
             st.title("Soul Rebel StratOS")
             st.success(f"Rebel Active: {user_email}")
             
-            # This places the logout button inside the sidebar
+            # Logout button
             logout_button()
             
             st.write("---")
@@ -54,8 +54,9 @@ def main():
             choice = st.sidebar.radio("Navigate Workspace", 
                 [
                     "1. The Soul Sprint", 
-                    "2. Brand Guardian", 
-                    "3. O2O Analytics", 
+                    "2. ✨ The Soul Guide", # New Illumination Module
+                    "3. Brand Guardian", 
+                    "4. O2O Analytics", 
                     "⚙️ Profile Settings"
                 ])
             
@@ -64,12 +65,15 @@ def main():
         # --- MAIN WORKSPACE LOGIC ---
         if choice == "1. The Soul Sprint":
             discovery.run(user_id)
+
+        elif choice == "2. ✨ The Soul Guide":
+            illumination.run(user_id)
             
-        elif choice == "2. Brand Guardian":
+        elif choice == "3. Brand Guardian":
             st.title("🛡️ Brand Guardian")
             st.info("Aligning content with your Brand Soul. Coming soon.")
             
-        elif choice == "3. O2O Analytics":
+        elif choice == "4. O2O Analytics":
             st.title("📊 O2O Analytics")
             st.info("Module 3: Online-to-Offline attribution. Coming soon.")
             
