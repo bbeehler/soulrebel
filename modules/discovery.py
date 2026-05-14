@@ -57,7 +57,6 @@ def run(user_id):
         # TRIGGER: Switch chamber and add the opening inquiry if not already present
         if st.session_state.get("target_chamber") != new_target:
             st.session_state.target_chamber = new_target
-            # Check if this specific chamber already has an opening question to avoid duplicates
             chamber_has_messages = any(m.get("chamber") == new_target for m in st.session_state.messages)
             if not chamber_has_messages:
                 opening_q = chamber_prompts[new_target]
@@ -69,17 +68,15 @@ def run(user_id):
             st.rerun()
 
         # --- FILTERED CHAT DISPLAY ---
-        # Only show messages belonging to the active chamber
         active_messages = [m for m in st.session_state.messages if m.get("chamber") == new_target]
 
         for i, message in enumerate(active_messages):
-            # Suppress welcome message once discovery goes deep
             if i == 0 and len(active_messages) > 3:
                 continue
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        # --- MULTIMODAL INPUT ---
+        # --- INPUT ---
         st.write("---")
         audio_input = st.audio_input("🎤 Speak your truth", key="soul_audio_recorder")
         prompt = st.chat_input("Or type your thoughts...")
@@ -96,25 +93,18 @@ def run(user_id):
         if new_input:
             st.session_state.is_synthesizing = True
             display_text = "🎤 *Voice Memo Submitted*" if audio_input else prompt
+            st.session_state.messages.append({"role": "user", "content": display_text, "chamber": new_target})
             
-            # Tag user input with chamber
-            st.session_state.messages.append({
-                "role": "user", 
-                "content": display_text, 
-                "chamber": new_target
-            })
-            
-            # Context for Gemini (Only previous messages from THIS chamber)
             context = "\n".join([f"{m['role']}: {m['content']}" for m in active_messages])
             
             with st.chat_message("assistant"):
                 with st.spinner(f"Synthesizing Strategy for {selected_label}..."):
                     strategic_instruction = (
                         f"\n\n--- INSTRUCTION ---\n"
-    			f"1. Provide a warm conversational reflection.\n"
-   			f"2. Provide the formal strategy for {selected_label} wrapped in [STRATEGY] tags.\n"
-    			f"3. EVALUATE: If the strategy feels complete, invite the user to move to the next chamber. "
-    			f"If it needs more depth, ask one targeted follow-up question."
+                        f"1. Provide a warm conversational reflection.\n"
+                        f"2. Provide the formal strategy for {selected_label} wrapped in [STRATEGY] and [/STRATEGY] tags.\n"
+                        f"3. EVALUATE: If the strategy feels complete, invite the user to move to the next chamber. "
+                        f"If it needs more depth, ask one targeted follow-up question."
                     )
                     
                     full_response = get_soul_rebel_consultant(new_input, context + strategic_instruction)
@@ -129,21 +119,10 @@ def run(user_id):
                         strategy_part = full_response
 
                     st.markdown(chat_part)
-                    
-                    # Tag assistant response with chamber
-                    st.session_state.messages.append({
-                        "role": "assistant", 
-                        "content": chat_part, 
-                        "chamber": new_target
-                    })
-                    
-                    # History Management
-                    target_col = st.session_state.target_chamber
-                    old_content = st.session_state.brand_soul.get(target_col, "")
-                    if old_content:
-                        st.session_state.chamber_history[target_col].append(old_content)
+                    st.session_state.messages.append({"role": "assistant", "content": chat_part, "chamber": new_target})
                     
                     # Persist Result
+                    target_col = st.session_state.target_chamber
                     save_brand_data(user_id, strategy_part, chamber=target_col)
                     st.session_state.brand_soul[target_col] = strategy_part
                     st.session_state.is_synthesizing = False
@@ -173,14 +152,13 @@ def run(user_id):
                 current_content = brand_data.get(key, "")
 
                 if edit_mode:
-                    # History popover
                     history = st.session_state.chamber_history.get(key, [])
                     if history:
                         with st.popover("🕒 Version History"):
                             for idx, old_ver in enumerate(reversed(history)):
                                 if st.button(f"Restore v{len(history)-idx}", key=f"rev_{key}_{idx}"):
-                                    save_brand_data(user_id, old_ver, chamber=key)
                                     st.session_state.brand_soul[key] = old_ver
+                                    save_brand_data(user_id, old_ver, chamber=key)
                                     st.rerun()
 
                     new_content = st.text_area(f"Refine {label}:", value=current_content, height=200, key=f"edit_{key}")
@@ -188,15 +166,25 @@ def run(user_id):
                     c1, c2 = st.columns(2)
                     with c1:
                         if st.button(f"💾 Update {label}", key=f"save_{key}"):
+                            # Instant UI Update
+                            st.session_state.brand_soul[key] = new_content
                             if current_content:
                                 st.session_state.chamber_history[key].append(current_content)
+                            
+                            # Backend Persist
                             save_brand_data(user_id, new_content, chamber=key)
-                            st.session_state.brand_soul[key] = new_content
+                            st.success("Updated.")
+                            time.sleep(0.5)
                             st.rerun()
                     with c2:
                         if st.button(f"🗑️ Clear {label}", key=f"delete_{key}"):
-                            save_brand_data(user_id, "", chamber=key)
+                            # Instant UI Wipe
                             st.session_state.brand_soul[key] = ""
+                            
+                            # Backend Persist
+                            save_brand_data(user_id, "", chamber=key)
+                            st.warning("Cleared.")
+                            time.sleep(0.5)
                             st.rerun()
                 else:
                     if current_content:
