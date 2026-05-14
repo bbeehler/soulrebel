@@ -50,11 +50,10 @@ def run(user_id):
         for key in missing_chambers:
             st.write(f"- {key.replace('_', ' ').title()}")
             
-        if st.button("⬅️ Return to Soul Sprint"):
-            # In your main.py sidebar logic, the user can switch back, 
-            # but this provides a direct psychological cue.
-            st.info("Select '1. The Soul Sprint' in the sidebar.")
-        return # STOP execution here so the guide doesn't show
+        if st.button("⬅️ Return to Soul Sprint", use_container_width=True):
+    	# This MUST match the string in nav_options exactly
+    	st.session_state.target_page = "1. The Soul Sprint"
+    	st.rerun()
 
     # 3. GENERATION PHASE (Only if foundation is complete but guide is empty)
     if not st.session_state.final_soul_guide:
