@@ -21,6 +21,13 @@ def run(user_id):
     
     if "is_synthesizing" not in st.session_state:
         st.session_state.is_synthesizing = False
+
+    # Initialize widget seeds to force-clear text areas
+    if "widget_seeds" not in st.session_state:
+        st.session_state.widget_seeds = {
+            "purpus_summary": 0, "brand_identity": 0, 
+            "brand_experience": 0, "brand_impact": 0
+        }
     
     chamber_map = {
         "✨ Chamber 1: PurpUS": "purpus_summary",
@@ -95,7 +102,8 @@ def run(user_id):
                         f"\n\n--- INSTRUCTION ---\n"
                         f"1. Provide a warm reflection.\n"
                         f"2. Provide formal strategy wrapped in [STRATEGY] tags.\n"
-                        f"3. Ask a follow-up or invite them to the next chamber."
+                        f"3. EVALUATE: If the strategy feels complete, invite the user to move to the next chamber. "
+                        f"If it needs more depth, ask one targeted follow-up question."
                     )
                     full_response = get_soul_rebel_consultant(new_input, context + strategic_instruction)
                     
@@ -131,7 +139,11 @@ def run(user_id):
                 current_content = brand_data.get(key, "")
 
                 if edit_mode:
-                    new_content = st.text_area(f"Refine {label}:", value=current_content, height=200, key=f"widget_{key}")
+                    # Dynamic key to force widget reset on clear
+                    dynamic_key = f"widget_{key}_{st.session_state.widget_seeds[key]}"
+                    
+                    new_content = st.text_area(f"Refine {label}:", value=current_content, height=200, key=dynamic_key)
+                    
                     c1, c2 = st.columns(2)
                     with c1:
                         if st.button(f"💾 Update {label}", key=f"save_{key}"):
@@ -140,12 +152,15 @@ def run(user_id):
                             st.rerun()
                     with c2:
                         if st.button(f"🗑️ Clear {label}", key=f"delete_{key}"):
-                            # 1. Clear the strategy
+                            # 1. Clear the data and state
                             st.session_state.brand_soul[key] = ""
                             save_brand_data(user_id, "", chamber=key)
                             
                             # 2. CLEAR THE CHAT THREAD FOR THIS CHAMBER
                             st.session_state.messages = [m for m in st.session_state.messages if m.get("chamber") != key]
+                            
+                            # 3. Increment seed to force-kill the widget's old text
+                            st.session_state.widget_seeds[key] += 1
                             
                             st.warning(f"{label} & Thread Cleared.")
                             time.sleep(0.5)
