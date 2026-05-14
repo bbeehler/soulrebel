@@ -43,9 +43,12 @@ def run(user_id):
     with col1:
         st.title("🔥 The Soul Sprint")
         
+        # --- DYNAMIC SELECTOR LOGIC ---
         current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
         chamber_labels = list(chamber_map.keys())
         chamber_keys = list(chamber_map.values())
+        
+        # Ensure we don't crash if state is out of sync
         current_idx = chamber_keys.index(current_chamber_key) if current_chamber_key in chamber_keys else 0
 
         selected_label = st.selectbox("Current Extraction Focus:", options=chamber_labels, index=current_idx)
@@ -54,7 +57,7 @@ def run(user_id):
         if "messages" not in st.session_state:
             st.session_state.messages = []
 
-        # TRIGGER: Manual selection switch
+        # TRIGGER: Manual selection switch via dropdown
         if st.session_state.get("target_chamber") != new_target:
             st.session_state.target_chamber = new_target
             chamber_has_messages = any(m.get("chamber") == new_target for m in st.session_state.messages)
@@ -98,6 +101,7 @@ def run(user_id):
             
             with st.chat_message("assistant"):
                 with st.spinner(f"Synthesizing Strategy..."):
+                    # Calculate the potential next step
                     next_idx = chamber_sequence.index(new_target) + 1
                     next_chamber_key = chamber_sequence[next_idx] if next_idx < len(chamber_sequence) else "COMPLETE"
                     
@@ -105,11 +109,12 @@ def run(user_id):
                         f"\n\n--- INSTRUCTION ---\n"
                         f"1. Provide a warm reflection.\n"
                         f"2. Provide formal strategy wrapped in [STRATEGY] tags.\n"
-                        f"3. EVALUATE: If the strategy is complete, provide the instruction [MOVE_TO_CHAMBER:{next_chamber_key}] at the end."
+                        f"3. EVALUATE: If the strategy is complete, provide the instruction [MOVE_TO_CHAMBER:{next_chamber_key}] at the very end."
                     )
                     
                     full_response = get_soul_rebel_consultant(new_input, context + strategic_instruction)
                     
+                    # Extract strategy content
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
                         chat_part = parts[0].strip()
@@ -117,19 +122,17 @@ def run(user_id):
                     else:
                         chat_part, strategy_part = full_response, full_response
 
-                    # Tag assistant response for CURRENT chamber before moving
+                    # Tag and Save CURRENT
                     st.session_state.messages.append({"role": "assistant", "content": chat_part, "chamber": new_target})
-                    
-                    # PERSIST CURRENT
                     save_brand_data(user_id, strategy_part, chamber=new_target)
                     st.session_state.brand_soul[new_target] = strategy_part
 
-                    # AUTOMATIC TRANSITION ENHANCEMENT
+                    # --- HARD TRANSITION LOGIC ---
                     if f"[MOVE_TO_CHAMBER:{next_chamber_key}]" in full_response and next_chamber_key != "COMPLETE":
-                        # 1. Update the state to the next chamber
+                        # Set the global state to the new chamber
                         st.session_state.target_chamber = next_chamber_key
                         
-                        # 2. MANUALLY INJECT the next question immediately
+                        # Add next prompt to the thread immediately so it shows after rerun
                         next_q = chamber_prompts[next_chamber_key]
                         st.session_state.messages.append({
                             "role": "assistant", 
@@ -152,7 +155,8 @@ def run(user_id):
         edit_mode = st.toggle("🛠️ Enable Manual Edit Mode")
 
         for label, key in chamber_map.items():
-            is_expanded = (st.session_state.target_chamber == key)
+            # The expander follows the target_chamber state
+            is_expanded = (st.session_state.get("target_chamber") == key)
             with st.expander(label, expanded=is_expanded):
                 current_content = brand_data.get(key, "")
                 if edit_mode:
