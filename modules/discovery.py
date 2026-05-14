@@ -13,15 +13,6 @@ def run(user_id):
         saved_data = load_brand_data(user_id)
         st.session_state.brand_soul = saved_data if saved_data else {}
     
-    if "chamber_history" not in st.session_state:
-        st.session_state.chamber_history = {
-            "purpus_summary": [], "brand_identity": [], 
-            "brand_experience": [], "brand_impact": []
-        }
-    
-    if "is_synthesizing" not in st.session_state:
-        st.session_state.is_synthesizing = False
-
     # Initialize widget seeds to force-clear text areas
     if "widget_seeds" not in st.session_state:
         st.session_state.widget_seeds = {
@@ -29,12 +20,18 @@ def run(user_id):
             "brand_experience": 0, "brand_impact": 0
         }
     
+    if "is_synthesizing" not in st.session_state:
+        st.session_state.is_synthesizing = False
+
     chamber_map = {
         "✨ Chamber 1: PurpUS": "purpus_summary",
         "🎭 Chamber 2: Brand Identity": "brand_identity",
         "🌟 Chamber 3: Brand Experience": "brand_experience",
         "🌍 Chamber 4: Brand Impact": "brand_impact"
     }
+    
+    # Reversed map to help the AI move to the "Next" key
+    chamber_sequence = ["purpus_summary", "brand_identity", "brand_experience", "brand_impact"]
 
     chamber_prompts = {
         "purpus_summary": "We are entering the Nucleus. Forget what you sell—Why must this brand exist? What is the 'internal fire' that fuels you?",
@@ -48,13 +45,19 @@ def run(user_id):
     with col1:
         st.title("🔥 The Soul Sprint")
         
-        selected_label = st.selectbox("Current Extraction Focus:", options=list(chamber_map.keys()), index=0)
+        # Determine current index for the selectbox based on session state
+        current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
+        chamber_labels = list(chamber_map.keys())
+        chamber_keys = list(chamber_map.values())
+        current_idx = chamber_keys.index(current_chamber_key) if current_chamber_key in chamber_keys else 0
+
+        selected_label = st.selectbox("Current Extraction Focus:", options=chamber_labels, index=current_idx)
         new_target = chamber_map[selected_label]
 
         if "messages" not in st.session_state:
             st.session_state.messages = []
 
-        # TRIGGER: Switch chamber and add the opening inquiry if no thread exists for it
+        # TRIGGER: Switch chamber logic
         if st.session_state.get("target_chamber") != new_target:
             st.session_state.target_chamber = new_target
             chamber_has_messages = any(m.get("chamber") == new_target for m in st.session_state.messages)
@@ -98,21 +101,35 @@ def run(user_id):
             
             with st.chat_message("assistant"):
                 with st.spinner(f"Synthesizing Strategy..."):
+                    # Finding the next chamber in the sequence
+                    next_idx = chamber_sequence.index(new_target) + 1
+                    next_chamber_name = chamber_sequence[next_idx] if next_idx < len(chamber_sequence) else "COMPLETE"
+                    
                     strategic_instruction = (
                         f"\n\n--- INSTRUCTION ---\n"
                         f"1. Provide a warm reflection.\n"
                         f"2. Provide formal strategy wrapped in [STRATEGY] tags.\n"
-                        f"3. EVALUATE: If the strategy feels complete, invite the user to move to the next chamber. "
-                        f"If it needs more depth, ask one targeted follow-up question."
+                        f"3. EVALUATE: If the strategy is complete, provide the instruction [MOVE_TO_CHAMBER:{next_chamber_name}] at the very end of your response."
+                        f"If it needs more depth, ask one targeted follow-up question instead."
                     )
+                    
                     full_response = get_soul_rebel_consultant(new_input, context + strategic_instruction)
                     
+                    # Extraction Logic
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
                         chat_part = parts[0].strip()
                         strategy_part = parts[1].split("[/STRATEGY]")[0].strip() if "[/STRATEGY]" in parts[1] else parts[1].strip()
                     else:
                         chat_part, strategy_part = full_response, full_response
+
+                    # Automatic Transition Logic
+                    if "[MOVE_TO_CHAMBER:" in full_response:
+                        target_next = full_response.split("[MOVE_TO_CHAMBER:")[1].split("]")[0]
+                        if target_next != "COMPLETE":
+                            st.session_state.target_chamber = target_next
+                            # Clean the trigger from the UI text
+                            chat_part = chat_part.replace(f"[MOVE_TO_CHAMBER:{target_next}]", "✅ Chamber Complete. Transitioning...")
 
                     st.markdown(chat_part)
                     st.session_state.messages.append({"role": "assistant", "content": chat_part, "chamber": new_target})
@@ -139,11 +156,8 @@ def run(user_id):
                 current_content = brand_data.get(key, "")
 
                 if edit_mode:
-                    # Dynamic key to force widget reset on clear
                     dynamic_key = f"widget_{key}_{st.session_state.widget_seeds[key]}"
-                    
                     new_content = st.text_area(f"Refine {label}:", value=current_content, height=200, key=dynamic_key)
-                    
                     c1, c2 = st.columns(2)
                     with c1:
                         if st.button(f"💾 Update {label}", key=f"save_{key}"):
@@ -152,16 +166,10 @@ def run(user_id):
                             st.rerun()
                     with c2:
                         if st.button(f"🗑️ Clear {label}", key=f"delete_{key}"):
-                            # 1. Clear the data and state
                             st.session_state.brand_soul[key] = ""
                             save_brand_data(user_id, "", chamber=key)
-                            
-                            # 2. CLEAR THE CHAT THREAD FOR THIS CHAMBER
                             st.session_state.messages = [m for m in st.session_state.messages if m.get("chamber") != key]
-                            
-                            # 3. Increment seed to force-kill the widget's old text
                             st.session_state.widget_seeds[key] += 1
-                            
                             st.warning(f"{label} & Thread Cleared.")
                             time.sleep(0.5)
                             st.rerun()
