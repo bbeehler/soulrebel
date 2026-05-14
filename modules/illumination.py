@@ -25,37 +25,55 @@ def generate_pdf(content):
     return bytes(pdf.output())
 
 def run(user_id):
-    st.title("✨ The Soul Guide")
+    st.title("✨ Phase 03: Illumination")
+    st.caption("Creating the ultimate reference, resource, and authority for your brand’s identity.")
+    st.write("---")
     
-    if "final_soul_guide" not in st.session_state or not st.session_state.final_soul_guide:
-        db_data = load_brand_data(user_id)
-        st.session_state.final_soul_guide = db_data.get("soul_guide", "") if db_data else ""
+    # 1. Sync State with Database
+    db_data = load_brand_data(user_id)
+    brand_data = db_data if db_data else {}
+    
+    # Update session state with the latest from DB
+    st.session_state.final_soul_guide = brand_data.get("soul_guide", "")
 
-    brand_data = st.session_state.get('brand_soul', {})
+    # 2. THE VALIDATION GATE
+    # Check if the 4 foundation chambers are complete
+    foundation_keys = ["purpus_summary", "brand_identity", "brand_experience", "brand_impact"]
+    missing_chambers = [k for k in foundation_keys if not brand_data.get(k)]
 
+    if missing_chambers:
+        st.warning("⚠️ **Foundation Incomplete**")
+        st.info("The Individual cannot be illuminated until the Soul Audit is finished. You have deleted or missed sections of your Soul Print.")
+        
+        # Display specifically what is missing to the user
+        st.write("Please return to the Soul Sprint and complete:")
+        for key in missing_chambers:
+            st.write(f"- {key.replace('_', ' ').title()}")
+            
+        if st.button("⬅️ Return to Soul Sprint"):
+            # In your main.py sidebar logic, the user can switch back, 
+            # but this provides a direct psychological cue.
+            st.info("Select '1. The Soul Sprint' in the sidebar.")
+        return # STOP execution here so the guide doesn't show
+
+    # 3. GENERATION PHASE (Only if foundation is complete but guide is empty)
     if not st.session_state.final_soul_guide:
-        st.info("The Soul Sprint is complete. Ready to amplify your impact?")
+        st.success("🎯 **Foundation Verified.** Your Soul Alignment is solid.")
+        st.write("You are ready to unearth the Soul Guide—the bridge to your Brand Transformation.")
+        
         if st.button("🔥 Illuminate the Soul Guide", use_container_width=True):
-            with st.spinner("Synthesizing High-Impact Strategy..."):
-                # INTEGRATED PROMPT: Godzspeed + JB Media Group
+            with st.spinner("Synthesizing your Brand Individual..."):
                 prompt = f"""
-                You are a Master Strategic Consultant. You are weaving a 'Soul Guide' using:
-                1. The Godzspeed Method (Soul, Mind, Body).
-                2. The JB Media Group Impact Philosophy (Storytelling for Growth & Social Impact).
+                You are a Master Soul Rebel Facilitator. Synthesize the Phase 03 Soul Guide.
                 
-                ANATOMY INPUTS:
-                - SOUL: {brand_data.get('purpus_summary')}
-                - MIND: {brand_data.get('brand_identity')}
-                - BODY (Ritual): {brand_data.get('brand_experience')}
+                FOUNDATION DATA:
+                - SOUL (PurpUS): {brand_data.get('purpus_summary')}
+                - MIND (Identity): {brand_data.get('brand_identity')}
+                - BODY (Experience): {brand_data.get('brand_experience')}
                 - BODY (Impact): {brand_data.get('brand_impact')}
                 
-                SYNTHESIS REQUIREMENTS:
-                - THE BIG IDEA: Craft a singular, visceral hook.
-                - THE SOUL: Define the 'Transcendental Fire'. How does this brand humanize its mission?
-                - THE MIND: Strategic Persona. Define the 'Voice of Authority' and how it shares its story to attract a community.
-                - THE BODY (IMPACT STRATEGY): Don't just list goals. Using JB Media principles, describe how this brand creates 'Bigger Impact' through digital reach, community engagement, and solving urgent community problems.
-                
-                Format this as a professional, high-level Strategic Bible.
+                Based on Godzspeed and JB Media principles, deliver a cohesive narrative covering:
+                THE BIG IDEA, THE SOUL, THE MIND, and THE BODY (Impact Strategy).
                 """
                 guide = get_soul_rebel_consultant("Illuminate my Soul Guide.", prompt)
                 
@@ -63,13 +81,14 @@ def run(user_id):
                 save_brand_data(user_id, guide, chamber="soul_guide")
                 st.rerun()
     
+    # 4. THE WORKSPACE (Visible once generated and foundation is valid)
     else:
-        st.subheader("📜 Master Strategy Document")
+        st.subheader("📜 The Soul Guide (Master Document)")
         
         edited_text = st.text_area(
-            "Refine your Brand Soul & Impact Strategy:", 
+            "Finalize your Brand Individual:", 
             value=st.session_state.final_soul_guide, 
-            height=550,
+            height=500,
             key="guide_editor_field"
         )
         
@@ -77,17 +96,16 @@ def run(user_id):
         
         with col1:
             if st.button("💾 Save to Profile", use_container_width=True):
-                st.session_state.final_soul_guide = edited_text
                 save_brand_data(user_id, edited_text, chamber="soul_guide")
-                st.success("Impact Strategy Saved.")
+                st.success("Strategy Saved.")
         
         with col2:
             try:
                 pdf_bytes = generate_pdf(edited_text)
                 st.download_button(
-                    label="📄 Download Soul Guide PDF",
+                    label="📄 Download PDF",
                     data=pdf_bytes,
-                    file_name="Soul_Guide_Impact_Strategy.pdf",
+                    file_name="Godzspeed_Soul_Guide.pdf",
                     mime="application/pdf",
                     use_container_width=True
                 )
@@ -95,12 +113,13 @@ def run(user_id):
                 st.error(f"PDF Error: {e}")
             
         with col3:
-            if st.button("🗑️ Delete & Reset", use_container_width=True):
-                st.session_state.final_soul_guide = ""
+            if st.button("🗑️ Reset & Re-Illuminate", use_container_width=True):
                 save_brand_data(user_id, None, chamber="soul_guide") 
-                st.warning("Guide cleared.")
+                st.session_state.final_soul_guide = ""
                 st.rerun()
 
     st.write("---")
-    with st.expander("🔍 View Discovery Context"):
-        st.json(brand_data)
+    with st.expander("🔍 View Source Foundation Data"):
+        # We only show keys relevant to the foundation
+        foundation_data = {k: v for k, v in brand_data.items() if k in foundation_keys}
+        st.json(foundation_data)
