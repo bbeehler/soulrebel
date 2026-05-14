@@ -4,7 +4,9 @@ from utils.supabase_db import save_brand_data, load_brand_data
 from fpdf import FPDF
 
 def clean_unicode(text):
-    if not text: return ""
+    """Replaces Unicode characters that break standard PDF fonts."""
+    if not text: 
+        return ""
     replacements = {
         "\u2013": "-", "\u2014": "-", "\u2018": "'", "\u2019": "'",
         "\u201c": '"', "\u201d": '"', "\u2022": "*", "\u2026": "...",
@@ -14,6 +16,7 @@ def clean_unicode(text):
     return text.encode('latin-1', 'ignore').decode('latin-1')
 
 def generate_pdf(content):
+    """Generates a PDF using fpdf2 and returns the byte data."""
     safe_content = clean_unicode(content)
     pdf = FPDF()
     pdf.add_page()
@@ -37,25 +40,26 @@ def run(user_id):
     st.session_state.final_soul_guide = brand_data.get("soul_guide", "")
 
     # 2. THE VALIDATION GATE
-    # Check if the 4 foundation chambers are complete
     foundation_keys = ["purpus_summary", "brand_identity", "brand_experience", "brand_impact"]
     missing_chambers = [k for k in foundation_keys if not brand_data.get(k)]
 
     if missing_chambers:
         st.warning("⚠️ **Foundation Incomplete**")
-        st.info("The Individual cannot be illuminated until the Soul Audit is finished. You have deleted or missed sections of your Soul Print.")
+        st.info("The Individual cannot be illuminated until the Soul Audit is finished.")
         
-        # Display specifically what is missing to the user
         st.write("Please return to the Soul Sprint and complete:")
         for key in missing_chambers:
             st.write(f"- {key.replace('_', ' ').title()}")
             
         if st.button("⬅️ Return to Soul Sprint", use_container_width=True):
-    	# This MUST match the string in nav_options exactly
-    	st.session_state.target_page = "1. The Soul Sprint"
-    	st.rerun()
+            # This triggers the redirect logic in main.py
+            st.session_state.target_page = "1. The Soul Sprint"
+            st.rerun()
+        
+        # Stop execution here if foundation is missing
+        return
 
-    # 3. GENERATION PHASE (Only if foundation is complete but guide is empty)
+    # 3. GENERATION PHASE
     if not st.session_state.final_soul_guide:
         st.success("🎯 **Foundation Verified.** Your Soul Alignment is solid.")
         st.write("You are ready to unearth the Soul Guide—the bridge to your Brand Transformation.")
@@ -80,7 +84,7 @@ def run(user_id):
                 save_brand_data(user_id, guide, chamber="soul_guide")
                 st.rerun()
     
-    # 4. THE WORKSPACE (Visible once generated and foundation is valid)
+    # 4. THE WORKSPACE
     else:
         st.subheader("📜 The Soul Guide (Master Document)")
         
@@ -119,6 +123,5 @@ def run(user_id):
 
     st.write("---")
     with st.expander("🔍 View Source Foundation Data"):
-        # We only show keys relevant to the foundation
         foundation_data = {k: v for k, v in brand_data.items() if k in foundation_keys}
         st.json(foundation_data)
