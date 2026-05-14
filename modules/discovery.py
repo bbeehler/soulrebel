@@ -13,13 +13,11 @@ def run(user_id):
         saved_data = load_brand_data(user_id)
         st.session_state.brand_soul = saved_data if saved_data else {}
     
-    # 2. Initialize Version History & State
+    # 2. Initialize History & State
     if "chamber_history" not in st.session_state:
         st.session_state.chamber_history = {
-            "purpus_summary": [],
-            "brand_identity": [],
-            "brand_experience": [],
-            "brand_impact": []
+            "purpus_summary": [], "brand_identity": [], 
+            "brand_experience": [], "brand_impact": []
         }
     
     if "is_synthesizing" not in st.session_state:
@@ -56,16 +54,27 @@ def run(user_id):
         if "messages" not in st.session_state:
             st.session_state.messages = []
 
-        # Trigger opening question if chamber changes
+        # TRIGGER: Switch chamber and add the opening inquiry if not already present
         if st.session_state.get("target_chamber") != new_target:
             st.session_state.target_chamber = new_target
-            opening_q = chamber_prompts[new_target]
-            st.session_state.messages.append({"role": "assistant", "content": opening_q})
+            # Check if this specific chamber already has an opening question to avoid duplicates
+            chamber_has_messages = any(m.get("chamber") == new_target for m in st.session_state.messages)
+            if not chamber_has_messages:
+                opening_q = chamber_prompts[new_target]
+                st.session_state.messages.append({
+                    "role": "assistant", 
+                    "content": opening_q, 
+                    "chamber": new_target
+                })
             st.rerun()
 
-        # Display Chat History (Suppresses welcome message after conversation starts)
-        for i, message in enumerate(st.session_state.messages):
-            if i == 0 and len(st.session_state.messages) > 3:
+        # --- FILTERED CHAT DISPLAY ---
+        # Only show messages belonging to the active chamber
+        active_messages = [m for m in st.session_state.messages if m.get("chamber") == new_target]
+
+        for i, message in enumerate(active_messages):
+            # Suppress welcome message once discovery goes deep
+            if i == 0 and len(active_messages) > 3:
                 continue
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
@@ -87,9 +96,16 @@ def run(user_id):
         if new_input:
             st.session_state.is_synthesizing = True
             display_text = "🎤 *Voice Memo Submitted*" if audio_input else prompt
-            st.session_state.messages.append({"role": "user", "content": display_text})
             
-            context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
+            # Tag user input with chamber
+            st.session_state.messages.append({
+                "role": "user", 
+                "content": display_text, 
+                "chamber": new_target
+            })
+            
+            # Context for Gemini (Only previous messages from THIS chamber)
+            context = "\n".join([f"{m['role']}: {m['content']}" for m in active_messages])
             
             with st.chat_message("assistant"):
                 with st.spinner(f"Synthesizing Strategy for {selected_label}..."):
@@ -112,18 +128,23 @@ def run(user_id):
                         strategy_part = full_response
 
                     st.markdown(chat_part)
-                    st.session_state.messages.append({"role": "assistant", "content": chat_part})
                     
-                    # Store current version in history before updating
+                    # Tag assistant response with chamber
+                    st.session_state.messages.append({
+                        "role": "assistant", 
+                        "content": chat_part, 
+                        "chamber": new_target
+                    })
+                    
+                    # History Management
                     target_col = st.session_state.target_chamber
                     old_content = st.session_state.brand_soul.get(target_col, "")
                     if old_content:
                         st.session_state.chamber_history[target_col].append(old_content)
                     
-                    # Persist Polished Result
+                    # Persist Result
                     save_brand_data(user_id, strategy_part, chamber=target_col)
                     st.session_state.brand_soul[target_col] = strategy_part
-                    
                     st.session_state.is_synthesizing = False
             st.rerun() 
 
@@ -151,28 +172,25 @@ def run(user_id):
                 current_content = brand_data.get(key, "")
 
                 if edit_mode:
-                    # History Reversion UI
+                    # History popover
                     history = st.session_state.chamber_history.get(key, [])
                     if history:
                         with st.popover("🕒 Version History"):
                             for idx, old_ver in enumerate(reversed(history)):
-                                if st.button(f"Restore Version {len(history)-idx}", key=f"rev_{key}_{idx}"):
+                                if st.button(f"Restore v{len(history)-idx}", key=f"rev_{key}_{idx}"):
                                     save_brand_data(user_id, old_ver, chamber=key)
                                     st.session_state.brand_soul[key] = old_ver
                                     st.rerun()
 
-                    # Editing UI
                     new_content = st.text_area(f"Refine {label}:", value=current_content, height=200, key=f"edit_{key}")
                     
                     c1, c2 = st.columns(2)
                     with c1:
                         if st.button(f"💾 Update {label}", key=f"save_{key}"):
-                            # Add to history before updating
                             if current_content:
                                 st.session_state.chamber_history[key].append(current_content)
                             save_brand_data(user_id, new_content, chamber=key)
                             st.session_state.brand_soul[key] = new_content
-                            st.success("Updated.")
                             st.rerun()
                     with c2:
                         if st.button(f"🗑️ Clear {label}", key=f"delete_{key}"):
