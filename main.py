@@ -15,7 +15,8 @@ def check_profile_exists(user_id):
         return False
 
 def main():
-    # --- NAVIGATION REDIRECT LOGIC ---
+    # 1. Define Navigation Options
+    # These strings must be matched EXACTLY by any redirect buttons in your modules.
     nav_options = [
         "1. The Soul Sprint", 
         "2. ✨ The Soul Guide", 
@@ -24,17 +25,6 @@ def main():
         "⚙️ Profile Settings"
     ]
 
-    # Initialize current_nav if it doesn't exist
-    if "current_nav" not in st.session_state:
-        st.session_state.current_nav = "1. The Soul Sprint"
-
-    # Check if a module (like illumination) requested a redirect
-    if "target_page" in st.session_state:
-        st.session_state.current_nav = st.session_state.target_page
-        del st.session_state.target_page
-        # We rerun immediately so the sidebar index below finds the new page
-        st.rerun()
-
     # --- HEADER SECTION ---
     st.title("🔥 Soul Rebel StratOS")
     st.subheader("The Strategic Command Center")
@@ -42,6 +32,7 @@ def main():
     st.write("---") 
 
     # --- THE SECURE GATEWAY ---
+    # The login form must run before any other logic to establish the session.
     session = login_form(
         url=st.secrets["SUPABASE_URL"],
         apiKey=st.secrets["SUPABASE_KEY"]
@@ -51,11 +42,23 @@ def main():
         st.info("Welcome, Rebel. Please sign in or join the movement to access your strategy.")
         st.stop()
 
-    # --- AUTHENTICATED SESSION DATA ---
+    # --- AUTHENTICATED ZONE ---
+    # Everything below this point only runs if the user is logged in.
     user_id = session['user']['id']
     user_email = session['user']['email']
 
-    # --- INSTANT ROUTING CHECK ---
+    # 2. HANDLE PROGRAMMATIC REDIRECTS
+    # This checks if a module (like Illumination) requested a page change.
+    if "target_page" in st.session_state:
+        st.session_state.current_nav = st.session_state.target_page
+        del st.session_state.target_page
+        st.rerun()
+
+    # Initialize default navigation if it doesn't exist in the session
+    if "current_nav" not in st.session_state:
+        st.session_state.current_nav = "1. The Soul Sprint"
+
+    # 3. INSTANT ROUTING CHECK (New User Wizard vs. Dashboard)
     profile_exists = check_profile_exists(user_id)
 
     if not profile_exists:
@@ -69,13 +72,13 @@ def main():
             logout_button()
             st.write("---")
             
-            # Find the index based on current session state
+            # Map the current_nav string to its numeric index for the radio widget
             try:
                 curr_idx = nav_options.index(st.session_state.current_nav)
             except ValueError:
                 curr_idx = 0
 
-            # Use the index to force the radio button selection
+            # Create the navigation radio button
             choice = st.radio(
                 "Navigate Workspace", 
                 nav_options, 
@@ -83,7 +86,7 @@ def main():
                 key="sidebar_radio"
             )
             
-            # If the user clicks the sidebar manually, update the current_nav
+            # If the user clicks the sidebar manually, update the current_nav and rerun
             if choice != st.session_state.current_nav:
                 st.session_state.current_nav = choice
                 st.rerun()
@@ -91,6 +94,7 @@ def main():
             st.write("---")
 
         # --- MAIN WORKSPACE LOGIC ---
+        # Route the user to the correct module based on the session state
         if st.session_state.current_nav == "1. The Soul Sprint":
             discovery.run(user_id)
 
