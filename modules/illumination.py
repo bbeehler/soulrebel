@@ -1,54 +1,76 @@
 import streamlit as st
+import time
 from utils.gemini_ai import get_soul_rebel_consultant
 from utils.supabase_db import save_brand_data
 
 def run(user_id):
-    st.title("🕯️ Soul Illumination")
-    st.subheader("Synthesizing your Brand Individual")
+    st.title("✨ The Soul Guide")
+    st.write("---")
 
+    # 1. Access the unearthed data
     brand_data = st.session_state.get('brand_soul', {})
     
-    # Check if we have enough data to proceed
+    # 2. Validation Gate
     chambers = ["purpus_summary", "brand_identity", "brand_experience", "brand_impact"]
-    completed = [k for k in chambers if brand_data.get(k)]
+    missing = [label for label, key in [
+        ("PurpUS", "purpus_summary"), 
+        ("Identity", "brand_identity"), 
+        ("Experience", "brand_experience"), 
+        ("Impact", "brand_impact")
+    ] if not brand_data.get(key)]
 
-    if len(completed) < 4:
-        st.warning(f"You have completed {len(completed)}/4 chambers. Return to the Soul Sprint to finish extraction before Illumination.")
-        if st.button("Back to Sprint"):
-            st.session_state.page = "discovery"
+    if missing:
+        st.warning(f"The Individual is not yet fully formed. Please complete the following chambers in the Soul Sprint: {', '.join(missing)}")
+        if st.button("Return to the Sprint"):
+            st.session_state.page = "discovery" # If using page state
             st.rerun()
         return
 
-    st.info("The extraction is complete. The Individual is ready to be born.")
+    # 3. The Illumination Interface
+    col1, col2 = st.columns([2, 1])
 
-    if st.button("🔥 Generate Soul Guide", use_container_width=True):
-        with st.spinner("Aligning Soul, Mind, and Body..."):
-            # Construct the Master Context
-            master_context = f"""
-            SYSTEM METHODOLOGY: Godzspeed Soul Guide (Soul, Mind, Body).
-            
-            CHAMBER 1 (SOUL/PURPUS): {brand_data.get('purpus_summary')}
-            CHAMBER 2 (MIND/IDENTITY): {brand_data.get('brand_identity')}
-            CHAMBER 3 (BODY/EXPERIENCE): {brand_data.get('brand_experience')}
-            CHAMBER 4 (BODY/IMPACT): {brand_data.get('brand_impact')}
-            
-            TASK: Synthesize these into a cohesive 'Soul Guide'. 
-            Structure the response as:
-            1. THE BIG IDEA (The singular hook).
-            2. THE SOUL (The transcendental fire).
-            3. THE MIND (Strategic persona).
-            4. THE BODY (The ritual and the legacy).
-            """
-            
-            soul_guide = get_soul_rebel_consultant("Synthesize my Soul Guide.", master_context)
-            
-            # Save the final synthesis to a new column or a specific row
-            st.session_state.final_soul_guide = soul_guide
-            st.success("Your Soul Guide has been illuminated.")
-
-    if "final_soul_guide" in st.session_state:
-        st.write("---")
-        st.markdown(st.session_state.final_soul_guide)
+    with col2:
+        st.info("### The Godzspeed Framework\nWe are now fusing your Soul, Mind, and Body into a single Strategic Individual.")
         
-        # Option to Export or Save
-        st.button("📥 Download Soul Guide (PDF Coming Soon)")
+
+    with col1:
+        if st.button("🔥 Illuminate the Soul Guide", use_container_width=True):
+            with st.spinner("Synthesizing the Brand Individual..."):
+                
+                # The "Master Weaver" Prompt
+                illumination_prompt = f"""
+                You are the Soul Rebel Consultant. You have extracted four core chambers of a brand.
+                Now, synthesize them into a formal 'Soul Guide' using the Godzspeed methodology.
+                
+                DATA INPUTS:
+                - SOUL (The Fire): {brand_data.get('purpus_summary')}
+                - MIND (The Persona): {brand_data.get('brand_identity')}
+                - BODY (The Ritual): {brand_data.get('brand_experience')}
+                - BODY (The Legacy): {brand_data.get('brand_impact')}
+                
+                STRUCTURE YOUR RESPONSE:
+                1. THE BIG IDEA: A singular, visceral hook that defines this brand's existence.
+                2. THE SOUL: Define the transcendental 'Why' and the internal fire.
+                3. THE MIND: Define the Strategic Persona—how the Soul thinks and speaks.
+                4. THE BODY: Define the Brand Ritual (Experience) and the ultimate Social Footprint (Impact).
+                """
+                
+                final_guide = get_soul_rebel_consultant("Illuminate my Soul Guide.", illumination_prompt)
+                st.session_state.soul_guide_content = final_guide
+                
+                # Optional: Save this synthesis back to Supabase in a dedicated 'soul_guide' column
+                # save_brand_data(user_id, final_guide, chamber="soul_guide")
+
+        if "soul_guide_content" in st.session_state:
+            st.markdown("### 📜 Your Illuminated Soul Guide")
+            st.write("---")
+            st.markdown(st.session_state.soul_guide_content)
+            
+            st.write("---")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.button("📄 Export to PDF (Coming Soon)")
+            with c2:
+                if st.button("🔄 Re-Illuminate"):
+                    del st.session_state.soul_guide_content
+                    st.rerun()
