@@ -111,9 +111,10 @@ def run(user_id):
                 with st.spinner(f"Synthesizing Strategy for {selected_label}..."):
                     strategic_instruction = (
                         f"\n\n--- INSTRUCTION ---\n"
-                        f"1. Provide a warm conversational reflection.\n"
-                        f"2. Provide the formal strategy for {selected_label} wrapped in [STRATEGY] tags.\n"
-                        f"3. End with a question for the next step."
+    			f"1. Provide a warm conversational reflection.\n"
+   			f"2. Provide the formal strategy for {selected_label} wrapped in [STRATEGY] tags.\n"
+    			f"3. EVALUATE: If the strategy feels complete, invite the user to move to the next chamber. "
+    			f"If it needs more depth, ask one targeted follow-up question."
                     )
                     
                     full_response = get_soul_rebel_consultant(new_input, context + strategic_instruction)
