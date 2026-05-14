@@ -16,7 +16,6 @@ def check_profile_exists(user_id):
 
 def main():
     # --- NAVIGATION REDIRECT LOGIC ---
-    # Define options exactly as they appear in the radio
     nav_options = [
         "1. The Soul Sprint", 
         "2. ✨ The Soul Guide", 
@@ -25,14 +24,16 @@ def main():
         "⚙️ Profile Settings"
     ]
 
-    # Check if a module requested a redirect
-    if "target_page" in st.session_state:
-        st.session_state.current_nav = st.session_state.target_page
-        del st.session_state.target_page # Reset to avoid infinite loop
-
-    # Initialize default navigation if empty
+    # Initialize current_nav if it doesn't exist
     if "current_nav" not in st.session_state:
         st.session_state.current_nav = "1. The Soul Sprint"
+
+    # Check if a module (like illumination) requested a redirect
+    if "target_page" in st.session_state:
+        st.session_state.current_nav = st.session_state.target_page
+        del st.session_state.target_page
+        # We rerun immediately so the sidebar index below finds the new page
+        st.rerun()
 
     # --- HEADER SECTION ---
     st.title("🔥 Soul Rebel StratOS")
@@ -68,22 +69,25 @@ def main():
             logout_button()
             st.write("---")
             
-            # Map the current_nav to its index for the radio button
+            # Find the index based on current session state
             try:
                 curr_idx = nav_options.index(st.session_state.current_nav)
             except ValueError:
                 curr_idx = 0
 
-            # The key 'sidebar_radio' preserves the choice manually
-            choice = st.sidebar.radio(
+            # Use the index to force the radio button selection
+            choice = st.radio(
                 "Navigate Workspace", 
                 nav_options, 
                 index=curr_idx,
                 key="sidebar_radio"
             )
             
-            # Update state to match user click
-            st.session_state.current_nav = choice
+            # If the user clicks the sidebar manually, update the current_nav
+            if choice != st.session_state.current_nav:
+                st.session_state.current_nav = choice
+                st.rerun()
+            
             st.write("---")
 
         # --- MAIN WORKSPACE LOGIC ---
