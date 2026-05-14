@@ -178,13 +178,18 @@ def run(user_id):
                             st.rerun()
                     with c2:
                         if st.button(f"🗑️ Clear {label}", key=f"delete_{key}"):
-                            # Instant UI Wipe
+                            # 1. Clear the local state that feeds the expander
                             st.session_state.brand_soul[key] = ""
                             
-                            # Backend Persist
+                            # 2. CLEAR THE WIDGET VALUE (The text box itself)
+                            if f"edit_{key}" in st.session_state:
+                                st.session_state[f"edit_{key}"] = ""
+                            
+                            # 3. Persist the wipe to the database
                             save_brand_data(user_id, "", chamber=key)
-                            st.warning("Cleared.")
-                            time.sleep(0.5)
+                            
+                            st.warning(f"{label} Cleared.")
+                            time.sleep(0.4)
                             st.rerun()
                 else:
                     if current_content:
