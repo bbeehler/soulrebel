@@ -28,7 +28,7 @@ def clean_unicode(text):
     return text.encode('latin-1', 'ignore').decode('latin-1')
 
 def generate_pdf(content):
-    """Generates a PDF safely by sanitizing unicode characters."""
+    """Generates a PDF safely and converts the output to standard bytes."""
     safe_content = clean_unicode(content)
     
     pdf = FPDF()
@@ -43,7 +43,9 @@ def generate_pdf(content):
     pdf.set_font("Helvetica", size=12)
     pdf.multi_cell(0, 10, safe_content)
     
-    return pdf.output()
+    # pdf.output() returns a bytearray in newer fpdf2 versions.
+    # bytes() converts that bytearray into the standard binary format Streamlit expects.
+    return bytes(pdf.output())
 
 def run(user_id):
     st.title("✨ The Soul Guide")
