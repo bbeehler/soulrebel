@@ -47,12 +47,12 @@ def run(user_id):
         selected_label = st.selectbox("Current Extraction Focus:", options=list(chamber_map.keys()), index=current_idx)
         new_target = chamber_map[selected_label]
 
-        # Auto-trigger first question if chamber is empty
+        # Sync target chamber
         if st.session_state.get("target_chamber") != new_target:
             st.session_state.target_chamber = new_target
             st.rerun()
 
-        # Ensure the opening prompt exists for the current chamber
+        # Ensure the opening prompt exists
         chamber_has_messages = any(m.get("chamber") == new_target for m in st.session_state.messages)
         if not chamber_has_messages:
             st.session_state.messages.append({"role": "assistant", "content": chamber_prompts[new_target], "chamber": new_target})
@@ -79,25 +79,23 @@ def run(user_id):
             user_input_content = prompt
 
         if user_input_content:
-            # 1. Add user message to state immediately
             st.session_state.messages.append({"role": "user", "content": user_input_content, "chamber": new_target})
             
-            # 2. Process with AI
             with st.chat_message("assistant"):
                 with st.spinner("Synthesizing Strategy..."):
                     next_idx = chamber_sequence.index(new_target) + 1
                     next_chamber_key = chamber_sequence[next_idx] if next_idx < len(chamber_sequence) else "COMPLETE"
                     
                     instruction = (
-                        f"Provide a warm reflection. Then provide formal strategy wrapped in [STRATEGY] tags. "
-                        f"If the strategy is complete, add [MOVE_TO_CHAMBER:{next_chamber_key}] at the end."
+                        f"Provide a reflection. Provide formal strategy inside [STRATEGY] tags. "
+                        f"If complete, add [MOVE_TO_CHAMBER:{next_chamber_key}] at the end."
                     )
                     
-                    # Get fresh context
                     current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == new_target])
                     full_response = get_soul_rebel_consultant(user_input_content, current_context + f"\n\n{instruction}")
 
-                    # 3. Parse and Save
+                    # --- CLEANING & PARSING ---
+                    # 1. Extract Strategy
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
                         chat_part = parts[0].strip()
@@ -105,24 +103,31 @@ def run(user_id):
                     else:
                         chat_part, strategy_part = full_response, full_response
 
-                    st.session_state.messages.append({"role": "assistant", "content": chat_part, "chamber": new_target})
+                    # 2. Check for Move Command and Strip it from the chat view
+                    if "[MOVE_TO_CHAMBER:" in chat_part:
+                        move_tag = chat_part.split("[MOVE_TO_CHAMBER:")[1].split("]")[0]
+                        chat_part = chat_part.split("[MOVE_TO_CHAMBER:")[0].strip()
+                        if move_tag != "COMPLETE":
+                            st.session_state.target_chamber = move_tag
+                            st.session_state.messages.append({
+                                "role": "assistant", 
+                                "content": f"✅ **Chamber Complete.**\n\n{chamber_prompts[move_tag]}", 
+                                "chamber": move_tag
+                            })
+
+                    # 3. Final sanitization (removes any accidental leftovers)
+                    clean_chat = chat_part.replace("[STRATEGY]", "").replace("[/STRATEGY]", "").replace("[DOC]", "").replace("[/DOC]", "").strip()
+
+                    st.session_state.messages.append({"role": "assistant", "content": clean_chat, "chamber": new_target})
                     st.session_state.brand_soul[new_target] = strategy_part
                     save_brand_data(user_id, strategy_part, chamber=new_target)
 
-                    # 4. Handle auto-transition
-                    if f"[MOVE_TO_CHAMBER:{next_chamber_key}]" in full_response and next_chamber_key != "COMPLETE":
-                        st.session_state.target_chamber = next_chamber_key
-                        st.session_state.messages.append({
-                            "role": "assistant", 
-                            "content": f"✅ **Chamber Complete.**\n\n{chamber_prompts[next_chamber_key]}", 
-                            "chamber": next_chamber_key
-                        })
             st.rerun()
 
     with col2:
         st.subheader("👤 Brand Individual: Vital Signs")
         brand_data = st.session_state.get('brand_soul', {})
-        filled = sum(1 for k in chamber_map.values() if brand_data.get(k))
+        filled = sum(1 for k in chamber_sequence if brand_data.get(k))
         st.progress(filled/4)
 
         st.write("---")
