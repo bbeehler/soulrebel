@@ -4,35 +4,58 @@ from utils.supabase_db import save_brand_data, load_brand_data
 from fpdf import FPDF
 import io
 
+def clean_unicode(text):
+    """
+    Replaces common Unicode characters that break standard PDF fonts
+    with their ASCII equivalents to prevent encoding errors.
+    """
+    if not text:
+        return ""
+    replacements = {
+        "\u2013": "-", # en-dash
+        "\u2014": "-", # em-dash
+        "\u2018": "'", # left single quote
+        "\u2019": "'", # right single quote
+        "\u201c": '"', # left double quote
+        "\u201d": '"', # right double quote
+        "\u2022": "*", # bullet point
+        "\u2026": "...", # ellipsis
+    }
+    for char, replacement in replacements.items():
+        text = text.replace(char, replacement)
+    
+    # Final safety net: encode to latin-1 and ignore anything else remaining
+    return text.encode('latin-1', 'ignore').decode('latin-1')
+
 def generate_pdf(content):
-    """Generates a PDF using fpdf2 and returns the byte data."""
+    """Generates a PDF safely by sanitizing unicode characters."""
+    safe_content = clean_unicode(content)
+    
     pdf = FPDF()
     pdf.add_page()
     
-    # Using Helvetica as it is a standard core font (avoids encoding errors)
+    # Header
     pdf.set_font("Helvetica", "B", 16)
     pdf.cell(0, 10, "The Soul Guide: Strategic Individual", ln=True, align='C')
     pdf.ln(10)
     
+    # Body
     pdf.set_font("Helvetica", size=12)
-    # multi_cell handles line breaks and text wrapping automatically
-    pdf.multi_cell(0, 10, content)
+    pdf.multi_cell(0, 10, safe_content)
     
-    # Output the PDF as bytes
     return pdf.output()
 
 def run(user_id):
     st.title("✨ The Soul Guide")
     
-    # 1. Sync State: Force Load from DB if session state is empty or cleared
+    # 1. Sync State: Load from DB if session state is empty
     if "final_soul_guide" not in st.session_state or not st.session_state.final_soul_guide:
         db_data = load_brand_data(user_id)
-        # Ensure db_data is a dict and get the soul_guide column
         st.session_state.final_soul_guide = db_data.get("soul_guide", "") if db_data else ""
 
     brand_data = st.session_state.get('brand_soul', {})
 
-    # 2. GENERATION PHASE: Only visible if the guide is empty
+    # 2. GENERATION PHASE
     if not st.session_state.final_soul_guide:
         st.info("Your 4 chambers are locked. Ready to weave them into the Soul Guide?")
         if st.button("🔥 Illuminate the Soul Guide", use_container_width=True):
@@ -49,16 +72,14 @@ def run(user_id):
                 """
                 guide = get_soul_rebel_consultant("Synthesize my Soul Guide.", prompt)
                 
-                # Persist to state and database
                 st.session_state.final_soul_guide = guide
                 save_brand_data(user_id, guide, chamber="soul_guide")
                 st.rerun()
     
-    # 3. WORKSPACE PHASE: Visible once the guide is generated
+    # 3. WORKSPACE PHASE
     else:
         st.subheader("📜 Master Strategy Document")
         
-        # Editable field for the user to refine the AI's synthesis
         edited_text = st.text_area(
             "Refine your Brand Soul:", 
             value=st.session_state.final_soul_guide, 
@@ -75,7 +96,6 @@ def run(user_id):
                 st.success("Soul Guide Saved.")
         
         with col2:
-            # Generate PDF data on the fly based on current text area content
             try:
                 pdf_bytes = generate_pdf(edited_text)
                 st.download_button(
@@ -90,7 +110,6 @@ def run(user_id):
             
         with col3:
             if st.button("🗑️ Delete & Reset", use_container_width=True):
-                # Clear state and null out the DB field
                 st.session_state.final_soul_guide = ""
                 save_brand_data(user_id, None, chamber="soul_guide") 
                 st.warning("Soul Guide cleared.")
