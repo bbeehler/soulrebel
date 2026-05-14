@@ -15,6 +15,25 @@ def check_profile_exists(user_id):
         return False
 
 def main():
+    # --- NAVIGATION REDIRECT LOGIC ---
+    # Define options exactly as they appear in the radio
+    nav_options = [
+        "1. The Soul Sprint", 
+        "2. ✨ The Soul Guide", 
+        "3. Brand Guardian", 
+        "4. O2O Analytics", 
+        "⚙️ Profile Settings"
+    ]
+
+    # Check if a module requested a redirect
+    if "target_page" in st.session_state:
+        st.session_state.current_nav = st.session_state.target_page
+        del st.session_state.target_page # Reset to avoid infinite loop
+
+    # Initialize default navigation if empty
+    if "current_nav" not in st.session_state:
+        st.session_state.current_nav = "1. The Soul Sprint"
+
     # --- HEADER SECTION ---
     st.title("🔥 Soul Rebel StratOS")
     st.subheader("The Strategic Command Center")
@@ -46,38 +65,43 @@ def main():
             st.title("Soul Rebel StratOS")
             st.success(f"Rebel Active: {user_email}")
             
-            # Logout button
             logout_button()
-            
             st.write("---")
             
-            choice = st.sidebar.radio("Navigate Workspace", 
-                [
-                    "1. The Soul Sprint", 
-                    "2. ✨ The Soul Guide", # New Illumination Module
-                    "3. Brand Guardian", 
-                    "4. O2O Analytics", 
-                    "⚙️ Profile Settings"
-                ])
+            # Map the current_nav to its index for the radio button
+            try:
+                curr_idx = nav_options.index(st.session_state.current_nav)
+            except ValueError:
+                curr_idx = 0
+
+            # The key 'sidebar_radio' preserves the choice manually
+            choice = st.sidebar.radio(
+                "Navigate Workspace", 
+                nav_options, 
+                index=curr_idx,
+                key="sidebar_radio"
+            )
             
+            # Update state to match user click
+            st.session_state.current_nav = choice
             st.write("---")
 
         # --- MAIN WORKSPACE LOGIC ---
-        if choice == "1. The Soul Sprint":
+        if st.session_state.current_nav == "1. The Soul Sprint":
             discovery.run(user_id)
 
-        elif choice == "2. ✨ The Soul Guide":
+        elif st.session_state.current_nav == "2. ✨ The Soul Guide":
             illumination.run(user_id)
             
-        elif choice == "3. Brand Guardian":
+        elif st.session_state.current_nav == "3. Brand Guardian":
             st.title("🛡️ Brand Guardian")
             st.info("Aligning content with your Brand Soul. Coming soon.")
             
-        elif choice == "4. O2O Analytics":
+        elif st.session_state.current_nav == "4. O2O Analytics":
             st.title("📊 O2O Analytics")
             st.info("Module 3: Online-to-Offline attribution. Coming soon.")
             
-        elif choice == "⚙️ Profile Settings":
+        elif st.session_state.current_nav == "⚙️ Profile Settings":
             profile_settings.run(user_id)
 
 if __name__ == "__main__":
