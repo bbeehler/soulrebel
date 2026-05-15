@@ -133,10 +133,10 @@ def run(user_id):
         # 3. THE COMMIT & TRANSITION GATE
         if final_text and not edit_mode:
             is_last_phase = (current_idx == 3)
-            button_label = "🔥 Finalize Audit & View Soul Guide" if is_last_phase else "🔥 Commit & Advance Phase"
+            button_label = "🔥 Finalize Audit & Illuminate Soul Guide" if is_last_phase else "🔥 Commit & Advance Phase"
             
             if st.button(button_label, use_container_width=True, key=f"commit_btn_{current_chamber_key}"):
-                # 1. Save finalized data to state and DB
+                # Always Save First
                 st.session_state.brand_soul[current_chamber_key] = final_text
                 save_brand_data(user_id, final_text, chamber=current_chamber_key)
                 
@@ -146,21 +146,20 @@ def run(user_id):
                     st.session_state.target_chamber = next_key
                     if f"active_draft_{next_key}" in st.session_state:
                         del st.session_state[f"active_draft_{next_key}"]
-                    st.success(f"Phase committed. Advancing...")
+                    st.success(f"Phase committed.")
                     time.sleep(0.5)
                     st.rerun()
                 else:
-                    # FINAL COMPLETION: FORCE GLOBAL REDIRECT
+                    # FINAL COMPLETION: FORCE REDIRECT TO ILLUMINATION
                     st.balloons()
-                    # We set every possible state variable used for routing to be safe
                     st.session_state.audit_complete = True
-                    st.session_state.active_step = "soul_guide"
-                    st.session_state.page = "soul_guide"
-                    st.session_state.current_page = "soul_guide"
                     
-                    st.success("Audit Complete! Redirecting to Soul Guide...")
+                    # MATCHING THE NAVIGATION KEYS IN YOUR APP
+                    st.session_state.target_page = "✨ Phase 03: Illumination"
+                    st.session_state.page = "illumination" 
+                    
+                    st.success("Audit Complete! Igniting the Soul Guide...")
                     time.sleep(1.5)
-                    # Triggering a full rerun to force the main app to re-evaluate navigation
                     st.rerun()
 
         st.write("---")
