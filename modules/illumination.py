@@ -15,30 +15,48 @@ def run(user_id):
     if "final_soul_guide" not in st.session_state:
         st.session_state.final_soul_guide = brand_data.get("soul_guide", "")
 
-    # 2. GENERATION LOGIC: ARCHITECTURAL MIMICRY
+    # 2. GENERATION LOGIC: HARD-CODED ARCHITECTURAL MANDATE
     if not st.session_state.final_soul_guide:
         if st.button("🔥 Illuminate the Master Soul Guide", use_container_width=True):
             with st.spinner("Synthesizing your Strategic Individual..."):
                 
-                # THE PROFESSIONAL ARCHITECTURE (No Black Planning Project Content Used)
+                # ENFORCED STRUCTURE (Based on your Gold Standard document)
                 methodology = """
                 ROLE: Godzspeed Soul Rebel Facilitator.
-                TASK: Generate a Master Soul Guide following a professional 'Strategic Individual' framework. 
+                TASK: Generate a Master Soul Guide. You MUST use the following headers exactly.
                 
-                STRUCTURE REQUIREMENTS:
-                - Section 1: The Core Identity (The big idea, narrative meaning, and long-term vision/mission).
-                - Section 2: The Transformation Methodology (A clear 3-step process for how this brand changes its industry).
-                - Section 3: Cultural Anchors (Values converted into 'We Believe' and 'We Always' actionable behaviors).
-                - Section 4: Market Positioning (Core function statement and segmented target audience profiles).
-                - Section 5: Brand Expression (Strategic slogan, voice guidelines, and core personality).
-                - Section 6: Strategic Legacy (Future impact and KPIs framed as 'Do I/Am I' self-audit questions).
+                MANDATORY SECTION HEADERS:
+                1. SECTION 1: BRAND IDENTITY
+                   - Big Idea (The rousing affirmation)
+                   - What it Means (The deep narrative)
+                   - Vision & Mission
+                
+                2. SECTION 2: TRANSFORMATION PROCESS
+                   - Our Transformation Process (Detail the 3-step radical methodology)
+                
+                3. SECTION 3: SOUL ANCHORS
+                   - Our Culture
+                   - Our Values (Humility, Diversity, Curiosity, etc. explained)
+                   - Beliefs (Written as 'We believe...')
+                   - Behaviours (Written as 'We always...')
+                
+                4. SECTION 4: BRAND POSITIONING
+                   - 1Soul Statement
+                   - Our Offering (Staff, Clients, Communities)
+                   - Target Audience (Detailed profiles of Allies and Partners)
+                
+                5. SECTION 5: BRAND EXPRESSION
+                   - Slogan
+                   - Brand Voice (Human, compelling, and hella smart)
+                   - Brand Personality (The Caring Catalyst)
+                
+                6. SECTION 6: SOUL TIES
+                   - Brand Legacy (What we want to be known for)
+                   - Key Soul Markers (KPIs framed as 'Do I/Am I' audit questions)
 
-                TONE: Human, compelling, authoritative, and sophisticated.
-                
-                IMPORTANT:
-                1. Use the Soul Audit data as the exclusive fuel.
-                2. If the data for a section is 'light' or missing, do not hallucinate. 
-                3. Append a 'FACILITATOR INQUIRY' at the end to ask the user for specific details needed to complete the section.
+                INSTRUCTION: 
+                - Fill these sections using the Soul Audit data[cite: 190].
+                - If data is missing for a section, provide a placeholder and add a 'FACILITATOR INQUIRY' at the bottom to ask the user for it[cite: 71, 72].
                 """
 
                 audit_context = f"""
@@ -48,7 +66,7 @@ def run(user_id):
                 BODY (Impact): {brand_data.get('brand_impact')}
                 """
                 
-                guide = get_soul_rebel_consultant("Illuminate the Master Guide.", methodology + audit_context)
+                guide = get_soul_rebel_consultant("Illuminate the Master Guide using the 6-Section Strategic Individual structure.", methodology + audit_context)
                 st.session_state.final_soul_guide = guide
                 save_brand_data(user_id, guide, chamber="soul_guide")
                 st.rerun()
@@ -57,7 +75,6 @@ def run(user_id):
     else:
         st.subheader("📜 The Strategic Individual Master Document")
         
-        # Highlight if the AI is waiting for more info
         if "FACILITATOR INQUIRY" in st.session_state.final_soul_guide:
             st.warning("The Facilitator has questions to help deepen specific sections of your Guide.")
         
@@ -92,6 +109,3 @@ def run(user_id):
                 save_brand_data(user_id, None, chamber="soul_guide")
                 st.session_state.final_soul_guide = ""
                 st.rerun()
-        with c3:
-            # Placeholder for future functionality
-            st.button("📄 Export PDF", use_container_width=True, disabled=True)
