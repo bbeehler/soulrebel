@@ -31,16 +31,16 @@ def run(user_id):
     # Methodology-aligned prompts derived from the Godzspeed Process
     chamber_prompts = {
         "purpus_summary": "Foundation Phase: We are building your vision. Forget what you sell—Why MUST this brand exist? What is the 'internal fire' that makes you a Rebel? ",
-        "brand_identity": "The Foundation: If this brand were an individual, what is its soul and identity? What are the core values that will move the needle? [cite: 54, 56]",
-        "brand_experience": "Remarkable Experiences: In this Foundation, how will your brand communicate its value and focus on the audience first? [cite: 42, 43]",
-        "brand_impact": "The Legacy: What challenges or problems are you facing that need solving right away to create impact in your community? [cite: 52, 70, 84]"
+        "brand_identity": "The Foundation: If this brand were an individual, what is its soul and identity? What are the core values that will move the needle?",
+        "brand_experience": "Remarkable Experiences: In this Foundation, how will your brand communicate its value and focus on the audience first?",
+        "brand_impact": "The Legacy: What challenges or problems are you facing that need solving right away to create impact in your community?"
     }
 
     col1, col2 = st.columns([3, 2])
 
     with col1:
         st.title("🔥 The Soul Audit")
-        st.caption("Phase 02: Foundation — Determining who you are and where you will grow. [cite: 51, 57]")
+        st.caption("Foundation — Determining who you are and where you will grow.")
         
         # --- DYNAMIC SELECTOR ---
         current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
@@ -73,7 +73,7 @@ def run(user_id):
         # Completion Check
         brand_data = st.session_state.get('brand_soul', {})
         if all(brand_data.get(k) for k in chamber_sequence):
-            st.success("🎉 **Foundation Complete.** You've unearthed the soul. [cite: 36, 62]")
+            st.success("🎉 **Foundation Complete.** You've unearthed the soul.")
             if st.button("✨ Proceed to Soul Illumination", use_container_width=True):
                 st.session_state.target_page = "2. ✨ The Soul Guide"
                 st.rerun()
@@ -102,15 +102,15 @@ def run(user_id):
                     # CEO'S SYSTEM CONTEXT INJECTION
                     methodology = """
                     SYSTEM CONTEXT: You are the Godzspeed Soul Rebel Facilitator. 
-                    Your mission is 'Phase 02: Foundation'. You are partnering with this leader to determine who they are. [cite: 50, 51]
+                    Your mission is 'Phase 02: Foundation'. You are partnering with this leader to determine who they are.
                     
                     CORE PRINCIPLES:
-                    1. UNREATH & ILLUMINATE: Find the soul and prepare it for the world. [cite: 36, 62]
-                    2. GROWTH AREAS: Identify areas for growth and develop strategies to move the needle. [cite: 56]
-                    3. COMMUNITY IMPACT: Focus on how this brand solves community problems and creates impact. [cite: 70, 72, 84]
-                    4. IDENTITY OVER PROFIT: We aren't just putting 'butts in seats'; we are creating impact. [cite: 83, 84]
+                    1. UNREATH & ILLUMINATE: Find the soul and prepare it for the world.
+                    2. GROWTH AREAS: Identify areas for growth and develop strategies to move the needle.
+                    3. COMMUNITY IMPACT: Focus on how this brand solves community problems and creates impact.
+                    4. IDENTITY OVER PROFIT: We aren't just putting 'butts in seats'; we are creating impact.
                     
-                    Always push for the 'deepest place possible'. [cite: 73]
+                    Always push for the 'deepest place possible'.
                     """
                     
                     instruction = f"\n\nPlace formal documentation inside [STRATEGY] tags. If the vision is solidified, add [MOVE_TO_CHAMBER:{next_chamber_key}] at the end."

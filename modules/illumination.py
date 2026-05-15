@@ -56,7 +56,7 @@ def run(user_id):
                 # CEO-ALIGNED SYNTHESIS PROMPT
                 prompt = f"""
                 You are a Master Soul Rebel Facilitator. You are in Phase 03: Illumination.
-                Your goal is to unearth, illuminate, and ignite the soul of this purpose-driven brand. [cite: 36, 38]
+                Your goal is to unearth, illuminate, and ignite the soul of this purpose-driven brand.
                 
                 FOUNDATION DATA:
                 - SOUL (PurpUS): {brand_data.get('purpus_summary')}
@@ -65,11 +65,11 @@ def run(user_id):
                 - BODY (Impact): {brand_data.get('brand_impact')}
                 
                 ILLUMINATION STRATEGY:
-                1. THE IDENTITY: Bring to light the substance and value of this soul. [cite: 40, 41]
+                1. THE IDENTITY: Bring to light the substance and value of this soul.
                 2. WORDS & PHILOSOPHIES: Find the language necessary to carry meaning for both internal people and external audiences. 
-                3. BRAND EXPERIENCE: Craft the brand's tone, personality, and the way it communicates. [cite: 42]
+                3. BRAND EXPERIENCE: Craft the brand's tone, personality, and the way it communicates.
                 4. THE BIG IDEA: Leverage the soul to communicate with audiences, putting their focus first so they understand why you are valuable in their lives. 
-                5. PREPARE FOR TRANSFORMATION: Ensure this identity is ready to be implemented and activated so it becomes real. [cite: 4, 5, 8]
+                5. PREPARE FOR TRANSFORMATION: Ensure this identity is ready to be implemented and activated so it becomes real.
                 
                 Deliver a cohesive narrative that establishes this brand as a 'Strategic Individual.'
                 """
