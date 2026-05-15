@@ -8,7 +8,7 @@ except Exception as e:
     st.error(f"Error loading backend modules: {e}")
 
 def run(user_id):
-    # 1. Initialize and Sync State with Database
+    # 1. Initialize and Force Sync State
     if "brand_soul" not in st.session_state:
         saved_data = load_brand_data(user_id)
         st.session_state.brand_soul = saved_data if saved_data else {}
@@ -31,9 +31,9 @@ def run(user_id):
 
     with col1:
         st.title("🔥 The Soul Audit")
-        st.caption("Unearthing the deepest possible understanding of your brand.")
+        st.caption("Unearthing the deepest possible understanding.")
         
-        # --- NAVIGATION LOGIC ---
+        # --- NAVIGATION ---
         current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
         chamber_keys = list(chamber_map.values())
         current_idx = chamber_keys.index(current_chamber_key) if current_chamber_key in chamber_keys else 0
@@ -45,7 +45,7 @@ def run(user_id):
             st.session_state.target_chamber = new_target
             st.rerun()
 
-        # Initial Chamber Prompts
+        # Initial Prompts
         chamber_prompts = {
             "purpus_summary": "Foundation Phase: Why MUST this brand exist? What internal fire drives this soul?",
             "brand_identity": "The Foundation: If this brand were an individual, what is its identity and ethos?",
@@ -78,28 +78,26 @@ def run(user_id):
         if user_input_content:
             st.session_state.messages.append({"role": "user", "content": user_input_content, "chamber": new_target})
             with st.chat_message("assistant"):
-                with st.spinner("Unearthing deeper alignment..."):
+                with st.spinner("Unearthing..."):
                     
                     next_idx = current_idx + 1
                     next_key = chamber_sequence[next_idx] if next_idx < len(chamber_sequence) else "COMPLETE"
                     
-                    # HARDCODED FACILITATOR BEHAVIOR
                     methodology = f"""
-                    SYSTEM CONTEXT: You are a Godzspeed Facilitator. You are NOT a passive chatbot.
+                    SYSTEM CONTEXT: You are a Godzspeed Facilitator. 
                     
-                    MANDATORY BEHAVIOR RULES:
-                    1. CHALLENGE EVERYTHING: If the user gives a response, find the 'why' behind it. Ask deep, investigative follow-up questions. Do NOT move on until you have unearthed a 'Strategic Individual' profile.
-                    2. DATA RIGIDITY: Every relevant insight MUST be captured inside [STRATEGY]...[/STRATEGY] tags. 
-                    3. NO AUTOMATIC MOVE: You are strictly forbidden from moving phases automatically. 
-                    4. THE GATE: Only when you have enough depth to 'move the needle' on a business, you must ask: 'I feel we have unearthed the substance here. Are you ready to move to the next phase?'
-                    5. COMMAND: Append [MOVE_TO_CHAMBER:{next_key}] ONLY if the user says 'Yes' or 'Ready' to the progression question.
-                    6. CUMULATIVE: Always add new strategic data to what is already in the vision document.
+                    HARD RULES:
+                    1. CHALLENGE & PROBE: Do not be agreeable. Ask 'Why?' until the soul is unearthed.
+                    2. DATA TAGGING: Wrap EVERY strategic insight or finalized summary in [STRATEGY]...[/STRATEGY] tags. 
+                    3. THE GATE: When substance is found, ask: 'Are you ready to move to the next phase?'
+                    4. COMMAND: Use [MOVE_TO_CHAMBER:{next_key}] ONLY if the user says 'Yes' or 'Ready'.
+                    5. APPEND: New data must be ADDED to the document, not replace it.
                     """
                     
                     current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == new_target])
                     full_response = get_soul_rebel_consultant(user_input_content, methodology + current_context)
 
-                    # Extract Strategy and Chat
+                    # Extract Content
                     strategy_part = ""
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
@@ -113,26 +111,30 @@ def run(user_id):
                         target_move = chat_part.split("[MOVE_TO_CHAMBER:")[1].split("]")[0]
                         chat_part = chat_part.split("[MOVE_TO_CHAMBER:")[0].strip()
 
-                    # 1. Update State & Database FIRST - Crucial for "Final Response" capture
+                    # --- CRITICAL FIX: IMMEDIATE SYNC ---
                     if strategy_part:
                         existing = st.session_state.brand_soul.get(new_target, "")
                         combined = f"{existing}\n\n{strategy_part}".strip()
+                        
+                        # 1. Update Session State FIRST
                         st.session_state.brand_soul[new_target] = combined
+                        # 2. Save to DB SECOND
                         save_brand_data(user_id, combined, chamber=new_target)
 
-                    # 2. Update Chat History
                     st.session_state.messages.append({"role": "assistant", "content": chat_part, "chamber": new_target})
 
-                    # 3. Handle move ONLY after data is saved and user confirmed
                     if target_move and target_move != "COMPLETE":
                         confirm_words = ["yes", "ready", "forward", "good", "move", "comfortable", "proceed"]
                         if any(word in user_input_content.lower() for word in confirm_words):
                             st.session_state.target_chamber = target_move
                     
+                    # Force a micro-pause to ensure DB commit
+                    time.sleep(0.1)
                     st.rerun()
 
     with col2:
         st.subheader("🧬 Foundation Progress")
+        # Pull directly from st.session_state to bypass any caching lag
         brand_data = st.session_state.brand_soul
         filled = sum(1 for k in chamber_sequence if brand_data.get(k))
         st.progress(filled/4)
