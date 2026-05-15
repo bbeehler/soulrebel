@@ -136,7 +136,7 @@ def run(user_id):
             button_label = "🔥 Finalize Audit & Open Soul Guide" if is_last_phase else "🔥 Commit & Advance Phase"
             
             if st.button(button_label, use_container_width=True, key=f"commit_btn_{current_chamber_key}"):
-                # Save finalized data
+                # 1. Save finalized data
                 st.session_state.brand_soul[current_chamber_key] = final_text
                 save_brand_data(user_id, final_text, chamber=current_chamber_key)
                 
@@ -149,21 +149,15 @@ def run(user_id):
                     time.sleep(0.5)
                     st.rerun()
                 else:
-                    # THE SIDEBAR SYNC FIX
+                    # 2. THE CLEAN REDIRECT
                     st.balloons()
                     
-                    # 1. Update the nav state main.py is looking for
-                    target_label = "2. The Soul Guide"
-                    st.session_state.target_page = target_label
-                    st.session_state.current_nav = target_label
-                    
-                    # 2. Force the sidebar radio widget to update its index
-                    # In main.py, the radio key is "sidebar_radio"
-                    st.session_state.sidebar_radio = target_label
-                    
+                    # Update target_page - main.py will handle the index update and nav switch
+                    st.session_state.target_page = "2. The Soul Guide"
                     st.session_state.audit_complete = True
+                    
                     st.success("Soul Audit Complete! Redirecting...")
-                    time.sleep(1.5)
+                    time.sleep(1)
                     st.rerun()
 
         st.write("---")
