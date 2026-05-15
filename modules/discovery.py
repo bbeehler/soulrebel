@@ -83,23 +83,22 @@ def run(user_id):
                     next_idx = current_idx + 1
                     next_key = chamber_sequence[next_idx] if next_idx < len(chamber_sequence) else "COMPLETE"
                     
-                    # HARD RULES FOR THE FACILITATOR
+                    # UPDATED FACILITATOR METHODOLOGY
                     methodology = f"""
-                    SYSTEM CONTEXT: You are a Godzspeed Facilitator.
+                    SYSTEM CONTEXT: You are a Godzspeed Facilitator. You are in a partnership to unearth the Soul Guide.
                     
-                    COMMANDS:
-                    1. CONVERSATION: Ask deep follow-up questions to unearth 'Why'.
-                    2. FINAL SYNTHESIS: When a section is complete, you MUST provide a full summary wrapped in [STRATEGY]...[/STRATEGY] tags. This is the only way it gets saved to the document.
-                    3. NAVIGATION: After (and only after) providing the [STRATEGY] block, ask: "I have updated the Vision. Ready to move to the next phase?"
-                    4. EXECUTION: Append [MOVE_TO_CHAMBER:{next_key}] ONLY if the user says "Yes" or "Ready".
-                    
-                    STRICT: Do not just talk about the summary. Write the summary inside the tags.
+                    STRICT WORKFLOW:
+                    1. CONVERSATION: Ask deep, challenging follow-up questions to unearth the 'Why'. 
+                    2. FINAL SYNTHESIS: When (and only when) the topic is fully explored, provide a FINAL summary of everything unearthed. Wrap this synthesis in [STRATEGY]...[/STRATEGY] tags.
+                    3. PERMISSION GATE: After providing the [STRATEGY] block, ask: "I have updated your Documented Vision. Are you ready to move to the next phase, or is there more to unearth?"
+                    4. EXECUTION: Append [MOVE_TO_CHAMBER:{next_key}] ONLY if the user explicitly says "Yes" or "Ready" AFTER you have provided the synthesis.
+                    5. APPEND: New strategic data must be added to the document, not replace it.
                     """
                     
                     current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == new_target])
                     full_response = get_soul_rebel_consultant(user_input_content, methodology + current_context)
 
-                    # Extract Strategy Synthesis
+                    # Extract Content
                     strategy_part = ""
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
@@ -107,9 +106,6 @@ def run(user_id):
                         strategy_part = parts[1].split("[/STRATEGY]")[0].strip() if "[/STRATEGY]" in parts[1] else parts[1].strip()
                     else:
                         chat_part = full_response
-                        # Fallback: if AI says "I have updated" but forgot tags, assume the response is the strategy
-                        if "ready to move" in full_response.lower() and len(full_response) > 100:
-                             strategy_part = full_response
 
                     target_move = None
                     if "[MOVE_TO_CHAMBER:" in chat_part:
@@ -119,16 +115,15 @@ def run(user_id):
                     # Atomic Session + DB Update
                     if strategy_part:
                         existing = st.session_state.brand_soul.get(new_target, "")
-                        # Append to keep history, or replace if it's a "Final" summary
                         combined = f"{existing}\n\n{strategy_part}".strip()
                         st.session_state.brand_soul[new_target] = combined
                         save_brand_data(user_id, combined, chamber=new_target)
 
                     st.session_state.messages.append({"role": "assistant", "content": chat_part, "chamber": new_target})
 
-                    # Handle Confirmation Logic
+                    # Progression Logic: Only move if confirmation follows a Move request
                     if target_move and target_move != "COMPLETE":
-                        confirm_words = ["yes", "ready", "forward", "good", "move", "comfortable", "proceed"]
+                        confirm_words = ["yes", "ready", "forward", "good", "move", "comfortable", "proceed", "let's go"]
                         if any(word in user_input_content.lower() for word in confirm_words):
                             st.session_state.target_chamber = target_move
                     
