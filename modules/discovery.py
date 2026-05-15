@@ -8,7 +8,7 @@ except Exception as e:
     st.error(f"Error loading backend modules: {e}")
 
 def run(user_id):
-    # 1. Initialize State and Sync
+    # 1. Force Sync State and Database
     if "brand_soul" not in st.session_state:
         st.session_state.brand_soul = load_brand_data(user_id) or {}
     
@@ -26,7 +26,7 @@ def run(user_id):
     }
     chamber_sequence = ["purpus_summary", "brand_identity", "brand_experience", "brand_impact"]
     
-    # --- NAVIGATION LOGIC ---
+    # --- DYNAMIC NAVIGATION FIX ---
     current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
     chamber_keys = list(chamber_map.values())
     current_idx = chamber_keys.index(current_chamber_key)
@@ -37,7 +37,7 @@ def run(user_id):
         st.title("🔥 The Soul Audit")
         st.caption(f"Unearthing Phase: {list(chamber_map.keys())[current_idx]}")
         
-        # 1. FACILITATOR CHAT
+        # Facilitator Opening
         chamber_prompts = {
             "purpus_summary": "Foundation Phase: Why MUST this brand exist? What internal fire drives this soul?",
             "brand_identity": "The Foundation: If this brand were an individual, what is its identity and ethos?",
@@ -45,11 +45,10 @@ def run(user_id):
             "brand_impact": "The Legacy: What urgent community problems are you solving to create ongoing impact?"
         }
         
-        # Ensure the opening prompt exists for the current chamber
         if not any(m.get("chamber") == current_chamber_key for m in st.session_state.messages):
             st.session_state.messages.append({"role": "assistant", "content": chamber_prompts[current_chamber_key], "chamber": current_chamber_key})
 
-        # Display persistent chat history for this chamber
+        # Render Active Chamber Thread
         for message in [m for m in st.session_state.messages if m.get("chamber") == current_chamber_key]:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
@@ -70,20 +69,16 @@ def run(user_id):
         if user_input:
             st.session_state.messages.append({"role": "user", "content": user_input, "chamber": current_chamber_key})
             with st.chat_message("assistant"):
-                with st.spinner("Processing unearthing..."):
-                    methodology = f"""
-                    ROLE: Godzspeed Facilitator. 
-                    TASK: Challenge the user. Probe deeper. Do not move on. 
-                    STRATEGY TAGS: Every time the user provides substance, summarize the cumulative findings for THIS phase inside [STRATEGY]...[/STRATEGY] tags.
-                    """
+                with st.spinner("Processing..."):
+                    methodology = f"ROLE: Godzspeed Facilitator. Focus ONLY on the '{current_chamber_key}' phase. Wrap summaries in [STRATEGY]...[/STRATEGY] tags."
                     current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == current_chamber_key])
                     full_response = get_soul_rebel_consultant(user_input, methodology + current_context)
 
-                    # Extract Strategy Draft tied to current chamber
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
                         chat_part = parts[0].strip()
                         strategy_draft = parts[1].split("[/STRATEGY]")[0].strip() if "[/STRATEGY]" in parts[1] else parts[1].strip()
+                        # CRITICAL: Bind draft to current chamber
                         st.session_state[f"draft_{current_chamber_key}"] = strategy_draft
                     else:
                         chat_part = full_response
@@ -93,30 +88,27 @@ def run(user_id):
 
     with col2:
         st.subheader("📋 Documented Vision")
-        st.info("Review the unearthing. Edit to refine, or Commit to advance.")
-
         edit_mode = st.toggle("🛠️ Enable Manual Edit Mode")
 
-        # Pull specifically for this chamber
+        # Atomic Retrieval for Current Phase
         draft_content = st.session_state.get(f"draft_{current_chamber_key}", "")
         saved_content = st.session_state.brand_soul.get(current_chamber_key, "")
         display_text = draft_content if draft_content else saved_content
 
-        with st.expander("🔍 Proposed Strategic Individual", expanded=True):
+        with st.expander(f"🔍 Proposed {list(chamber_map.keys())[current_idx]}", expanded=True):
             if edit_mode:
                 dk = f"widget_{current_chamber_key}_{st.session_state.widget_seeds[current_chamber_key]}"
                 final_text = st.text_area("Refine Summary:", value=display_text, height=350, key=dk)
                 
                 c1, c2 = st.columns(2)
                 with c1:
-                    if st.button("💾 Save Changes", use_container_width=True):
+                    if st.button("💾 Save Changes", key=f"save_{current_chamber_key}"):
                         st.session_state.brand_soul[current_chamber_key] = final_text
                         save_brand_data(user_id, final_text, chamber=current_chamber_key)
                         st.success("Draft Saved.")
-                        time.sleep(0.5)
                         st.rerun()
                 with c2:
-                    if st.button("🗑️ Clear Phase", use_container_width=True):
+                    if st.button("🗑️ Clear Phase", key=f"clear_{current_chamber_key}"):
                         st.session_state.brand_soul[current_chamber_key] = ""
                         st.session_state[f"draft_{current_chamber_key}"] = ""
                         save_brand_data(user_id, "", chamber=current_chamber_key)
@@ -124,28 +116,24 @@ def run(user_id):
                         st.session_state.widget_seeds[current_chamber_key] += 1
                         st.rerun()
             else:
-                if display_text:
-                    st.markdown(display_text)
-                else:
-                    st.caption("Awaiting unearthing synthesis...")
+                st.markdown(display_text if display_text else "*Awaiting unearthing...*")
                 final_text = display_text
 
-        # --- THE GATE ---
+        # THE GATE
         if final_text and not edit_mode:
-            if st.button("🔥 Commit & Advance Phase", use_container_width=True):
-                # 1. Save finalized data
+            if st.button("🔥 Commit & Advance Phase", use_container_width=True, key=f"commit_{current_chamber_key}"):
                 st.session_state.brand_soul[current_chamber_key] = final_text
                 save_brand_data(user_id, final_text, chamber=current_chamber_key)
                 
-                # 2. Advance to next chamber sequence
-                if current_idx < 3:
+                if current_idx < len(chamber_sequence) - 1:
                     next_key = chamber_sequence[current_idx + 1]
                     st.session_state.target_chamber = next_key
-                    st.success(f"Phase committed.")
+                    # Clear previous draft to prevent leak
+                    st.session_state[f"draft_{next_key}"] = ""
+                    st.success(f"Phase {current_idx + 1} Committed.")
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.balloons()
                     st.success("Soul Audit Complete!")
 
         st.write("---")
@@ -153,5 +141,4 @@ def run(user_id):
         for label, key in chamber_map.items():
             if key != current_chamber_key:
                 with st.expander(label):
-                    history_content = st.session_state.brand_soul.get(key, "")
-                    st.markdown(history_content if history_content else "*Awaiting unearthing...*")
+                    st.markdown(st.session_state.brand_soul.get(key, "*Awaiting unearthing...*"))
