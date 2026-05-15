@@ -8,7 +8,7 @@ except Exception as e:
     st.error(f"Error loading backend modules: {e}")
 
 def run(user_id):
-    # 1. Initialize and Sync State
+    # 1. Sync State with Database
     if "brand_soul" not in st.session_state:
         saved_data = load_brand_data(user_id)
         st.session_state.brand_soul = saved_data if saved_data else {}
@@ -27,12 +27,11 @@ def run(user_id):
     }
     chamber_sequence = ["purpus_summary", "brand_identity", "brand_experience", "brand_impact"]
     
-    # 2. UI Layout
     col1, col2 = st.columns([3, 2])
 
     with col1:
         st.title("🔥 The Soul Audit")
-        st.caption("Identifying growth opportunities and defining your daily impact.")
+        st.caption("Determining who you are and defining your daily impact. [cite: 50, 52]")
         
         # Navigation
         current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
@@ -46,63 +45,50 @@ def run(user_id):
             st.session_state.target_chamber = new_target
             st.rerun()
 
-        # Opening Prompt
+        # Initial Prompt per Chamber
         chamber_prompts = {
-            "purpus_summary": "Foundation Phase: Why MUST this brand exist? What internal fire drives this soul?",
-            "brand_identity": "Designing the Individual: What are the core values and philosophies necessary to carry meaning?",
-            "brand_experience": "Remarkable Experiences: How will your brand communicate its value while putting the audience first?",
-            "brand_impact": "The Legacy: What urgent community problems are you solving to create ongoing impact?"
+            "purpus_summary": "Foundation Phase: Why MUST this brand exist? What internal fire drives this soul? [cite: 36, 53]",
+            "brand_identity": "The Foundation: If this brand were an individual, what is its identity and ethos? [cite: 41, 54]",
+            "brand_experience": "Remarkable Experiences: How will your brand communicate its value while putting your audience first? [cite: 43]",
+            "brand_impact": "The Legacy: What urgent community problems are you solving to create ongoing impact? [cite: 70, 80]"
         }
         if not any(m.get("chamber") == new_target for m in st.session_state.messages):
             st.session_state.messages.append({"role": "assistant", "content": chamber_prompts[new_target], "chamber": new_target})
 
-        # Chat History
-        active_messages = [m for m in st.session_state.messages if m.get("chamber") == new_target]
-        for message in active_messages:
+        # Chat display
+        for message in [m for m in st.session_state.messages if m.get("chamber") == new_target]:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        # Input
+        # Input handling
         st.write("---")
-        audio_input = st.audio_input("🎤 Speak your vision", key=f"audio_{new_target}")
         prompt = st.chat_input("Document your thoughts...")
 
-        user_input = None
-        if audio_input:
-            audio_id = hash(f"{audio_input.name}_{audio_input.size}")
-            if st.session_state.get("last_audio_id") != audio_id:
-                user_input = "🎤 *Voice Vision Submitted*"
-                st.session_state.last_audio_id = audio_id
-        elif prompt:
-            user_input = prompt
-
-        # 3. AI Processing Logic
-        if user_input:
-            st.session_state.messages.append({"role": "user", "content": user_input, "chamber": new_target})
-            
+        if prompt:
+            st.session_state.messages.append({"role": "user", "content": prompt, "chamber": new_target})
             with st.chat_message("assistant"):
                 with st.spinner("Unearthing deeper alignment..."):
                     
                     next_idx = current_idx + 1
                     next_key = chamber_sequence[next_idx] if next_idx < len(chamber_sequence) else "COMPLETE"
                     
-                    # TIGHT INSTRUCTIONS FOR FOLLOW-UP AND PROGRESSION
+                    # MANDATORY GATEKEEPING INSTRUCTIONS
                     methodology = f"""
-                    SYSTEM CONTEXT: You are the Godzspeed Soul Rebel Facilitator.
-                    CURRENT PHASE: 02: Foundation.
-                    CURRENT CHAMBER: {new_target}
+                    SYSTEM CONTEXT: You are the Godzspeed Soul Rebel Facilitator. [cite: 36]
                     
-                    HARD RULES:
-                    1. If the user's input is brief, ask a specific follow-up question to reach the 'deepest place possible'.
-                    2. If the vision for THIS chamber is solidified, provide a strategic synthesis inside [STRATEGY] tags AND add [MOVE_TO_CHAMBER:{next_key}] at the end.
-                    3. Do NOT move to the next chamber unless the current one has enough substance to build a 'Strategic Bible'.
-                    4. Always maintain the CEO's tone: deep, tactful, and revolutionary.
+                    HARD RULES FOR PROGRESSION:
+                    1. BUILD CONTENT: Always synthesize the user's input and provide a formal summary inside [STRATEGY]...[/STRATEGY] tags.
+                    2. FACILITATE, DON'T FORCE: If the vision is solidified, ask: 'I feel we have unearthed the soul of this section. Are you ready to move forward to the next phase, or is there more to unearth here?'
+                    3. TRIGGER MOVE: ONLY use the tag [MOVE_TO_CHAMBER:{next_key}] if the user explicitly confirms they are ready to move. 
+                    4. APPEND: Your strategic summaries must be additive. 
+                    
+                    The success of this work hinges on getting to the deepest place possible. 
                     """
                     
                     current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == new_target])
-                    full_response = get_soul_rebel_consultant(user_input, methodology + current_context)
+                    full_response = get_soul_rebel_consultant(prompt, methodology + current_context)
 
-                    # Data Extraction
+                    # Extract strategy data and navigation
                     strategy_part = ""
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
@@ -111,21 +97,18 @@ def run(user_id):
                     else:
                         chat_part = full_response
 
-                    # Navigation Logic
                     if "[MOVE_TO_CHAMBER:" in chat_part:
                         move_tag = chat_part.split("[MOVE_TO_CHAMBER:")[1].split("]")[0]
                         chat_part = chat_part.split("[MOVE_TO_CHAMBER:")[0].strip()
                         if move_tag != "COMPLETE":
                             st.session_state.target_chamber = move_tag
 
-                    # Update Message State
+                    # Update State and Sync Database
                     st.session_state.messages.append({"role": "assistant", "content": chat_part, "chamber": new_target})
                     
-                    # Update & Sync Vision Data
                     if strategy_part:
                         existing = st.session_state.brand_soul.get(new_target, "")
                         combined = f"{existing}\n\n{strategy_part}".strip()
-                        # Update state immediately for UI refresh
                         st.session_state.brand_soul[new_target] = combined
                         save_brand_data(user_id, combined, chamber=new_target)
                     
@@ -133,25 +116,17 @@ def run(user_id):
 
     with col2:
         st.subheader("🧬 Foundation Progress")
+        # Ensure col2 pulls from the most recent session state
         brand_data = st.session_state.brand_soul
         filled = sum(1 for k in chamber_sequence if brand_data.get(k))
         st.progress(filled/4)
 
         st.write("---")
         st.subheader("📋 Documented Vision")
-        edit_mode = st.toggle("🛠️ Edit Strategy Foundation")
-
         for label, key in chamber_map.items():
-            is_expanded = (current_chamber_key == key)
-            with st.expander(label, expanded=is_expanded):
+            with st.expander(label, expanded=(current_chamber_key == key)):
                 content = brand_data.get(key, "")
-                if edit_mode:
-                    dk = f"widget_{key}_{st.session_state.widget_seeds[key]}"
-                    new_val = st.text_area(f"Refine {label}:", value=content, height=200, key=dk)
-                    if st.button(f"💾 Save {label}", key=f"s_{key}"):
-                        st.session_state.brand_soul[key] = new_val
-                        save_brand_data(user_id, new_val, chamber=key)
-                        st.success("Updated.")
-                        st.rerun()
+                if content:
+                    st.markdown(content)
                 else:
-                    st.markdown(content if content else "*Awaiting deeper unearthing...*")
+                    st.caption("Awaiting deeper unearthing... ")
