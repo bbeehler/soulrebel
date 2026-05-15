@@ -30,12 +30,13 @@ def run(user_id):
     current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
     chamber_keys = list(chamber_map.values())
     current_idx = chamber_keys.index(current_chamber_key)
+    current_label = list(chamber_map.keys())[current_idx]
     
     col1, col2 = st.columns([3, 2])
 
     with col1:
         st.title("🔥 The Soul Audit")
-        st.caption(f"Unearthing Phase: {list(chamber_map.keys())[current_idx]}")
+        st.caption(f"Facilitated Unearthing: {current_label}")
         
         # Facilitator Opening Prompts
         chamber_prompts = {
@@ -54,7 +55,7 @@ def run(user_id):
 
         st.write("---")
         audio_input = st.audio_input("🎤 Speak your vision", key=f"audio_input_{current_chamber_key}")
-        prompt = st.chat_input("Unearth your thoughts...")
+        prompt = st.chat_input("Document your thoughts...")
 
         user_input = None
         if audio_input:
@@ -69,7 +70,18 @@ def run(user_id):
             st.session_state.messages.append({"role": "user", "content": user_input, "chamber": current_chamber_key})
             with st.chat_message("assistant"):
                 with st.spinner("Processing unearthing..."):
-                    methodology = f"ROLE: Godzspeed Facilitator. PHASE: {current_chamber_key}. TASK: Probe the 'Why'. MANDATORY: Wrap the final synthesis for this phase in [STRATEGY]...[/STRATEGY] tags."
+                    # DYNAMIC METHODOLOGY INJECTION
+                    methodology = f"""
+                    ROLE: Godzspeed Facilitator. 
+                    CURRENT PHASE: {current_label} ({current_chamber_key})
+                    
+                    TASK: 
+                    1. Challenge the user's input within the specific context of {current_label}. 
+                    2. Probe deeper. Do not move on until the vision for this phase is solidified.
+                    3. UPDATING THE VISION: Every time the user provides substance, synthesize the NEW information into the cumulative findings for THIS phase.
+                    4. MANDATORY: Wrap the updated, deeper synthesis for this phase in [STRATEGY]...[/STRATEGY] tags.
+                    """
+                    
                     current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == current_chamber_key])
                     full_response = get_soul_rebel_consultant(user_input, methodology + current_context)
 
@@ -100,7 +112,7 @@ def run(user_id):
         saved_content = st.session_state.brand_soul.get(current_chamber_key, "")
         display_text = draft_content if draft_content else saved_content
 
-        with st.expander(f"🔍 Proposed: {list(chamber_map.keys())[current_idx]}", expanded=True):
+        with st.expander(f"🔍 Current Phase: {current_label}", expanded=True):
             if edit_mode:
                 widget_key = f"refine_{current_chamber_key}_{st.session_state.widget_seeds[current_chamber_key]}"
                 final_text = st.text_area("Refine Summary:", value=display_text, height=350, key=widget_key)
@@ -141,7 +153,7 @@ def run(user_id):
                     if f"active_draft_{next_key}" in st.session_state:
                         del st.session_state[f"active_draft_{next_key}"]
                     
-                    st.success("Phase alignment confirmed.")
+                    st.success(f"Phase committed. Moving to next level...")
                     time.sleep(1)
                     st.rerun()
                 else:
