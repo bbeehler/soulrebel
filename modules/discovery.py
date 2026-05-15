@@ -31,7 +31,7 @@ def run(user_id):
 
     with col1:
         st.title("🔥 The Soul Audit")
-        st.caption("Phase 02: Foundation — Determining who you are and defining your daily impact.")
+        st.caption("Unearthing the deepest possible understanding of your brand.")
         
         # --- NAVIGATION LOGIC ---
         current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
@@ -83,22 +83,23 @@ def run(user_id):
                     next_idx = current_idx + 1
                     next_key = chamber_sequence[next_idx] if next_idx < len(chamber_sequence) else "COMPLETE"
                     
+                    # HARDCODED FACILITATOR BEHAVIOR
                     methodology = f"""
-                    SYSTEM CONTEXT: You are the Godzspeed Soul Rebel Facilitator. You unearth, illuminate, and ignite.
+                    SYSTEM CONTEXT: You are a Godzspeed Facilitator. You are NOT a passive chatbot.
                     
-                    MANDATORY BEHAVIOR:
-                    1. BE INQUISITIVE: If the user provides a response, you MUST ask deep, challenging follow-up questions to reach the 'deepest place possible'. Do not provide shallow praise or move on too early.
-                    2. DATA CAPTURE: Wrap all strategic insights in [STRATEGY]...[/STRATEGY] tags. 
-                    3. PROGRESSION GATE: Only when you feel the soul of this chamber is fully unearthed and quantified, ASK: "Are you ready to move to the next phase, or is there more to unearth here?"
-                    4. COMMAND: Only append [MOVE_TO_CHAMBER:{next_key}] IF the user explicitly confirms they are ready to proceed.
-                    5. APPEND: Always add new strategic insights to the existing vision.
-                    
-                    Current Chamber: {new_target}
+                    MANDATORY BEHAVIOR RULES:
+                    1. CHALLENGE EVERYTHING: If the user gives a response, find the 'why' behind it. Ask deep, investigative follow-up questions. Do NOT move on until you have unearthed a 'Strategic Individual' profile.
+                    2. DATA RIGIDITY: Every relevant insight MUST be captured inside [STRATEGY]...[/STRATEGY] tags. 
+                    3. NO AUTOMATIC MOVE: You are strictly forbidden from moving phases automatically. 
+                    4. THE GATE: Only when you have enough depth to 'move the needle' on a business, you must ask: 'I feel we have unearthed the substance here. Are you ready to move to the next phase?'
+                    5. COMMAND: Append [MOVE_TO_CHAMBER:{next_key}] ONLY if the user says 'Yes' or 'Ready' to the progression question.
+                    6. CUMULATIVE: Always add new strategic data to what is already in the vision document.
                     """
                     
                     current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == new_target])
                     full_response = get_soul_rebel_consultant(user_input_content, methodology + current_context)
 
+                    # Extract Strategy and Chat
                     strategy_part = ""
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
@@ -124,7 +125,7 @@ def run(user_id):
 
                     # 3. Handle move ONLY after confirmation
                     if target_move and target_move != "COMPLETE":
-                        confirm_words = ["yes", "ready", "forward", "good", "move", "comfortable", "let's go"]
+                        confirm_words = ["yes", "ready", "forward", "good", "move", "comfortable", "proceed"]
                         if any(word in user_input_content.lower() for word in confirm_words):
                             st.session_state.target_chamber = target_move
                     
@@ -139,7 +140,6 @@ def run(user_id):
         st.write("---")
         st.subheader("📋 Documented Vision")
         
-        # PERSISTED: Manual Edit Mode Toggle
         edit_mode = st.toggle("🛠️ Edit Strategy Foundation")
 
         for label, key in chamber_map.items():
