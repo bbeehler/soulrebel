@@ -8,7 +8,7 @@ except Exception as e:
     st.error(f"Error loading backend modules: {e}")
 
 def run(user_id):
-    # 1. INITIALIZE & SYNC: Ensure we have the latest from DB
+    # 1. INITIALIZE & SYNC
     if "brand_soul" not in st.session_state:
         st.session_state.brand_soul = load_brand_data(user_id) or {}
     
@@ -132,25 +132,32 @@ def run(user_id):
 
         # 3. THE COMMIT & TRANSITION GATE
         if final_text and not edit_mode:
-            if st.button("🔥 Commit & Advance Phase", use_container_width=True, key=f"commit_btn_{current_chamber_key}"):
+            # UNIQUE KEY for the final phase to avoid state collisions
+            button_label = "🔥 Finalize Audit & View Soul Guide" if current_idx == 3 else "🔥 Commit & Advance Phase"
+            
+            if st.button(button_label, use_container_width=True, key=f"commit_btn_{current_chamber_key}"):
+                # Always Save First
                 st.session_state.brand_soul[current_chamber_key] = final_text
                 save_brand_data(user_id, final_text, chamber=current_chamber_key)
                 
-                if current_idx < len(chamber_sequence) - 1:
+                if current_idx < 3:
+                    # Move to next sub-phase
                     next_key = chamber_sequence[current_idx + 1]
                     st.session_state.target_chamber = next_key
                     if f"active_draft_{next_key}" in st.session_state:
                         del st.session_state[f"active_draft_{next_key}"]
-                    st.success(f"Phase committed. Advancing...")
-                    time.sleep(1)
+                    st.success(f"Phase committed.")
+                    time.sleep(0.5)
                     st.rerun()
                 else:
-                    # AUDIT COMPLETE: Trigger transition to Soul Guide
+                    # FINAL COMPLETION
                     st.balloons()
                     st.session_state.audit_complete = True
-                    st.session_state.page = "soul_guide" # Assuming 'soul_guide' is your next module ID
-                    st.success("Soul Audit Documented! Transitioning to your Soul Guide...")
-                    time.sleep(2)
+                    # FORCE MAIN APP NAVIGATION
+                    st.session_state.current_page = "soul_guide" 
+                    st.session_state.active_step = "soul_guide"
+                    st.success("Audit Complete! Opening Soul Guide...")
+                    time.sleep(1.5)
                     st.rerun()
 
         st.write("---")
