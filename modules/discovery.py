@@ -26,7 +26,7 @@ def run(user_id):
     }
     chamber_sequence = ["purpus_summary", "brand_identity", "brand_experience", "brand_impact"]
     
-    # 2. CHAMBER NAVIGATION: Lock the current focus
+    # 2. CHAMBER NAVIGATION
     current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
     chamber_keys = list(chamber_map.values())
     current_idx = chamber_keys.index(current_chamber_key)
@@ -38,7 +38,6 @@ def run(user_id):
         st.title("🔥 The Soul Audit")
         st.caption(f"Facilitated Unearthing: {current_label}")
         
-        # Facilitator Opening Prompts
         chamber_prompts = {
             "purpus_summary": "Foundation Phase: Why MUST this brand exist? What internal fire drives this soul?",
             "brand_identity": "The Foundation: If this brand were an individual, what is its identity and ethos?",
@@ -70,22 +69,16 @@ def run(user_id):
             st.session_state.messages.append({"role": "user", "content": user_input_content, "chamber": current_chamber_key})
             with st.chat_message("assistant"):
                 with st.spinner("Updating strategic vision..."):
-                    # REINFORCED METHODOLOGY
                     methodology = f"""
                     ROLE: Godzspeed Facilitator. 
                     CURRENT PHASE: {current_label} ({current_chamber_key})
-                    
-                    TASK: 
-                    1. Challenge the user's latest input. Probe for deeper layers of 'Why'.
-                    2. MANDATORY DATA CAPTURE: You MUST synthesize the current conversation into a cumulative summary for this phase.
-                    3. Every single time you provide a summary or deeper unearthing, wrap it in [STRATEGY]...[/STRATEGY] tags.
-                    4. This updated synthesis will be pushed to the Documented Vision panel.
+                    TASK: Challenge the user's input. Probe for deeper layers. 
+                    MANDATORY: Synthesize the current conversation into a cumulative summary for this phase.
+                    Wrap the updated synthesis in [STRATEGY]...[/STRATEGY] tags.
                     """
-                    
                     current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == current_chamber_key])
                     full_response = get_soul_rebel_consultant(user_input_content, methodology + current_context)
 
-                    # Extract Strategy Synthesis
                     strategy_draft = ""
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
@@ -93,7 +86,6 @@ def run(user_id):
                         strategy_draft = parts[1].split("[/STRATEGY]")[0].strip() if "[/STRATEGY]" in parts[1] else parts[1].strip()
                     else:
                         chat_part = full_response
-                        # FALLBACK: Force-capture if the AI forgot tags but provided a significant summary
                         if len(full_response) > 200:
                             strategy_draft = full_response
 
@@ -107,7 +99,6 @@ def run(user_id):
         st.subheader("📋 Documented Vision")
         edit_mode = st.toggle("🛠️ Manual Edit Mode", key=f"edit_toggle_{current_chamber_key}")
 
-        # DATA RETRIEVAL: Prioritize the active session draft
         draft_content = st.session_state.get(f"active_draft_{current_chamber_key}", "")
         saved_content = st.session_state.brand_soul.get(current_chamber_key, "")
         display_text = draft_content if draft_content else saved_content
@@ -139,7 +130,7 @@ def run(user_id):
                     st.caption("Awaiting Facilitator synthesis...")
                 final_text = display_text
 
-        # THE COMMIT GATE
+        # 3. THE COMMIT & TRANSITION GATE
         if final_text and not edit_mode:
             if st.button("🔥 Commit & Advance Phase", use_container_width=True, key=f"commit_btn_{current_chamber_key}"):
                 st.session_state.brand_soul[current_chamber_key] = final_text
@@ -148,17 +139,19 @@ def run(user_id):
                 if current_idx < len(chamber_sequence) - 1:
                     next_key = chamber_sequence[current_idx + 1]
                     st.session_state.target_chamber = next_key
-                    
-                    # MANDATORY WIPE: Ensure the next chamber doesn't inherit the old draft
                     if f"active_draft_{next_key}" in st.session_state:
                         del st.session_state[f"active_draft_{next_key}"]
-                    
-                    st.success(f"Phase committed. Advancing to {next_key}...")
+                    st.success(f"Phase committed. Advancing...")
                     time.sleep(1)
                     st.rerun()
                 else:
+                    # AUDIT COMPLETE: Trigger transition to Soul Guide
                     st.balloons()
-                    st.success("Soul Audit Documented!")
+                    st.session_state.audit_complete = True
+                    st.session_state.page = "soul_guide" # Assuming 'soul_guide' is your next module ID
+                    st.success("Soul Audit Documented! Transitioning to your Soul Guide...")
+                    time.sleep(2)
+                    st.rerun()
 
         st.write("---")
         st.subheader("🧬 Foundation History")
