@@ -8,7 +8,7 @@ except Exception as e:
     st.error(f"Error loading backend modules: {e}")
 
 def run(user_id):
-    # 1. Initialize State
+    # 1. Initialize State and Sync
     if "brand_soul" not in st.session_state:
         st.session_state.brand_soul = load_brand_data(user_id) or {}
     
@@ -26,7 +26,7 @@ def run(user_id):
     }
     chamber_sequence = ["purpus_summary", "brand_identity", "brand_experience", "brand_impact"]
     
-    # --- NAVIGATION ---
+    # --- NAVIGATION LOGIC ---
     current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
     chamber_keys = list(chamber_map.values())
     current_idx = chamber_keys.index(current_chamber_key)
@@ -74,12 +74,12 @@ def run(user_id):
                     methodology = f"""
                     ROLE: Godzspeed Facilitator. 
                     TASK: Challenge the user. Probe deeper. Do not move on. 
-                    STRATEGY TAGS: Every time the user provides substance, summarize the cumulative findings inside [STRATEGY]...[/STRATEGY] tags.
+                    STRATEGY TAGS: Every time the user provides substance, summarize the cumulative findings for THIS phase inside [STRATEGY]...[/STRATEGY] tags.
                     """
                     current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == current_chamber_key])
                     full_response = get_soul_rebel_consultant(user_input, methodology + current_context)
 
-                    # Extract Strategy Draft
+                    # Extract Strategy Draft tied to current chamber
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
                         chat_part = parts[0].strip()
@@ -95,16 +95,15 @@ def run(user_id):
         st.subheader("📋 Documented Vision")
         st.info("Review the unearthing. Edit to refine, or Commit to advance.")
 
-        # RESTORED: Edit Mode Toggle
         edit_mode = st.toggle("🛠️ Enable Manual Edit Mode")
 
+        # Pull specifically for this chamber
         draft_content = st.session_state.get(f"draft_{current_chamber_key}", "")
         saved_content = st.session_state.brand_soul.get(current_chamber_key, "")
         display_text = draft_content if draft_content else saved_content
 
         with st.expander("🔍 Proposed Strategic Individual", expanded=True):
             if edit_mode:
-                # Restoration of Manual Editing and Saving
                 dk = f"widget_{current_chamber_key}_{st.session_state.widget_seeds[current_chamber_key]}"
                 final_text = st.text_area("Refine Summary:", value=display_text, height=350, key=dk)
                 
@@ -121,24 +120,28 @@ def run(user_id):
                         st.session_state.brand_soul[current_chamber_key] = ""
                         st.session_state[f"draft_{current_chamber_key}"] = ""
                         save_brand_data(user_id, "", chamber=current_chamber_key)
-                        # Reset chat history for this chamber only
                         st.session_state.messages = [m for m in st.session_state.messages if m.get("chamber") != current_chamber_key]
                         st.session_state.widget_seeds[current_chamber_key] += 1
                         st.rerun()
             else:
-                st.markdown(display_text if display_text else "*Awaiting unearthing...*")
+                if display_text:
+                    st.markdown(display_text)
+                else:
+                    st.caption("Awaiting unearthing synthesis...")
                 final_text = display_text
 
-        # THE GATE
+        # --- THE GATE ---
         if final_text and not edit_mode:
             if st.button("🔥 Commit & Advance Phase", use_container_width=True):
+                # 1. Save finalized data
                 st.session_state.brand_soul[current_chamber_key] = final_text
                 save_brand_data(user_id, final_text, chamber=current_chamber_key)
                 
+                # 2. Advance to next chamber sequence
                 if current_idx < 3:
                     next_key = chamber_sequence[current_idx + 1]
                     st.session_state.target_chamber = next_key
-                    st.success(f"Phase {current_idx + 1} Committed.")
+                    st.success(f"Phase committed.")
                     time.sleep(1)
                     st.rerun()
                 else:
@@ -150,4 +153,5 @@ def run(user_id):
         for label, key in chamber_map.items():
             if key != current_chamber_key:
                 with st.expander(label):
-                    st.markdown(st.session_state.brand_soul.get(key, "*Awaiting unearthing...*"))
+                    history_content = st.session_state.brand_soul.get(key, "")
+                    st.markdown(history_content if history_content else "*Awaiting unearthing...*")
