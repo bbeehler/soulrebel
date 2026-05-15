@@ -31,7 +31,7 @@ def run(user_id):
 
     with col1:
         st.title("🔥 The Soul Audit")
-        st.caption("A Facilitated Unearthing — Building the Foundation for your Soul Guide.")
+        st.caption("A Facilitated Unearthing — Ensuring your foundation is documented and real.")
         
         # --- NAVIGATION ---
         current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
@@ -83,16 +83,17 @@ def run(user_id):
                     next_idx = current_idx + 1
                     next_key = chamber_sequence[next_idx] if next_idx < len(chamber_sequence) else "COMPLETE"
                     
+                    # HARD RULES FOR THE FACILITATOR
                     methodology = f"""
-                    ROLE: You are a professional Godzspeed Facilitator. 
+                    SYSTEM CONTEXT: You are a Godzspeed Facilitator.
                     
-                    PROCESS:
-                    1. CHAT & PROBE: Continue the conversation. Ask deep follow-up questions to unearth details. 
-                    2. FINAL SYNTHESIS: Only when you and the user have fully explored the topic, produce a FINAL response that summarizes everything. Wrap this synthesis in [STRATEGY]...[/STRATEGY] tags.
-                    3. DOCUMENTATION: This [STRATEGY] block will be inserted into the Documented Vision.
-                    4. THE PROGRESSION GATE: Once (and only once) you have provided the [STRATEGY] block, ask: "I have updated your Documented Vision. Are you ready to move to the next phase?"
-                    5. COMMAND: Use [MOVE_TO_CHAMBER:{next_key}] ONLY if the user explicitly says "Yes" or "Ready" AFTER the synthesis is produced.
-                    6. REJECTION: If the user says "No" or wants to add more, re-enter the chat/probe loop.
+                    COMMANDS:
+                    1. CONVERSATION: Ask deep follow-up questions to unearth 'Why'.
+                    2. FINAL SYNTHESIS: When a section is complete, you MUST provide a full summary wrapped in [STRATEGY]...[/STRATEGY] tags. This is the only way it gets saved to the document.
+                    3. NAVIGATION: After (and only after) providing the [STRATEGY] block, ask: "I have updated the Vision. Ready to move to the next phase?"
+                    4. EXECUTION: Append [MOVE_TO_CHAMBER:{next_key}] ONLY if the user says "Yes" or "Ready".
+                    
+                    STRICT: Do not just talk about the summary. Write the summary inside the tags.
                     """
                     
                     current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == new_target])
@@ -106,22 +107,26 @@ def run(user_id):
                         strategy_part = parts[1].split("[/STRATEGY]")[0].strip() if "[/STRATEGY]" in parts[1] else parts[1].strip()
                     else:
                         chat_part = full_response
+                        # Fallback: if AI says "I have updated" but forgot tags, assume the response is the strategy
+                        if "ready to move" in full_response.lower() and len(full_response) > 100:
+                             strategy_part = full_response
 
                     target_move = None
                     if "[MOVE_TO_CHAMBER:" in chat_part:
                         target_move = chat_part.split("[MOVE_TO_CHAMBER:")[1].split("]")[0]
                         chat_part = chat_part.split("[MOVE_TO_CHAMBER:")[0].strip()
 
-                    # Atomic Update for Documented Vision
+                    # Atomic Session + DB Update
                     if strategy_part:
                         existing = st.session_state.brand_soul.get(new_target, "")
+                        # Append to keep history, or replace if it's a "Final" summary
                         combined = f"{existing}\n\n{strategy_part}".strip()
                         st.session_state.brand_soul[new_target] = combined
                         save_brand_data(user_id, combined, chamber=new_target)
 
                     st.session_state.messages.append({"role": "assistant", "content": chat_part, "chamber": new_target})
 
-                    # Progression logic: Only move if confirmation is clear
+                    # Handle Confirmation Logic
                     if target_move and target_move != "COMPLETE":
                         confirm_words = ["yes", "ready", "forward", "good", "move", "comfortable", "proceed"]
                         if any(word in user_input_content.lower() for word in confirm_words):
@@ -154,7 +159,6 @@ def run(user_id):
                             st.session_state.brand_soul[key] = new_val
                             save_brand_data(user_id, new_val, chamber=key)
                             st.success("Updated.")
-                            time.sleep(0.5)
                             st.rerun()
                     with c2:
                         if st.button(f"🗑️ Clear {label}", key=f"clear_{key}"):
