@@ -85,17 +85,40 @@ def run(user_id):
             key="guide_editor_field"
         )
         
-        # 4. COLLABORATIVE REFINEMENT
+        # 4. COLLABORATIVE REFINEMENT (THE SYNTHESIS ENGINE)
         st.write("---")
         st.write("💬 **Refine with the Facilitator**")
-        guide_input = st.chat_input("Answer inquiries or provide more detail here...")
+        guide_input = st.chat_input("Provide details to expand a specific section...")
         
         if guide_input:
-            with st.spinner("Integrating depth..."):
-                update_methodology = "Update the Master Document with the new details provided, maintaining the 6-section structure."
-                updated_guide = get_soul_rebel_consultant(guide_input, update_methodology + st.session_state.final_soul_guide)
+            with st.spinner("Synthesizing and updating your Master Guide..."):
+                # This methodology forces the AI to be an editor, not a re-writer
+                update_methodology = """
+                ROLE: Godzspeed Soul Rebel Facilitator.
+                TASK: Synthesize the user's new input and UPDATE the Master Soul Guide.
+                
+                STRICT EDITORIAL RULES:
+                1. DO NOT overwrite the entire document with a short response. 
+                2. Use the new input to EXPAND and REFINE the relevant sections of the CURRENT DOCUMENT.
+                3. Maintain the 6-SECTION structure: Identity, Transformation, Anchors, Positioning, Expression, Legacy.
+                4. Ensure the new content matches the 'Human, compelling, and hella smart' tone.
+                5. If this new info satisfies a 'FACILITATOR INQUIRY', remove that inquiry from the text.
+                6. Output the FULL UPDATED DOCUMENT.
+                """
+                
+                # We send the AI the CURRENT guide and the NEW details
+                current_document = st.session_state.final_soul_guide
+                
+                # The AI synthesizes the answer INTO the document
+                updated_guide = get_soul_rebel_consultant(
+                    guide_input, 
+                    f"{update_methodology}\n\nCURRENT DOCUMENT:\n{current_document}"
+                )
+                
+                # Update Session and DB
                 st.session_state.final_soul_guide = updated_guide
                 save_brand_data(user_id, updated_guide, chamber="soul_guide")
+                
                 st.rerun()
 
         # 5. ACTION CONTROLS
