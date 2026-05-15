@@ -69,17 +69,17 @@ def run(user_id):
         if user_input_content:
             st.session_state.messages.append({"role": "user", "content": user_input_content, "chamber": current_chamber_key})
             with st.chat_message("assistant"):
-                with st.spinner("Processing unearthing..."):
-                    # DYNAMIC METHODOLOGY INJECTION
+                with st.spinner("Updating strategic vision..."):
+                    # REINFORCED METHODOLOGY
                     methodology = f"""
                     ROLE: Godzspeed Facilitator. 
                     CURRENT PHASE: {current_label} ({current_chamber_key})
                     
                     TASK: 
-                    1. Challenge the user's input within the specific context of {current_label}. 
-                    2. Probe deeper. Do not move on until the vision for this phase is solidified.
-                    3. UPDATING THE VISION: Every time the user provides substance, synthesize the NEW information into the cumulative findings for THIS phase.
-                    4. MANDATORY: Wrap the updated, deeper synthesis for this phase in [STRATEGY]...[/STRATEGY] tags.
+                    1. Challenge the user's latest input. Probe for deeper layers of 'Why'.
+                    2. MANDATORY DATA CAPTURE: You MUST synthesize the current conversation into a cumulative summary for this phase.
+                    3. Every single time you provide a summary or deeper unearthing, wrap it in [STRATEGY]...[/STRATEGY] tags.
+                    4. This updated synthesis will be pushed to the Documented Vision panel.
                     """
                     
                     current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == current_chamber_key])
@@ -93,8 +93,8 @@ def run(user_id):
                         strategy_draft = parts[1].split("[/STRATEGY]")[0].strip() if "[/STRATEGY]" in parts[1] else parts[1].strip()
                     else:
                         chat_part = full_response
-                        # FALLBACK: If AI provides a long summary but forgot tags, auto-capture it
-                        if len(full_response) > 200 and ("summary" in full_response.lower() or "synthesis" in full_response.lower()):
+                        # FALLBACK: Force-capture if the AI forgot tags but provided a significant summary
+                        if len(full_response) > 200:
                             strategy_draft = full_response
 
                     if strategy_draft:
@@ -107,7 +107,7 @@ def run(user_id):
         st.subheader("📋 Documented Vision")
         edit_mode = st.toggle("🛠️ Manual Edit Mode", key=f"edit_toggle_{current_chamber_key}")
 
-        # DATA RETRIEVAL
+        # DATA RETRIEVAL: Prioritize the active session draft
         draft_content = st.session_state.get(f"active_draft_{current_chamber_key}", "")
         saved_content = st.session_state.brand_soul.get(current_chamber_key, "")
         display_text = draft_content if draft_content else saved_content
@@ -122,7 +122,7 @@ def run(user_id):
                     if st.button("💾 Save Changes", key=f"save_btn_{current_chamber_key}", use_container_width=True):
                         st.session_state.brand_soul[current_chamber_key] = final_text
                         save_brand_data(user_id, final_text, chamber=current_chamber_key)
-                        st.success("Draft Saved.")
+                        st.success("Vision Updated.")
                         st.rerun()
                 with c2:
                     if st.button("🗑️ Clear Phase", key=f"reset_btn_{current_chamber_key}", use_container_width=True):
@@ -139,23 +139,21 @@ def run(user_id):
                     st.caption("Awaiting Facilitator synthesis...")
                 final_text = display_text
 
-        # 3. THE COMMIT GATE - RE-IMPLEMENTED
+        # THE COMMIT GATE
         if final_text and not edit_mode:
             if st.button("🔥 Commit & Advance Phase", use_container_width=True, key=f"commit_btn_{current_chamber_key}"):
-                # Save finalized data to state and DB
                 st.session_state.brand_soul[current_chamber_key] = final_text
                 save_brand_data(user_id, final_text, chamber=current_chamber_key)
                 
-                # Advance Chamber logic
                 if current_idx < len(chamber_sequence) - 1:
                     next_key = chamber_sequence[current_idx + 1]
                     st.session_state.target_chamber = next_key
                     
-                    # MANDATORY WIPE for next chamber draft
+                    # MANDATORY WIPE: Ensure the next chamber doesn't inherit the old draft
                     if f"active_draft_{next_key}" in st.session_state:
                         del st.session_state[f"active_draft_{next_key}"]
                     
-                    st.success(f"Phase committed. Moving to {next_key}...")
+                    st.success(f"Phase committed. Advancing to {next_key}...")
                     time.sleep(1)
                     st.rerun()
                 else:
