@@ -39,7 +39,7 @@ def run(user_id):
 
     with col1:
         st.title("🔥 The Soul Audit")
-        st.caption("Phase 02: Foundation — Identifying growth opportunities and defining your daily impact.")
+        st.caption("Identifying growth opportunities and defining your daily impact.")
         
         current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
         chamber_labels = list(chamber_map.keys())
@@ -96,7 +96,7 @@ def run(user_id):
                     next_chamber_key = chamber_sequence[next_idx] if next_idx < len(chamber_sequence) else "COMPLETE"
                     
                     methodology = """
-                    SYSTEM CONTEXT: You are the Godzspeed Soul Rebel Facilitator. You are in Phase 02: Foundation.
+                    SYSTEM CONTEXT: You are the Godzspeed Soul Rebel Facilitator.
                     Your mission is to unearth, illuminate, and ignite purpose-driven brands.
                     
                     STRICT RULES:
