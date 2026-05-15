@@ -8,7 +8,7 @@ except Exception as e:
     st.error(f"Error loading backend modules: {e}")
 
 def run(user_id):
-    # 1. Sync State with Database
+    # 1. Initialize and Sync State
     if "brand_soul" not in st.session_state:
         saved_data = load_brand_data(user_id)
         st.session_state.brand_soul = saved_data if saved_data else {}
@@ -31,7 +31,7 @@ def run(user_id):
 
     with col1:
         st.title("🔥 The Soul Audit")
-        st.caption("Determining who you are and defining your daily impact. [cite: 50, 52]")
+        st.caption("Determining who you are and defining your daily impact. [cite: 50, 52, 53]")
         
         # Navigation
         current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
@@ -45,12 +45,12 @@ def run(user_id):
             st.session_state.target_chamber = new_target
             st.rerun()
 
-        # Initial Prompt per Chamber
+        # Initial Prompt
         chamber_prompts = {
-            "purpus_summary": "Foundation Phase: Why MUST this brand exist? What internal fire drives this soul? [cite: 36, 53]",
-            "brand_identity": "The Foundation: If this brand were an individual, what is its identity and ethos? [cite: 41, 54]",
-            "brand_experience": "Remarkable Experiences: How will your brand communicate its value while putting your audience first? [cite: 43]",
-            "brand_impact": "The Legacy: What urgent community problems are you solving to create ongoing impact? [cite: 70, 80]"
+            "purpus_summary": "Foundation Phase: Why MUST this brand exist? What internal fire drives this soul? [cite: 36, 51]",
+            "brand_identity": "The Foundation: If this brand were an individual, what is its identity and ethos? [cite: 53, 54]",
+            "brand_experience": "Remarkable Experiences: How will your brand communicate its value while putting your audience first? [cite: 41, 43]",
+            "brand_impact": "The Legacy: What urgent community problems are you solving to create ongoing impact? [cite: 52, 70]"
         }
         if not any(m.get("chamber") == new_target for m in st.session_state.messages):
             st.session_state.messages.append({"role": "assistant", "content": chamber_prompts[new_target], "chamber": new_target})
@@ -60,7 +60,7 @@ def run(user_id):
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        # Input handling
+        # Input
         st.write("---")
         prompt = st.chat_input("Document your thoughts...")
 
@@ -72,23 +72,23 @@ def run(user_id):
                     next_idx = current_idx + 1
                     next_key = chamber_sequence[next_idx] if next_idx < len(chamber_sequence) else "COMPLETE"
                     
-                    # MANDATORY GATEKEEPING INSTRUCTIONS
+                    # REFINED COMMAND LOGIC
                     methodology = f"""
-                    SYSTEM CONTEXT: You are the Godzspeed Soul Rebel Facilitator. [cite: 36]
+                    SYSTEM CONTEXT: You are the Godzspeed Soul Rebel Facilitator. 
                     
-                    HARD RULES FOR PROGRESSION:
-                    1. BUILD CONTENT: Always synthesize the user's input and provide a formal summary inside [STRATEGY]...[/STRATEGY] tags.
-                    2. FACILITATE, DON'T FORCE: If the vision is solidified, ask: 'I feel we have unearthed the soul of this section. Are you ready to move forward to the next phase, or is there more to unearth here?'
-                    3. TRIGGER MOVE: ONLY use the tag [MOVE_TO_CHAMBER:{next_key}] if the user explicitly confirms they are ready to move. 
-                    4. APPEND: Your strategic summaries must be additive. 
+                    MANDATORY BEHAVIOR:
+                    1. DATA CAPTURE: Every insight must be captured. Wrap formal synthesis in [STRATEGY]...[/STRATEGY] tags.
+                    2. PROGRESSION GATE: If the user says they are 'good' or ready to move, you MUST provide a FINAL [STRATEGY] block for the current chamber before adding the [MOVE_TO_CHAMBER:{next_key}] tag.
+                    3. NO SILENT MOVES: Never move to a new chamber without confirming the previous one is documented.
+                    4. APPEND: Your summaries add to the existing vision; they don't replace it.
                     
-                    The success of this work hinges on getting to the deepest place possible. 
+                    Current Chamber: {new_target}
                     """
                     
                     current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == new_target])
                     full_response = get_soul_rebel_consultant(prompt, methodology + current_context)
 
-                    # Extract strategy data and navigation
+                    # Extract strategy data
                     strategy_part = ""
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
@@ -97,26 +97,30 @@ def run(user_id):
                     else:
                         chat_part = full_response
 
+                    # Navigation Check
+                    target_move = None
                     if "[MOVE_TO_CHAMBER:" in chat_part:
-                        move_tag = chat_part.split("[MOVE_TO_CHAMBER:")[1].split("]")[0]
+                        target_move = chat_part.split("[MOVE_TO_CHAMBER:")[1].split("]")[0]
                         chat_part = chat_part.split("[MOVE_TO_CHAMBER:")[0].strip()
-                        if move_tag != "COMPLETE":
-                            st.session_state.target_chamber = move_tag
 
-                    # Update State and Sync Database
-                    st.session_state.messages.append({"role": "assistant", "content": chat_part, "chamber": new_target})
-                    
+                    # 1. Update Strategy/DB FIRST to ensure it appears in Documented Vision
                     if strategy_part:
                         existing = st.session_state.brand_soul.get(new_target, "")
                         combined = f"{existing}\n\n{strategy_part}".strip()
                         st.session_state.brand_soul[new_target] = combined
                         save_brand_data(user_id, combined, chamber=new_target)
+
+                    # 2. Add chat message
+                    st.session_state.messages.append({"role": "assistant", "content": chat_part, "chamber": new_target})
+
+                    # 3. Handle move ONLY after data is saved
+                    if target_move and target_move != "COMPLETE":
+                        st.session_state.target_chamber = target_move
                     
                     st.rerun()
 
     with col2:
         st.subheader("🧬 Foundation Progress")
-        # Ensure col2 pulls from the most recent session state
         brand_data = st.session_state.brand_soul
         filled = sum(1 for k in chamber_sequence if brand_data.get(k))
         st.progress(filled/4)
@@ -129,4 +133,4 @@ def run(user_id):
                 if content:
                     st.markdown(content)
                 else:
-                    st.caption("Awaiting deeper unearthing... ")
+                    st.caption("Awaiting deeper unearthing... [cite: 73]")
