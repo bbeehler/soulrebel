@@ -132,32 +132,35 @@ def run(user_id):
 
         # 3. THE COMMIT & TRANSITION GATE
         if final_text and not edit_mode:
-            # UNIQUE KEY for the final phase to avoid state collisions
-            button_label = "🔥 Finalize Audit & View Soul Guide" if current_idx == 3 else "🔥 Commit & Advance Phase"
+            is_last_phase = (current_idx == 3)
+            button_label = "🔥 Finalize Audit & View Soul Guide" if is_last_phase else "🔥 Commit & Advance Phase"
             
             if st.button(button_label, use_container_width=True, key=f"commit_btn_{current_chamber_key}"):
-                # Always Save First
+                # 1. Save finalized data to state and DB
                 st.session_state.brand_soul[current_chamber_key] = final_text
                 save_brand_data(user_id, final_text, chamber=current_chamber_key)
                 
-                if current_idx < 3:
+                if not is_last_phase:
                     # Move to next sub-phase
                     next_key = chamber_sequence[current_idx + 1]
                     st.session_state.target_chamber = next_key
                     if f"active_draft_{next_key}" in st.session_state:
                         del st.session_state[f"active_draft_{next_key}"]
-                    st.success(f"Phase committed.")
+                    st.success(f"Phase committed. Advancing...")
                     time.sleep(0.5)
                     st.rerun()
                 else:
-                    # FINAL COMPLETION
+                    # FINAL COMPLETION: FORCE GLOBAL REDIRECT
                     st.balloons()
+                    # We set every possible state variable used for routing to be safe
                     st.session_state.audit_complete = True
-                    # FORCE MAIN APP NAVIGATION
-                    st.session_state.current_page = "soul_guide" 
                     st.session_state.active_step = "soul_guide"
-                    st.success("Audit Complete! Opening Soul Guide...")
+                    st.session_state.page = "soul_guide"
+                    st.session_state.current_page = "soul_guide"
+                    
+                    st.success("Audit Complete! Redirecting to Soul Guide...")
                     time.sleep(1.5)
+                    # Triggering a full rerun to force the main app to re-evaluate navigation
                     st.rerun()
 
         st.write("---")
