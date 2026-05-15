@@ -152,12 +152,13 @@ def run(user_id):
                     # 2. THE CLEAN REDIRECT
                     st.balloons()
                     
-                    # Update target_page - main.py will handle the index update and nav switch
+                    # Update target_page - main.py will now catch this, 
+                    # update current_nav, and sync the sidebar index.
                     st.session_state.target_page = "2. The Soul Guide"
                     st.session_state.audit_complete = True
                     
-                    st.success("Soul Audit Complete! Redirecting...")
-                    time.sleep(1)
+                    st.success("Soul Audit Complete! Transitioning to Illumination...")
+                    time.sleep(1.5)
                     st.rerun()
 
         st.write("---")
