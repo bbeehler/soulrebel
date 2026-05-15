@@ -28,19 +28,19 @@ def run(user_id):
     
     chamber_sequence = ["purpus_summary", "brand_identity", "brand_experience", "brand_impact"]
     
-    # Methodology-aligned prompts derived from the Godzspeed Process
+    # CEO-ALIGNED PROMPTS: Focusing on fit, vision, and growth
     chamber_prompts = {
-        "purpus_summary": "Foundation Phase: We are building your vision. Forget what you sell—Why MUST this brand exist? What is the 'internal fire' that makes you a Rebel? ",
-        "brand_identity": "The Foundation: If this brand were an individual, what is its soul and identity? What are the core values that will move the needle?",
-        "brand_experience": "Remarkable Experiences: In this Foundation, how will your brand communicate its value and focus on the audience first?",
-        "brand_impact": "The Legacy: What challenges or problems are you facing that need solving right away to create impact in your community?"
+        "purpus_summary": "Foundation Phase: We determine who you are. Forget what you sell—Why MUST this brand exist? What internal fire drives this soul? [cite: 36, 50, 51]",
+        "brand_identity": "The Foundation: Developing a vision for your ethos. If this brand were an individual, what is its soul and identity? [cite: 53, 54]",
+        "brand_experience": "Remarkable Experiences: In this foundation, how will your brand communicate its substance and value while putting your audience first? [cite: 41, 43]",
+        "brand_impact": "The Legacy: What urgent community problems are you solving? How will you create ongoing impact and solve challenges for your audiences? [cite: 23, 70, 80]"
     }
 
     col1, col2 = st.columns([3, 2])
 
     with col1:
         st.title("🔥 The Soul Audit")
-        st.caption("Foundation — Determining who you are and where you will grow.")
+        st.caption("Phase 02: Foundation — Identifying growth opportunities and defining your daily impact. [cite: 51, 52]")
         
         # --- DYNAMIC SELECTOR ---
         current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
@@ -59,7 +59,6 @@ def run(user_id):
             st.session_state.target_chamber = new_target
             st.rerun()
 
-        # Ensure opening prompt
         if not any(m.get("chamber") == new_target for m in st.session_state.messages):
             st.session_state.messages.append({"role": "assistant", "content": chamber_prompts[new_target], "chamber": new_target})
 
@@ -99,18 +98,18 @@ def run(user_id):
                     next_idx = chamber_sequence.index(new_target) + 1
                     next_chamber_key = chamber_sequence[next_idx] if next_idx < len(chamber_sequence) else "COMPLETE"
                     
-                    # CEO'S SYSTEM CONTEXT INJECTION
+                    # TIGHT CEO METHODOLOGY INJECTION
                     methodology = """
-                    SYSTEM CONTEXT: You are the Godzspeed Soul Rebel Facilitator. 
-                    Your mission is 'Phase 02: Foundation'. You are partnering with this leader to determine who they are.
+                    SYSTEM CONTEXT: You are the Godzspeed Soul Rebel Facilitator. You are in Phase 02: Foundation. [cite: 50]
+                    Your mission is to unearth, illuminate, and ignite purpose-driven brands. [cite: 36]
                     
-                    CORE PRINCIPLES:
-                    1. UNREATH & ILLUMINATE: Find the soul and prepare it for the world.
-                    2. GROWTH AREAS: Identify areas for growth and develop strategies to move the needle.
-                    3. COMMUNITY IMPACT: Focus on how this brand solves community problems and creates impact.
-                    4. IDENTITY OVER PROFIT: We aren't just putting 'butts in seats'; we are creating impact.
+                    CORE PRINCIPLES (CEO'S MINDSET):
+                    1. ALIGNMENT & FIT: Success hinges on our ability to align. Focus on legacy and challenges, not just money. [cite: 64, 77, 83]
+                    2. IDENTIFY GROWTH: Identify all opportunities for growth and move the needle on required strategies. [cite: 51, 56]
+                    3. CREATE IMPACT: Determine the impacts created in the world and solve challenges for the audience. [cite: 23, 52]
+                    4. EVOLUTION & INNOVATION: Brands must evolve to keep living. Solve new problems and keep it relevant. [cite: 15, 22, 25]
                     
-                    Always push for the 'deepest place possible'.
+                    Always get to the 'deepest place possible'. [cite: 73]
                     """
                     
                     instruction = f"\n\nPlace formal documentation inside [STRATEGY] tags. If the vision is solidified, add [MOVE_TO_CHAMBER:{next_chamber_key}] at the end."

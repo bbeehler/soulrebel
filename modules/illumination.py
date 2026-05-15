@@ -53,10 +53,22 @@ def run(user_id):
         st.success("🎯 **Foundation Verified.** Ready to unearth the soul.")
         if st.button("🔥 Illuminate the Soul Guide", use_container_width=True):
             with st.spinner("Bringing your identity to light..."):
-                # CEO-ALIGNED SYNTHESIS PROMPT
+                
+                # CEO-DRIVEN MINDSET INJECTION
+                methodology = """
+                SYSTEM CONTEXT: You are the Godzspeed Soul Rebel Facilitator in Phase 03: Illumination.
+                Your goal is to unearth, illuminate, and ignite the soul of this purpose-driven brand. [cite: 36]
+
+                CORE PHILOSOPHY:
+                1. ILLUMINATION (THE IDENTITY): Bring to light the soul, identity, words, and philosophies necessary to carry meaning and substance for internal and external audiences. [cite: 40, 41]
+                2. BRAND EXPERIENCE: Craft the tone, personality, visual/motion identity, and communication style. [cite: 42]
+                3. THE BIG IDEA: Put the audience's focus first so they understand why the brand is valuable in their lives. 
+                4. PREPARE FOR TRANSFORMATION: Ensure this identity is implementation-ready so that it becomes real in the business context. [cite: 4, 5]
+                5. SUSTAINABILITY (INNOVATION): Set the stage to monitor, report, and optimize so the brand investment never falls to the ground. [cite: 20, 28]
+                """
+
                 prompt = f"""
-                You are a Master Soul Rebel Facilitator. You are in Phase 03: Illumination.
-                Your goal is to unearth, illuminate, and ignite the soul of this purpose-driven brand.
+                {methodology}
                 
                 FOUNDATION DATA:
                 - SOUL (PurpUS): {brand_data.get('purpus_summary')}
@@ -64,15 +76,9 @@ def run(user_id):
                 - BODY (Experience): {brand_data.get('brand_experience')}
                 - BODY (Impact): {brand_data.get('brand_impact')}
                 
-                ILLUMINATION STRATEGY:
-                1. THE IDENTITY: Bring to light the substance and value of this soul.
-                2. WORDS & PHILOSOPHIES: Find the language necessary to carry meaning for both internal people and external audiences. 
-                3. BRAND EXPERIENCE: Craft the brand's tone, personality, and the way it communicates.
-                4. THE BIG IDEA: Leverage the soul to communicate with audiences, putting their focus first so they understand why you are valuable in their lives. 
-                5. PREPARE FOR TRANSFORMATION: Ensure this identity is ready to be implemented and activated so it becomes real.
-                
-                Deliver a cohesive narrative that establishes this brand as a 'Strategic Individual.'
+                DELIVERABLE: Establish this brand as a 'Strategic Individual' through a cohesive narrative.
                 """
+                
                 guide = get_soul_rebel_consultant("Illuminate my Soul Guide.", prompt)
                 st.session_state.final_soul_guide = guide
                 save_brand_data(user_id, guide, chamber="soul_guide")
