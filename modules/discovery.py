@@ -149,15 +149,23 @@ def run(user_id):
                     time.sleep(0.5)
                     st.rerun()
                 else:
-                    # 2. THE CLEAN REDIRECT
+                    # THE PERSISTENT GLOBAL REDIRECT
                     st.balloons()
                     
-                    # Update target_page - main.py will now catch this, 
-                    # update current_nav, and sync the sidebar index.
-                    st.session_state.target_page = "2. The Soul Guide"
+                    target_label = "2. The Soul Guide"
+                    
+                    # 1. Update DB so the app remembers this when you log back in
+                    try:
+                        from utils.supabase_db import supabase
+                        supabase.table("profiles").update({"last_nav": target_label}).eq("user_id", user_id).execute()
+                    except Exception as e:
+                        st.error(f"Persistence Error: {e}")
+
+                    # 2. Update local state for the current session
+                    st.session_state.target_page = target_label
                     st.session_state.audit_complete = True
                     
-                    st.success("Soul Audit Complete! Transitioning to Illumination...")
+                    st.success("Soul Audit Documented! Memory locked in.")
                     time.sleep(1.5)
                     st.rerun()
 
