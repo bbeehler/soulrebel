@@ -57,17 +57,17 @@ def run(user_id):
         audio_input = st.audio_input("🎤 Speak your vision", key=f"audio_input_{current_chamber_key}")
         prompt = st.chat_input("Document your thoughts...")
 
-        user_input = None
+        user_input_content = None
         if audio_input:
             audio_id = hash(f"{audio_input.name}_{audio_input.size}")
             if st.session_state.get("last_audio_id") != audio_id:
-                user_input = "🎤 *Voice Vision Submitted*"
+                user_input_content = "🎤 *Voice Vision Submitted*"
                 st.session_state.last_audio_id = audio_id
         elif prompt:
-            user_input = prompt
+            user_input_content = prompt
 
-        if user_input:
-            st.session_state.messages.append({"role": "user", "content": user_input, "chamber": current_chamber_key})
+        if user_input_content:
+            st.session_state.messages.append({"role": "user", "content": user_input_content, "chamber": current_chamber_key})
             with st.chat_message("assistant"):
                 with st.spinner("Processing unearthing..."):
                     # DYNAMIC METHODOLOGY INJECTION
@@ -83,7 +83,7 @@ def run(user_id):
                     """
                     
                     current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == current_chamber_key])
-                    full_response = get_soul_rebel_consultant(user_input, methodology + current_context)
+                    full_response = get_soul_rebel_consultant(user_input_content, methodology + current_context)
 
                     # Extract Strategy Synthesis
                     strategy_draft = ""
@@ -112,20 +112,20 @@ def run(user_id):
         saved_content = st.session_state.brand_soul.get(current_chamber_key, "")
         display_text = draft_content if draft_content else saved_content
 
-        with st.expander(f"🔍 Current Phase: {current_label}", expanded=True):
+        with st.expander(f"🔍 Proposed: {current_label}", expanded=True):
             if edit_mode:
                 widget_key = f"refine_{current_chamber_key}_{st.session_state.widget_seeds[current_chamber_key]}"
                 final_text = st.text_area("Refine Summary:", value=display_text, height=350, key=widget_key)
                 
                 c1, c2 = st.columns(2)
                 with c1:
-                    if st.button("💾 Save Draft", key=f"save_btn_{current_chamber_key}"):
+                    if st.button("💾 Save Changes", key=f"save_btn_{current_chamber_key}", use_container_width=True):
                         st.session_state.brand_soul[current_chamber_key] = final_text
                         save_brand_data(user_id, final_text, chamber=current_chamber_key)
                         st.success("Draft Saved.")
                         st.rerun()
                 with c2:
-                    if st.button("🗑️ Reset Phase", key=f"reset_btn_{current_chamber_key}"):
+                    if st.button("🗑️ Clear Phase", key=f"reset_btn_{current_chamber_key}", use_container_width=True):
                         st.session_state.brand_soul[current_chamber_key] = ""
                         st.session_state[f"active_draft_{current_chamber_key}"] = ""
                         save_brand_data(user_id, "", chamber=current_chamber_key)
@@ -139,12 +139,14 @@ def run(user_id):
                     st.caption("Awaiting Facilitator synthesis...")
                 final_text = display_text
 
-        # COMMIT GATE
+        # 3. THE COMMIT GATE - RE-IMPLEMENTED
         if final_text and not edit_mode:
             if st.button("🔥 Commit & Advance Phase", use_container_width=True, key=f"commit_btn_{current_chamber_key}"):
+                # Save finalized data to state and DB
                 st.session_state.brand_soul[current_chamber_key] = final_text
                 save_brand_data(user_id, final_text, chamber=current_chamber_key)
                 
+                # Advance Chamber logic
                 if current_idx < len(chamber_sequence) - 1:
                     next_key = chamber_sequence[current_idx + 1]
                     st.session_state.target_chamber = next_key
@@ -153,10 +155,11 @@ def run(user_id):
                     if f"active_draft_{next_key}" in st.session_state:
                         del st.session_state[f"active_draft_{next_key}"]
                     
-                    st.success(f"Phase committed. Moving to next level...")
+                    st.success(f"Phase committed. Moving to {next_key}...")
                     time.sleep(1)
                     st.rerun()
                 else:
+                    st.balloons()
                     st.success("Soul Audit Documented!")
 
         st.write("---")
