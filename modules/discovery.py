@@ -28,7 +28,6 @@ def run(user_id):
     
     chamber_sequence = ["purpus_summary", "brand_identity", "brand_experience", "brand_impact"]
     
-    # CEO-ALIGNED PROMPTS: Focusing on fit, vision, and growth
     chamber_prompts = {
         "purpus_summary": "Foundation Phase: We determine who you are. Forget what you sell—Why MUST this brand exist? What internal fire drives this soul? [cite: 36, 50, 51]",
         "brand_identity": "The Foundation: Developing a vision for your ethos. If this brand were an individual, what is its soul and identity? [cite: 53, 54]",
@@ -42,7 +41,6 @@ def run(user_id):
         st.title("🔥 The Soul Audit")
         st.caption("Phase 02: Foundation — Identifying growth opportunities and defining your daily impact. [cite: 51, 52]")
         
-        # --- DYNAMIC SELECTOR ---
         current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
         chamber_labels = list(chamber_map.keys())
         chamber_keys = list(chamber_map.values())
@@ -62,7 +60,6 @@ def run(user_id):
         if not any(m.get("chamber") == new_target for m in st.session_state.messages):
             st.session_state.messages.append({"role": "assistant", "content": chamber_prompts[new_target], "chamber": new_target})
 
-        # --- CHAT DISPLAY ---
         active_messages = [m for m in st.session_state.messages if m.get("chamber") == new_target]
         for i, message in enumerate(active_messages):
             if i == 0 and len(active_messages) > 3: continue
@@ -94,36 +91,33 @@ def run(user_id):
         if user_input_content:
             st.session_state.messages.append({"role": "user", "content": user_input_content, "chamber": new_target})
             with st.chat_message("assistant"):
-                with st.spinner("Unearthing your soul..."):
+                with st.spinner("Unearthing deeper alignment..."):
                     next_idx = chamber_sequence.index(new_target) + 1
                     next_chamber_key = chamber_sequence[next_idx] if next_idx < len(chamber_sequence) else "COMPLETE"
                     
-                    # TIGHT CEO METHODOLOGY INJECTION
                     methodology = """
                     SYSTEM CONTEXT: You are the Godzspeed Soul Rebel Facilitator. You are in Phase 02: Foundation. [cite: 50]
                     Your mission is to unearth, illuminate, and ignite purpose-driven brands. [cite: 36]
                     
-                    CORE PRINCIPLES (CEO'S MINDSET):
-                    1. ALIGNMENT & FIT: Success hinges on our ability to align. Focus on legacy and challenges, not just money. [cite: 64, 77, 83]
-                    2. IDENTIFY GROWTH: Identify all opportunities for growth and move the needle on required strategies. [cite: 51, 56]
-                    3. CREATE IMPACT: Determine the impacts created in the world and solve challenges for the audience. [cite: 23, 52]
-                    4. EVOLUTION & INNOVATION: Brands must evolve to keep living. Solve new problems and keep it relevant. [cite: 15, 22, 25]
-                    
-                    Always get to the 'deepest place possible'. [cite: 73]
+                    STRICT RULES:
+                    1. DEEPENING: If the user's answer is shallow or you need more detail, ask follow-up questions. 
+                    2. PROGRESSION: ONLY include [MOVE_TO_CHAMBER:X] when you have reached the 'deepest place possible' and the vision is solidified. 
+                    3. REINFORCEMENT: Place formal strategic documentation inside [STRATEGY] tags.
+                    4. IDENTITY OVER PROFIT: Focus on fit, legacy, and community impact. [cite: 60, 69, 84]
                     """
                     
-                    instruction = f"\n\nPlace formal documentation inside [STRATEGY] tags. If the vision is solidified, add [MOVE_TO_CHAMBER:{next_chamber_key}] at the end."
-                    
                     current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == new_target])
-                    full_response = get_soul_rebel_consultant(user_input_content, methodology + current_context + instruction)
+                    full_response = get_soul_rebel_consultant(user_input_content, methodology + current_context)
 
+                    # LOGIC: Split Strategy vs Chat
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
                         chat_part = parts[0].strip()
                         strategy_part = parts[1].split("[/STRATEGY]")[0].strip() if "[/STRATEGY]" in parts[1] else parts[1].strip()
                     else:
-                        chat_part, strategy_part = full_response, full_response
+                        chat_part, strategy_part = full_response, ""
 
+                    # LOGIC: Check for Move command
                     if "[MOVE_TO_CHAMBER:" in chat_part:
                         move_tag = chat_part.split("[MOVE_TO_CHAMBER:")[1].split("]")[0]
                         chat_part = chat_part.split("[MOVE_TO_CHAMBER:")[0].strip()
@@ -131,13 +125,19 @@ def run(user_id):
                             st.session_state.target_chamber = move_tag
 
                     st.session_state.messages.append({"role": "assistant", "content": chat_part, "chamber": new_target})
-                    st.session_state.brand_soul[new_target] = strategy_part
-                    save_brand_data(user_id, strategy_part, chamber=new_target)
+                    
+                    # LOGIC: Append new strategic data instead of replacing it
+                    if strategy_part:
+                        existing_data = st.session_state.brand_soul.get(new_target, "")
+                        combined_data = f"{existing_data}\n\n{strategy_part}".strip()
+                        st.session_state.brand_soul[new_target] = combined_data
+                        save_brand_data(user_id, combined_data, chamber=new_target)
+                    
                     st.rerun()
 
     with col2:
         st.subheader("🧬 Foundation Progress")
-        filled = sum(1 for k in chamber_sequence if brand_data.get(k))
+        filled = sum(1 for k in chamber_sequence if st.session_state.brand_soul.get(k))
         st.progress(filled/4)
 
         st.write("---")
@@ -147,7 +147,7 @@ def run(user_id):
         for label, key in chamber_map.items():
             is_expanded = (current_chamber_key == key)
             with st.expander(label, expanded=is_expanded):
-                content = brand_data.get(key, "")
+                content = st.session_state.brand_soul.get(key, "")
                 if edit_mode:
                     dk = f"widget_{key}_{st.session_state.widget_seeds[key]}"
                     new_val = st.text_area(f"Refine {label}:", value=content, height=200, key=dk)
@@ -156,8 +156,7 @@ def run(user_id):
                         if st.button(f"💾 Save {label}", key=f"save_{key}"):
                             st.session_state.brand_soul[key] = new_val
                             save_brand_data(user_id, new_val, chamber=key)
-                            st.success("Foundation Updated.")
-                            time.sleep(0.5)
+                            st.success("Updated.")
                             st.rerun()
                     with c2:
                         if st.button(f"🗑️ Clear {label}", key=f"clear_{key}"):
@@ -170,4 +169,4 @@ def run(user_id):
                     if content:
                         st.markdown(content)
                     else:
-                        st.caption("Awaiting Soul Audit...")
+                        st.caption("Awaiting deeper unearthing...")
