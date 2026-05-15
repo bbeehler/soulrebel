@@ -44,17 +44,29 @@ def main():
     user_id = session['user']['id']
     user_email = session['user']['email']
 
-    # 2. HANDLE PROGRAMMATIC REDIRECTS (CRITICAL FIX)
-    # If a module sets target_page, we update current_nav and rerun immediately.
-    # This ensures the sidebar index is recalculated before the radio button renders.
+    # --- PERSISTENCE LOGIC: Initial Load ---
+    if "current_nav" not in st.session_state:
+        try:
+            # Check DB for last saved position
+            response = supabase.table("profiles").select("last_nav").eq("user_id", user_id).execute()
+            if response.data and response.data[0].get("last_nav"):
+                st.session_state.current_nav = response.data[0]["last_nav"]
+            else:
+                st.session_state.current_nav = "1. The Soul Sprint"
+        except Exception:
+            st.session_state.current_nav = "1. The Soul Sprint"
+
+    # 2. HANDLE PROGRAMMATIC REDIRECTS
     if "target_page" in st.session_state:
-        st.session_state.current_nav = st.session_state.target_page
+        target = st.session_state.target_page
+        st.session_state.current_nav = target
+        # Update DB so it persists on next login
+        try:
+            supabase.table("profiles").update({"last_nav": target}).eq("user_id", user_id).execute()
+        except:
+            pass
         del st.session_state.target_page
         st.rerun()
-
-    # Initialize default navigation
-    if "current_nav" not in st.session_state:
-        st.session_state.current_nav = "1. The Soul Sprint"
 
     # 3. ROUTING CHECK
     profile_exists = check_profile_exists(user_id)
@@ -70,13 +82,11 @@ def main():
             logout_button()
             st.write("---")
             
-            # Map current_nav to the correct index for the visual radio button
             try:
                 curr_idx = nav_options.index(st.session_state.current_nav)
             except ValueError:
                 curr_idx = 0
 
-            # Create the radio button with the calculated index
             choice = st.radio(
                 "Navigate Workspace", 
                 nav_options, 
@@ -84,9 +94,13 @@ def main():
                 key="sidebar_radio"
             )
             
-            # If the user manually clicks the sidebar, update and rerun
+            # If the user manually clicks the sidebar, update session AND DB
             if choice != st.session_state.current_nav:
                 st.session_state.current_nav = choice
+                try:
+                    supabase.table("profiles").update({"last_nav": choice}).eq("user_id", user_id).execute()
+                except:
+                    pass
                 st.rerun()
             
             st.write("---")
