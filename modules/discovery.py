@@ -113,7 +113,7 @@ def run(user_id):
                         target_move = chat_part.split("[MOVE_TO_CHAMBER:")[1].split("]")[0]
                         chat_part = chat_part.split("[MOVE_TO_CHAMBER:")[0].strip()
 
-                    # 1. Update State & Database FIRST
+                    # 1. Update State & Database FIRST - Crucial for "Final Response" capture
                     if strategy_part:
                         existing = st.session_state.brand_soul.get(new_target, "")
                         combined = f"{existing}\n\n{strategy_part}".strip()
@@ -123,7 +123,7 @@ def run(user_id):
                     # 2. Update Chat History
                     st.session_state.messages.append({"role": "assistant", "content": chat_part, "chamber": new_target})
 
-                    # 3. Handle move ONLY after confirmation
+                    # 3. Handle move ONLY after data is saved and user confirmed
                     if target_move and target_move != "COMPLETE":
                         confirm_words = ["yes", "ready", "forward", "good", "move", "comfortable", "proceed"]
                         if any(word in user_input_content.lower() for word in confirm_words):
