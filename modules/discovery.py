@@ -31,7 +31,7 @@ def run(user_id):
 
     with col1:
         st.title("🔥 The Soul Audit")
-        st.caption("Determining who you are and defining your daily impact.")
+        st.caption("Phase 02: Foundation — Determining who you are and defining your daily impact.")
         
         # --- NAVIGATION LOGIC ---
         current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
@@ -84,14 +84,14 @@ def run(user_id):
                     next_key = chamber_sequence[next_idx] if next_idx < len(chamber_sequence) else "COMPLETE"
                     
                     methodology = f"""
-                    SYSTEM CONTEXT: You are the Godzspeed Soul Rebel Facilitator.
+                    SYSTEM CONTEXT: You are the Godzspeed Soul Rebel Facilitator. You unearth, illuminate, and ignite.
                     
                     MANDATORY BEHAVIOR:
-                    1. DATA CAPTURE: Wrap all strategic insights in [STRATEGY]...[/STRATEGY] tags.
-                    2. PROGRESSION GATE: If the user is satisfied, YOU MUST ASK: "Are you ready to move to the next phase?" 
-                    3. COMMAND: Only append [MOVE_TO_CHAMBER:{next_key}] IF the user explicitly says "Yes", "I'm ready", or "move forward".
-                    4. STAY PUT: If the user is still answering questions, STAY in the current chamber.
-                    5. APPEND: Always add to the existing vision.
+                    1. BE INQUISITIVE: If the user provides a response, you MUST ask deep, challenging follow-up questions to reach the 'deepest place possible'. Do not provide shallow praise or move on too early.
+                    2. DATA CAPTURE: Wrap all strategic insights in [STRATEGY]...[/STRATEGY] tags. 
+                    3. PROGRESSION GATE: Only when you feel the soul of this chamber is fully unearthed and quantified, ASK: "Are you ready to move to the next phase, or is there more to unearth here?"
+                    4. COMMAND: Only append [MOVE_TO_CHAMBER:{next_key}] IF the user explicitly confirms they are ready to proceed.
+                    5. APPEND: Always add new strategic insights to the existing vision.
                     
                     Current Chamber: {new_target}
                     """
@@ -112,16 +112,19 @@ def run(user_id):
                         target_move = chat_part.split("[MOVE_TO_CHAMBER:")[1].split("]")[0]
                         chat_part = chat_part.split("[MOVE_TO_CHAMBER:")[0].strip()
 
+                    # 1. Update State & Database FIRST
                     if strategy_part:
                         existing = st.session_state.brand_soul.get(new_target, "")
                         combined = f"{existing}\n\n{strategy_part}".strip()
                         st.session_state.brand_soul[new_target] = combined
                         save_brand_data(user_id, combined, chamber=new_target)
 
+                    # 2. Update Chat History
                     st.session_state.messages.append({"role": "assistant", "content": chat_part, "chamber": new_target})
 
+                    # 3. Handle move ONLY after confirmation
                     if target_move and target_move != "COMPLETE":
-                        confirm_words = ["yes", "ready", "forward", "good", "move", "comfortable"]
+                        confirm_words = ["yes", "ready", "forward", "good", "move", "comfortable", "let's go"]
                         if any(word in user_input_content.lower() for word in confirm_words):
                             st.session_state.target_chamber = target_move
                     
@@ -136,7 +139,7 @@ def run(user_id):
         st.write("---")
         st.subheader("📋 Documented Vision")
         
-        # RESTORED: Manual Edit Mode Toggle
+        # PERSISTED: Manual Edit Mode Toggle
         edit_mode = st.toggle("🛠️ Edit Strategy Foundation")
 
         for label, key in chamber_map.items():
@@ -160,7 +163,6 @@ def run(user_id):
                         if st.button(f"🗑️ Clear {label}", key=f"clear_{key}"):
                             st.session_state.brand_soul[key] = ""
                             save_brand_data(user_id, "", chamber=key)
-                            # Reset messages for this chamber to restart
                             st.session_state.messages = [m for m in st.session_state.messages if m.get("chamber") != key]
                             st.session_state.widget_seeds[key] += 1
                             st.rerun()
