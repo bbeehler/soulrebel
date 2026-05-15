@@ -26,8 +26,8 @@ def generate_pdf(content):
     return bytes(pdf.output())
 
 def run(user_id):
-    st.title("✨ Illumination")
-    st.caption("The Soul Guide: The ultimate reference, resource, and authority for your brand’s identity.")
+    st.title("✨ Phase 03: Illumination")
+    st.caption("To illuminate means to bring to light. We are unearthing and igniting your purpose-driven brand.")
     st.write("---")
     
     db_data = load_brand_data(user_id)
@@ -40,36 +40,38 @@ def run(user_id):
 
     if missing_chambers:
         st.warning("⚠️ **Foundation Incomplete**")
-        st.info("The Soul Guide requires a solidified foundation. Please complete your Soul Audit.")
+        st.info("The Soul Guide requires a solidified foundation. We must determine who you are before we bring it to light.")
         for key in missing_chambers:
             st.write(f"- {key.replace('_', ' ').title()}")
-        if st.button("⬅️ Return to The Soul Sprint", use_container_width=True):
+        if st.button("⬅️ Return to Phase 02: Foundation", use_container_width=True):
             st.session_state.target_page = "1. The Soul Sprint"
             st.rerun()
         return
 
     # 2. GENERATION PHASE
     if not st.session_state.final_soul_guide:
-        st.success("🎯 **Foundation Verified.** Soul Alignment is active.")
+        st.success("🎯 **Foundation Verified.** Ready to unearth the soul.")
         if st.button("🔥 Illuminate the Soul Guide", use_container_width=True):
-            with st.spinner("Synthesizing the Strategic Individual..."):
-                # HIGH-IMPACT SYNTHESIS PROMPT
+            with st.spinner("Bringing your identity to light..."):
+                # CEO-ALIGNED SYNTHESIS PROMPT
                 prompt = f"""
-                You are a Master Soul Rebel Facilitator. Synthesize the Phase 03 Soul Guide (The Strategic Bible).
+                You are a Master Soul Rebel Facilitator. You are in Phase 03: Illumination.
+                Your goal is to unearth, illuminate, and ignite the soul of this purpose-driven brand. [cite: 36, 38]
                 
-                ANATOMY DATA:
+                FOUNDATION DATA:
                 - SOUL (PurpUS): {brand_data.get('purpus_summary')}
                 - MIND (Identity): {brand_data.get('brand_identity')}
                 - BODY (Experience): {brand_data.get('brand_experience')}
                 - BODY (Impact): {brand_data.get('brand_impact')}
                 
-                STRATEGIC FRAMEWORK:
-                1. THE INDIVIDUAL: Transform these inputs into a singular, living brand persona.
-                2. THE CORE ETHOS: Define the shared PurpUS that rallies staff and clients.
-                3. REVENUE & ENGAGE: How does this identity deepen bonds and increase business revenue?
-                4. IMPACT POSITIONING: How does this brand solver community problems?
+                ILLUMINATION STRATEGY:
+                1. THE IDENTITY: Bring to light the substance and value of this soul. [cite: 40, 41]
+                2. WORDS & PHILOSOPHIES: Find the language necessary to carry meaning for both internal people and external audiences. 
+                3. BRAND EXPERIENCE: Craft the brand's tone, personality, and the way it communicates. [cite: 42]
+                4. THE BIG IDEA: Leverage the soul to communicate with audiences, putting their focus first so they understand why you are valuable in their lives. 
+                5. PREPARE FOR TRANSFORMATION: Ensure this identity is ready to be implemented and activated so it becomes real. [cite: 4, 5, 8]
                 
-                Deliver a cohesive, high-authority narrative for growth and brand affinity.
+                Deliver a cohesive narrative that establishes this brand as a 'Strategic Individual.'
                 """
                 guide = get_soul_rebel_consultant("Illuminate my Soul Guide.", prompt)
                 st.session_state.final_soul_guide = guide
@@ -80,7 +82,7 @@ def run(user_id):
     else:
         st.subheader("📜 The Soul Guide (Master Document)")
         edited_text = st.text_area(
-            "Refine your Strategic Individual:", 
+            "Finalize the words and philosophies that carry your meaning:", 
             value=st.session_state.final_soul_guide, 
             height=500,
             key="guide_editor_field"
