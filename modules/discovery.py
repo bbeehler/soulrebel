@@ -8,7 +8,7 @@ except Exception as e:
     st.error(f"Error loading backend modules: {e}")
 
 def run(user_id):
-    # 1. HARD SYNC: Initialize and Force Load from DB
+    # 1. INITIALIZE & SYNC: Ensure we have the latest from DB
     if "brand_soul" not in st.session_state:
         st.session_state.brand_soul = load_brand_data(user_id) or {}
     
@@ -26,7 +26,7 @@ def run(user_id):
     }
     chamber_sequence = ["purpus_summary", "brand_identity", "brand_experience", "brand_impact"]
     
-    # 2. ATOMIC NAVIGATION: Lock the current chamber key
+    # 2. CHAMBER NAVIGATION: Lock the current focus
     current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
     chamber_keys = list(chamber_map.values())
     current_idx = chamber_keys.index(current_chamber_key)
@@ -37,7 +37,7 @@ def run(user_id):
         st.title("🔥 The Soul Audit")
         st.caption(f"Unearthing Phase: {list(chamber_map.keys())[current_idx]}")
         
-        # Facilitator Opening logic
+        # Facilitator Opening Prompts
         chamber_prompts = {
             "purpus_summary": "Foundation Phase: Why MUST this brand exist? What internal fire drives this soul?",
             "brand_identity": "The Foundation: If this brand were an individual, what is its identity and ethos?",
@@ -45,11 +45,11 @@ def run(user_id):
             "brand_impact": "The Legacy: What urgent community problems are you solving to create ongoing impact?"
         }
         
-        # Ensure thread integrity
+        # Inject chamber-specific opening if thread is empty
         if not any(m.get("chamber") == current_chamber_key for m in st.session_state.messages):
             st.session_state.messages.append({"role": "assistant", "content": chamber_prompts[current_chamber_key], "chamber": current_chamber_key})
 
-        # Render only the current chamber thread
+        # Display Chat History (Current Chamber Only)
         for message in [m for m in st.session_state.messages if m.get("chamber") == current_chamber_key]:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
@@ -70,18 +70,18 @@ def run(user_id):
         if user_input:
             st.session_state.messages.append({"role": "user", "content": user_input, "chamber": current_chamber_key})
             with st.chat_message("assistant"):
-                with st.spinner("Processing..."):
-                    methodology = f"ROLE: Godzspeed Facilitator. PHASE: {current_chamber_key}. TASK: Probe deeper. Wrap summaries in [STRATEGY]...[/STRATEGY] tags."
+                with st.spinner("Processing unearthing..."):
+                    methodology = f"ROLE: Godzspeed Facilitator. PHASE: {current_chamber_key}. TASK: Probe the 'Why'. Wrap results in [STRATEGY]...[/STRATEGY] tags."
                     current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == current_chamber_key])
                     full_response = get_soul_rebel_consultant(user_input, methodology + current_context)
 
-                    # Extract Strategy synthesis
+                    # Extract Strategy Synthesis
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
                         chat_part = parts[0].strip()
                         strategy_draft = parts[1].split("[/STRATEGY]")[0].strip() if "[/STRATEGY]" in parts[1] else parts[1].strip()
-                        # Force update to the chamber-specific draft
-                        st.session_state[f"draft_{current_chamber_key}"] = strategy_draft
+                        # FORCE ISOLATION: Save draft ONLY to this chamber's key
+                        st.session_state[f"active_draft_{current_chamber_key}"] = strategy_draft
                     else:
                         chat_part = full_response
 
@@ -90,62 +90,67 @@ def run(user_id):
 
     with col2:
         st.subheader("📋 Documented Vision")
-        edit_mode = st.toggle("🛠️ Enable Manual Edit Mode", key="toggle_edit")
+        edit_mode = st.toggle("🛠️ Manual Edit Mode", key=f"edit_toggle_{current_chamber_key}")
 
-        # Explicit Retrieval: Force focus on the active chamber's data
-        draft_content = st.session_state.get(f"draft_{current_chamber_key}", "")
+        # --- DATA RETRIEVAL FIX ---
+        # We check the isolated draft key FIRST, then the saved state, then fallback to DB
+        draft_content = st.session_state.get(f"active_draft_{current_chamber_key}", "")
         saved_content = st.session_state.brand_soul.get(current_chamber_key, "")
         display_text = draft_content if draft_content else saved_content
 
-        with st.expander(f"🔍 Current Focus: {list(chamber_map.keys())[current_idx]}", expanded=True):
+        with st.expander(f"🔍 Proposed: {list(chamber_map.keys())[current_idx]}", expanded=True):
             if edit_mode:
-                # Use seed to force-refresh the text area when chamber changes
-                dk = f"widget_{current_chamber_key}_{st.session_state.widget_seeds[current_chamber_key]}"
-                final_text = st.text_area("Refine Summary:", value=display_text, height=350, key=dk)
+                # Seeded key ensures the text area resets when chamber changes
+                widget_key = f"refine_{current_chamber_key}_{st.session_state.widget_seeds[current_chamber_key]}"
+                final_text = st.text_area("Refine Summary:", value=display_text, height=350, key=widget_key)
                 
                 c1, c2 = st.columns(2)
                 with c1:
-                    if st.button("💾 Save Draft", key=f"btn_save_{current_chamber_key}"):
+                    if st.button("💾 Save Draft", key=f"save_btn_{current_chamber_key}"):
                         st.session_state.brand_soul[current_chamber_key] = final_text
                         save_brand_data(user_id, final_text, chamber=current_chamber_key)
-                        st.success("Draft Saved to System.")
+                        st.success("Draft Saved.")
                         st.rerun()
                 with c2:
-                    if st.button("🗑️ Reset Phase", key=f"btn_reset_{current_chamber_key}"):
+                    if st.button("🗑️ Reset Phase", key=f"reset_btn_{current_chamber_key}"):
+                        # Full wipe for this chamber
                         st.session_state.brand_soul[current_chamber_key] = ""
-                        st.session_state[f"draft_{current_chamber_key}"] = ""
+                        st.session_state[f"active_draft_{current_chamber_key}"] = ""
                         save_brand_data(user_id, "", chamber=current_chamber_key)
                         st.session_state.messages = [m for m in st.session_state.messages if m.get("chamber") != current_chamber_key]
                         st.session_state.widget_seeds[current_chamber_key] += 1
                         st.rerun()
             else:
-                st.markdown(display_text if display_text else "*Awaiting Facilitator synthesis...*")
+                if display_text:
+                    st.markdown(display_text)
+                else:
+                    st.caption("Awaiting Facilitator synthesis...")
                 final_text = display_text
 
-        # THE GATE: Must be un-edited and containing text to commit
+        # 3. THE COMMIT GATE
         if final_text and not edit_mode:
-            if st.button("🔥 Commit & Advance Phase", use_container_width=True, key=f"btn_commit_{current_chamber_key}"):
-                # 1. Finalize current chamber
+            if st.button("🔥 Commit & Advance Phase", use_container_width=True, key=f"commit_btn_{current_chamber_key}"):
+                # Save finalized data
                 st.session_state.brand_soul[current_chamber_key] = final_text
                 save_brand_data(user_id, final_text, chamber=current_chamber_key)
                 
-                # 2. Trigger Advance logic
+                # Advance Chamber logic
                 if current_idx < len(chamber_sequence) - 1:
                     next_key = chamber_sequence[current_idx + 1]
                     st.session_state.target_chamber = next_key
-                    # Clear out the draft state for the next chamber to ensure a clean start
-                    if f"draft_{next_key}" in st.session_state:
-                        del st.session_state[f"draft_{next_key}"]
+                    
+                    # MANDATORY WIPE: Remove any lingering draft data for the NEXT chamber
+                    if f"active_draft_{next_key}" in st.session_state:
+                        del st.session_state[f"active_draft_{next_key}"]
                     
                     st.success("Phase alignment confirmed.")
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.success("Full Soul Audit Documented!")
+                    st.success("Soul Audit Documented!")
 
         st.write("---")
         st.subheader("🧬 Foundation History")
-        # History rendering for previously committed phases
         for label, key in chamber_map.items():
             if key != current_chamber_key:
                 with st.expander(label):
