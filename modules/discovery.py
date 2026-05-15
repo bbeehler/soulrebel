@@ -8,7 +8,7 @@ except Exception as e:
     st.error(f"Error loading backend modules: {e}")
 
 def run(user_id):
-    # 1. Initialize and Force Sync State
+    # 1. Initialize and Sync State
     if "brand_soul" not in st.session_state:
         saved_data = load_brand_data(user_id)
         st.session_state.brand_soul = saved_data if saved_data else {}
@@ -31,7 +31,7 @@ def run(user_id):
 
     with col1:
         st.title("🔥 The Soul Audit")
-        st.caption("Unearthing the deepest possible understanding.")
+        st.caption("A Facilitated Unearthing — Building the Foundation for your Soul Guide.")
         
         # --- NAVIGATION ---
         current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
@@ -78,26 +78,27 @@ def run(user_id):
         if user_input_content:
             st.session_state.messages.append({"role": "user", "content": user_input_content, "chamber": new_target})
             with st.chat_message("assistant"):
-                with st.spinner("Unearthing..."):
+                with st.spinner("Facilitating..."):
                     
                     next_idx = current_idx + 1
                     next_key = chamber_sequence[next_idx] if next_idx < len(chamber_sequence) else "COMPLETE"
                     
                     methodology = f"""
-                    SYSTEM CONTEXT: You are a Godzspeed Facilitator. 
+                    ROLE: You are a professional Godzspeed Facilitator. 
                     
-                    HARD RULES:
-                    1. CHALLENGE & PROBE: Do not be agreeable. Ask 'Why?' until the soul is unearthed.
-                    2. DATA TAGGING: Wrap EVERY strategic insight or finalized summary in [STRATEGY]...[/STRATEGY] tags. 
-                    3. THE GATE: When substance is found, ask: 'Are you ready to move to the next phase?'
-                    4. COMMAND: Use [MOVE_TO_CHAMBER:{next_key}] ONLY if the user says 'Yes' or 'Ready'.
-                    5. APPEND: New data must be ADDED to the document, not replace it.
+                    PROCESS:
+                    1. CHAT & PROBE: Continue the conversation. Ask deep follow-up questions to unearth details. 
+                    2. FINAL SYNTHESIS: Only when you and the user have fully explored the topic, produce a FINAL response that summarizes everything. Wrap this synthesis in [STRATEGY]...[/STRATEGY] tags.
+                    3. DOCUMENTATION: This [STRATEGY] block will be inserted into the Documented Vision.
+                    4. THE PROGRESSION GATE: Once (and only once) you have provided the [STRATEGY] block, ask: "I have updated your Documented Vision. Are you ready to move to the next phase?"
+                    5. COMMAND: Use [MOVE_TO_CHAMBER:{next_key}] ONLY if the user explicitly says "Yes" or "Ready" AFTER the synthesis is produced.
+                    6. REJECTION: If the user says "No" or wants to add more, re-enter the chat/probe loop.
                     """
                     
                     current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == new_target])
                     full_response = get_soul_rebel_consultant(user_input_content, methodology + current_context)
 
-                    # Extract Content
+                    # Extract Strategy Synthesis
                     strategy_part = ""
                     if "[STRATEGY]" in full_response:
                         parts = full_response.split("[STRATEGY]")
@@ -111,30 +112,26 @@ def run(user_id):
                         target_move = chat_part.split("[MOVE_TO_CHAMBER:")[1].split("]")[0]
                         chat_part = chat_part.split("[MOVE_TO_CHAMBER:")[0].strip()
 
-                    # --- CRITICAL FIX: IMMEDIATE SYNC ---
+                    # Atomic Update for Documented Vision
                     if strategy_part:
                         existing = st.session_state.brand_soul.get(new_target, "")
                         combined = f"{existing}\n\n{strategy_part}".strip()
-                        
-                        # 1. Update Session State FIRST
                         st.session_state.brand_soul[new_target] = combined
-                        # 2. Save to DB SECOND
                         save_brand_data(user_id, combined, chamber=new_target)
 
                     st.session_state.messages.append({"role": "assistant", "content": chat_part, "chamber": new_target})
 
+                    # Progression logic: Only move if confirmation is clear
                     if target_move and target_move != "COMPLETE":
                         confirm_words = ["yes", "ready", "forward", "good", "move", "comfortable", "proceed"]
                         if any(word in user_input_content.lower() for word in confirm_words):
                             st.session_state.target_chamber = target_move
                     
-                    # Force a micro-pause to ensure DB commit
                     time.sleep(0.1)
                     st.rerun()
 
     with col2:
         st.subheader("🧬 Foundation Progress")
-        # Pull directly from st.session_state to bypass any caching lag
         brand_data = st.session_state.brand_soul
         filled = sum(1 for k in chamber_sequence if brand_data.get(k))
         st.progress(filled/4)
@@ -148,11 +145,9 @@ def run(user_id):
             is_expanded = (current_chamber_key == key)
             with st.expander(label, expanded=is_expanded):
                 content = brand_data.get(key, "")
-                
                 if edit_mode:
                     dk = f"widget_{key}_{st.session_state.widget_seeds[key]}"
                     new_val = st.text_area(f"Refine {label}:", value=content, height=200, key=dk)
-                    
                     c1, c2 = st.columns(2)
                     with c1:
                         if st.button(f"💾 Save {label}", key=f"save_{key}"):
@@ -172,4 +167,4 @@ def run(user_id):
                     if content:
                         st.markdown(content)
                     else:
-                        st.caption("Awaiting deeper unearthing...")
+                        st.caption("Awaiting Facilitator Synthesis...")
