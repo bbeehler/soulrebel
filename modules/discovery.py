@@ -33,7 +33,7 @@ def run(user_id):
         st.title("🔥 The Soul Audit")
         st.caption("Determining who you are and defining your daily impact.")
         
-        # Navigation Logic
+        # --- NAVIGATION LOGIC ---
         current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
         chamber_keys = list(chamber_map.values())
         current_idx = chamber_keys.index(current_chamber_key) if current_chamber_key in chamber_keys else 0
@@ -60,15 +60,12 @@ def run(user_id):
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        # --- INPUT HANDLING (VOICE + TEXT) ---
+        # --- INPUT HANDLING ---
         st.write("---")
-        
-        # RESTORED: Voice Memo Component
         audio_input = st.audio_input("🎤 Speak your vision", key=f"audio_{new_target}")
         prompt = st.chat_input("Document your thoughts...")
 
         user_input_content = None
-        
         if audio_input:
             audio_id = hash(f"{audio_input.name}_{audio_input.size}")
             if st.session_state.get("last_audio_id") != audio_id:
@@ -85,15 +82,16 @@ def run(user_id):
                     next_idx = current_idx + 1
                     next_key = chamber_sequence[next_idx] if next_idx < len(chamber_sequence) else "COMPLETE"
                     
-                    # MANDATORY BEHAVIOR FOR DATA CAPTURE AND PROGRESSION
+                    # UPDATED METHODOLOGY: Permission-based movement
                     methodology = f"""
                     SYSTEM CONTEXT: You are the Godzspeed Soul Rebel Facilitator.
                     
                     MANDATORY BEHAVIOR:
-                    1. DATA CAPTURE: Every strategic insight must be captured. Wrap formal synthesis in [STRATEGY]...[/STRATEGY] tags.
-                    2. PROGRESSION GATE: If the user says they are 'good' or ready to move, you MUST provide a FINAL [STRATEGY] block for the current chamber before adding the [MOVE_TO_CHAMBER:{next_key}] tag.
-                    3. NO SILENT MOVES: Never move to a new chamber without confirming the previous one is documented.
-                    4. APPEND: Your summaries add to the existing vision; they don't replace it.
+                    1. DATA CAPTURE: Wrap all strategic insights in [STRATEGY]...[/STRATEGY] tags.
+                    2. PROGRESSION GATE: If the user is satisfied, YOU MUST ASK: "Are you ready to move to the next phase?" 
+                    3. COMMAND: Only append [MOVE_TO_CHAMBER:{next_key}] IF the user explicitly says "Yes", "I'm ready", or "move forward".
+                    4. STAY PUT: If the user is still answering questions, STAY in the current chamber.
+                    5. APPEND: Always add to the existing vision.
                     
                     Current Chamber: {new_target}
                     """
@@ -110,30 +108,34 @@ def run(user_id):
                     else:
                         chat_part = full_response
 
-                    # Navigation Check
+                    # Navigation Check - Only triggered by explicit command
                     target_move = None
                     if "[MOVE_TO_CHAMBER:" in chat_part:
                         target_move = chat_part.split("[MOVE_TO_CHAMBER:")[1].split("]")[0]
                         chat_part = chat_part.split("[MOVE_TO_CHAMBER:")[0].strip()
 
-                    # 1. Update Strategy/DB FIRST to ensure it appears in Documented Vision
+                    # 1. Update State & Database FIRST
                     if strategy_part:
                         existing = st.session_state.brand_soul.get(new_target, "")
                         combined = f"{existing}\n\n{strategy_part}".strip()
                         st.session_state.brand_soul[new_target] = combined
                         save_brand_data(user_id, combined, chamber=new_target)
 
-                    # 2. Add chat message
+                    # 2. Update Chat History
                     st.session_state.messages.append({"role": "assistant", "content": chat_part, "chamber": new_target})
 
-                    # 3. Handle move ONLY after data is saved
+                    # 3. Process navigation only after confirmation
                     if target_move and target_move != "COMPLETE":
-                        st.session_state.target_chamber = target_move
+                        # We only move if the user's latest input was a confirmation
+                        confirm_words = ["yes", "ready", "forward", "good", "move", "comfortable"]
+                        if any(word in user_input_content.lower() for word in confirm_words):
+                            st.session_state.target_chamber = target_move
                     
                     st.rerun()
 
     with col2:
         st.subheader("🧬 Foundation Progress")
+        # Pull directly from state to ensure the progress bar and expanders update instantly
         brand_data = st.session_state.brand_soul
         filled = sum(1 for k in chamber_sequence if brand_data.get(k))
         st.progress(filled/4)
