@@ -136,12 +136,11 @@ def run(user_id):
             button_label = "🔥 Finalize Audit & Illuminate Soul Guide" if is_last_phase else "🔥 Commit & Advance Phase"
             
             if st.button(button_label, use_container_width=True, key=f"commit_btn_{current_chamber_key}"):
-                # Always Save First
+                # Save finalized data
                 st.session_state.brand_soul[current_chamber_key] = final_text
                 save_brand_data(user_id, final_text, chamber=current_chamber_key)
                 
                 if not is_last_phase:
-                    # Move to next sub-phase
                     next_key = chamber_sequence[current_idx + 1]
                     st.session_state.target_chamber = next_key
                     if f"active_draft_{next_key}" in st.session_state:
@@ -150,15 +149,15 @@ def run(user_id):
                     time.sleep(0.5)
                     st.rerun()
                 else:
-                    # FINAL COMPLETION: FORCE REDIRECT TO ILLUMINATION
+                    # THE CRITICAL REDIRECT FIX
                     st.balloons()
+                    # Updating the exact key your app.py uses for the sidebar
+                    st.session_state.current_nav = "✨ Phase 03: Illumination"
+                    # Redundant keys for safety
+                    st.session_state.page = "illumination"
                     st.session_state.audit_complete = True
                     
-                    # MATCHING THE NAVIGATION KEYS IN YOUR APP
-                    st.session_state.target_page = "✨ Phase 03: Illumination"
-                    st.session_state.page = "illumination" 
-                    
-                    st.success("Audit Complete! Igniting the Soul Guide...")
+                    st.success("Audit Complete! Opening Illumination...")
                     time.sleep(1.5)
                     st.rerun()
 
