@@ -8,7 +8,7 @@ except Exception as e:
     st.error(f"Error loading backend modules: {e}")
 
 def run(user_id):
-    # 1. INITIALIZE & SYNC: Ensure we have the latest from DB
+    # 1. INITIALIZE & SYNC
     if "brand_soul" not in st.session_state:
         st.session_state.brand_soul = load_brand_data(user_id) or {}
     
@@ -26,7 +26,7 @@ def run(user_id):
     }
     chamber_sequence = ["purpus_summary", "brand_identity", "brand_experience", "brand_impact"]
     
-    # 2. CHAMBER NAVIGATION: Lock the current focus
+    # 2. CHAMBER NAVIGATION
     current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
     chamber_keys = list(chamber_map.values())
     current_idx = chamber_keys.index(current_chamber_key)
@@ -136,28 +136,33 @@ def run(user_id):
             button_label = "🔥 Finalize Audit & Open Soul Guide" if is_last_phase else "🔥 Commit & Advance Phase"
             
             if st.button(button_label, use_container_width=True, key=f"commit_btn_{current_chamber_key}"):
-                # Always Save First
+                # Save finalized data
                 st.session_state.brand_soul[current_chamber_key] = final_text
                 save_brand_data(user_id, final_text, chamber=current_chamber_key)
                 
                 if not is_last_phase:
-                    # Move to next sub-phase inside discovery
                     next_key = chamber_sequence[current_idx + 1]
                     st.session_state.target_chamber = next_key
                     if f"active_draft_{next_key}" in st.session_state:
                         del st.session_state[f"active_draft_{next_key}"]
-                    st.success(f"Phase committed. Advancing...")
+                    st.success(f"Phase committed.")
                     time.sleep(0.5)
                     st.rerun()
                 else:
-                    # THE GLOBAL REDIRECT (ALIGNED TO MAIN.PY)
+                    # THE SIDEBAR SYNC FIX
                     st.balloons()
-                    # 1. Update the nav key to match nav_options[1] in main.py
-                    st.session_state.target_page = "2. The Soul Guide"
-                    # 2. Set helper flags
-                    st.session_state.audit_complete = True
                     
-                    st.success("Soul Audit Complete! Transitioning to Illumination...")
+                    # 1. Update the nav state main.py is looking for
+                    target_label = "2. The Soul Guide"
+                    st.session_state.target_page = target_label
+                    st.session_state.current_nav = target_label
+                    
+                    # 2. Force the sidebar radio widget to update its index
+                    # In main.py, the radio key is "sidebar_radio"
+                    st.session_state.sidebar_radio = target_label
+                    
+                    st.session_state.audit_complete = True
+                    st.success("Soul Audit Complete! Redirecting...")
                     time.sleep(1.5)
                     st.rerun()
 
