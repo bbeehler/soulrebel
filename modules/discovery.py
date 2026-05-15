@@ -31,7 +31,7 @@ def run(user_id):
 
     with col1:
         st.title("🔥 The Soul Audit")
-        st.caption("Determining who you are and defining your daily impact. [cite: 50, 52, 53]")
+        st.caption("Determining who you are and defining your daily impact.")
         
         # Navigation
         current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
@@ -47,10 +47,10 @@ def run(user_id):
 
         # Initial Prompt
         chamber_prompts = {
-            "purpus_summary": "Foundation Phase: Why MUST this brand exist? What internal fire drives this soul? [cite: 36, 51]",
-            "brand_identity": "The Foundation: If this brand were an individual, what is its identity and ethos? [cite: 53, 54]",
-            "brand_experience": "Remarkable Experiences: How will your brand communicate its value while putting your audience first? [cite: 41, 43]",
-            "brand_impact": "The Legacy: What urgent community problems are you solving to create ongoing impact? [cite: 52, 70]"
+            "purpus_summary": "Foundation Phase: Why MUST this brand exist? What internal fire drives this soul?",
+            "brand_identity": "The Foundation: If this brand were an individual, what is its identity and ethos?",
+            "brand_experience": "Remarkable Experiences: How will your brand communicate its value while putting your audience first?",
+            "brand_impact": "The Legacy: What urgent community problems are you solving to create ongoing impact?"
         }
         if not any(m.get("chamber") == new_target for m in st.session_state.messages):
             st.session_state.messages.append({"role": "assistant", "content": chamber_prompts[new_target], "chamber": new_target})
@@ -133,4 +133,4 @@ def run(user_id):
                 if content:
                     st.markdown(content)
                 else:
-                    st.caption("Awaiting deeper unearthing... [cite: 73]")
+                    st.caption("Awaiting deeper unearthing...")
