@@ -29,17 +29,17 @@ def run(user_id):
     chamber_sequence = ["purpus_summary", "brand_identity", "brand_experience", "brand_impact"]
     
     chamber_prompts = {
-        "purpus_summary": "Foundation Phase: We determine who you are. Forget what you sell—Why MUST this brand exist? What internal fire drives this soul? [cite: 36, 50, 51]",
-        "brand_identity": "The Foundation: Developing a vision for your ethos. If this brand were an individual, what is its soul and identity? [cite: 53, 54]",
-        "brand_experience": "Remarkable Experiences: In this foundation, how will your brand communicate its substance and value while putting your audience first? [cite: 41, 43]",
-        "brand_impact": "The Legacy: What urgent community problems are you solving? How will you create ongoing impact and solve challenges for your audiences? [cite: 23, 70, 80]"
+        "purpus_summary": "Foundation Phase: We determine who you are. Forget what you sell—Why MUST this brand exist? What internal fire drives this soul?",
+        "brand_identity": "The Foundation: Developing a vision for your ethos. If this brand were an individual, what is its soul and identity?",
+        "brand_experience": "Remarkable Experiences: In this foundation, how will your brand communicate its substance and value while putting your audience first?",
+        "brand_impact": "The Legacy: What urgent community problems are you solving? How will you create ongoing impact and solve challenges for your audiences?"
     }
 
     col1, col2 = st.columns([3, 2])
 
     with col1:
         st.title("🔥 The Soul Audit")
-        st.caption("Phase 02: Foundation — Identifying growth opportunities and defining your daily impact. [cite: 51, 52]")
+        st.caption("Phase 02: Foundation — Identifying growth opportunities and defining your daily impact.")
         
         current_chamber_key = st.session_state.get("target_chamber", "purpus_summary")
         chamber_labels = list(chamber_map.keys())
@@ -96,14 +96,14 @@ def run(user_id):
                     next_chamber_key = chamber_sequence[next_idx] if next_idx < len(chamber_sequence) else "COMPLETE"
                     
                     methodology = """
-                    SYSTEM CONTEXT: You are the Godzspeed Soul Rebel Facilitator. You are in Phase 02: Foundation. [cite: 50]
-                    Your mission is to unearth, illuminate, and ignite purpose-driven brands. [cite: 36]
+                    SYSTEM CONTEXT: You are the Godzspeed Soul Rebel Facilitator. You are in Phase 02: Foundation.
+                    Your mission is to unearth, illuminate, and ignite purpose-driven brands.
                     
                     STRICT RULES:
                     1. DEEPENING: If the user's answer is shallow or you need more detail, ask follow-up questions. 
                     2. PROGRESSION: ONLY include [MOVE_TO_CHAMBER:X] when you have reached the 'deepest place possible' and the vision is solidified. 
                     3. REINFORCEMENT: Place formal strategic documentation inside [STRATEGY] tags.
-                    4. IDENTITY OVER PROFIT: Focus on fit, legacy, and community impact. [cite: 60, 69, 84]
+                    4. IDENTITY OVER PROFIT: Focus on fit, legacy, and community impact.
                     """
                     
                     current_context = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages if m.get("chamber") == new_target])
