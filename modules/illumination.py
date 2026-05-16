@@ -8,39 +8,40 @@ def run(user_id):
     st.caption("Forging the Strategic Individual: Subsection by Subsection.")
     st.write("---")
     
-    # 1. DATA INITIALIZATION
+    # 1. INITIALIZE MASTER STATE
     db_data = load_brand_data(user_id)
     brand_data = db_data if db_data else {}
 
-    # The 12-step hierarchy based on the provided benchmark [cite: 1, 2]
+    # Standardized 12-step hierarchy
     guide_structure = [
-        {"id": "identity_big_idea", "label": "SECTION 1: IDENTITY", "sub": "Big Idea", "prompt": "Create a rousing affirmation that ignites creativity[cite: 5, 14]."},
-        {"id": "identity_meaning", "label": "SECTION 1: IDENTITY", "sub": "What It Means", "prompt": "Deep narrative explaining the 'why' and the community impact[cite: 7, 8, 24]."},
-        {"id": "identity_vision", "label": "SECTION 1: IDENTITY", "sub": "Vision & Mission", "prompt": "Radical transformation and bold reimagining of the future[cite: 28, 55, 56]."},
-        {"id": "process_method", "label": "SECTION 2: PROCESS", "sub": "Transformation Process", "prompt": "Detail the 3-way radical methodology (e.g., Blueprint, Advocate, Inform)[cite: 72, 73, 74, 75]."},
-        {"id": "anchors_culture", "label": "SECTION 3: ANCHORS", "sub": "Our Culture & Values", "prompt": "Define core soul pillars such as Humility, Diversity, and Curiosity[cite: 103, 107]."},
-        {"id": "anchors_beliefs", "label": "SECTION 3: ANCHORS", "sub": "Beliefs & Behaviours", "prompt": "Draft 'We Believe' and 'We Always' statements that guide daily precision[cite: 158, 172]."},
-        {"id": "positioning_1soul", "label": "SECTION 4: POSITIONING", "sub": "1Soul Statement", "prompt": "The authoritative statement demystifying and resolving complex problems[cite: 183, 193]."},
-        {"id": "positioning_offering", "label": "SECTION 4: POSITIONING", "sub": "Our Offering", "prompt": "Tailored value propositions for Staff, Clients, and Communities[cite: 197, 198, 210, 223]."},
-        {"id": "positioning_audience", "label": "SECTION 4: POSITIONING", "sub": "Target Audience", "prompt": "Detailed profiles of 'Allies' and 'Target Partners'[cite: 246, 247, 264]."},
-        {"id": "expression_voice", "label": "SECTION 5: EXPRESSION", "sub": "Voice & Personality", "prompt": "Human, compelling, hella smart; The Caring Catalyst archetypes[cite: 326, 332]."},
-        {"id": "ties_legacy", "label": "SECTION 6: SOUL TIES", "sub": "Brand Legacy", "prompt": "The 'living legacy' intended for lifetimes to come[cite: 343, 345]."},
-        {"id": "ties_markers", "label": "SECTION 6: SOUL TIES", "sub": "Key Soul Markers (KPIs)", "prompt": "Strategic metrics framed as 'Do I/Am I' audit questions[cite: 357, 364]."}
+        {"id": "identity_big_idea", "label": "SECTION 1: IDENTITY", "sub": "Big Idea", "prompt": "Create a rousing affirmation."},
+        {"id": "identity_meaning", "label": "SECTION 1: IDENTITY", "sub": "What It Means", "prompt": "Deep narrative explaining the 'why'."},
+        {"id": "identity_vision", "label": "SECTION 1: IDENTITY", "sub": "Vision & Mission", "prompt": "Radical transformation and bold reimagining."},
+        {"id": "process_method", "label": "SECTION 2: PROCESS", "sub": "Transformation Process", "prompt": "Detail the 3-step radical methodology."},
+        {"id": "anchors_culture", "label": "SECTION 3: ANCHORS", "sub": "Our Culture & Values", "prompt": "Define core soul pillars."},
+        {"id": "anchors_beliefs", "label": "SECTION 3: ANCHORS", "sub": "Beliefs & Behaviours", "prompt": "Draft 'We Believe' and 'We Always' statements."},
+        {"id": "positioning_1soul", "label": "SECTION 4: POSITIONING", "sub": "1Soul Statement", "prompt": "Authoritative statement of purpose."},
+        {"id": "positioning_offering", "label": "SECTION 4: POSITIONING", "sub": "Our Offering", "prompt": "Value for Staff, Clients, Communities."},
+        {"id": "positioning_audience", "label": "SECTION 4: POSITIONING", "sub": "Target Audience", "prompt": "Profiles of Allies/Partners."},
+        {"id": "expression_voice", "label": "SECTION 5: EXPRESSION", "sub": "Voice & Personality", "prompt": "Human, compelling, smart; Caring Catalyst."},
+        {"id": "ties_legacy", "label": "SECTION 6: SOUL TIES", "sub": "Brand Legacy", "prompt": "Living legacy for lifetimes to come."},
+        {"id": "ties_markers", "label": "SECTION 6: SOUL TIES", "sub": "Key Soul Markers (KPIs)", "prompt": "'Do I/Am I' audit questions."}
     ]
 
     if "guide_idx" not in st.session_state:
         st.session_state.guide_idx = 0
     if "guide_content" not in st.session_state:
         st.session_state.guide_content = brand_data.get("soul_guide_parts", {})
+    if "rev" not in st.session_state:
+        st.session_state.rev = 0  # UI Revision counter to force refresh
 
     curr_idx = st.session_state.guide_idx
 
-    # --- COMPLETION VIEW ---
+    # COMPLETION CHECK
     if curr_idx >= len(guide_structure):
         st.success("🎉 Master Soul Guide Complete.")
         full_text = "\n\n".join(st.session_state.guide_content.values())
-        st.text_area("Full Strategic Individual Narrative", value=full_text, height=600)
-        
+        st.text_area("Full Strategic Narrative", value=full_text, height=600)
         if st.button("🗑️ Reset Illumination"):
             st.session_state.guide_idx = 0
             st.session_state.guide_content = {}
@@ -55,62 +56,54 @@ def run(user_id):
 
     with col1:
         st.subheader(f"{curr_sub['label']}")
-        st.info(f"**Strategic Focus:** {curr_sub['sub']}")
+        st.info(f"**Focus:** {curr_sub['sub']}")
         
-        # A. INITIAL GENERATION (Seed from Audit)
+        # Initial Draft Generation
         if sub_key not in st.session_state.guide_content:
             with st.spinner(f"Initial Synthesis of {curr_sub['sub']}..."):
-                methodology = f"""
-                ROLE: Godzspeed Soul Rebel Facilitator.
-                TASK: Draft the '{curr_sub['sub']}' section.
-                MAPPING: {curr_sub['prompt']}
-                VOICE: Human, compelling, hella smart.
-                GAP DETECTION: If the Audit data is insufficient for this specific section, append '🚨 FACILITATOR INQUIRY' at the bottom with 3 thought-provoking questions.
-                """
+                methodology = f"Draft the '{curr_sub['sub']}' section. Focus: {curr_sub['prompt']}. VOICE: Human, compelling, smart. If data is missing, append '🚨 FACILITATOR INQUIRY'."
                 draft = get_soul_rebel_consultant(f"Draft {curr_sub['sub']}", methodology + str(brand_data))
                 st.session_state.guide_content[sub_key] = draft
-                # Initialize the widget key
-                st.session_state[f"text_val_{sub_key}"] = draft
 
-        # B. DYNAMIC TEXT AREA (The Adaptive Field)
-        # Using a specific key to force the widget to refresh when the AI synthesizes new info.
+        # THE REFRESHABLE WORKSPACE CONTAINER
+        # Adding st.session_state.rev to the key forces a total re-render
+        workspace_key = f"input_{sub_key}_v{st.session_state.rev}"
+        
+        current_text = st.session_state.guide_content[sub_key]
+        
+        # This text area will now completely reset whenever st.session_state.rev increases
         edited_text = st.text_area(
             "Refine and Expand Narrative:", 
-            value=st.session_state.get(f"text_val_{sub_key}", st.session_state.guide_content[sub_key]), 
+            value=current_text, 
             height=450, 
-            key=f"input_{sub_key}"
+            key=workspace_key
         )
         
-        # Track manual edits in the session state
+        # Sync manual edits
         st.session_state.guide_content[sub_key] = edited_text
-        
-        # C. COLLABORATIVE SYNTHESIS (The Chat Engine)
+
+        # Collaborative Synthesis Loop
         st.write("---")
         user_input = st.chat_input(f"Feed more detail into {curr_sub['sub']}...")
         
         if user_input:
-            with st.spinner("Synthesizing and adapting field..."):
+            with st.spinner("Synthesizing..."):
                 update_prompt = f"""
-                You are an editor. UPDATE the following text with the NEW DETAIL provided by the user. 
-                1. Braiding: Seamlessly integrate new info into the existing flow.
-                2. Voice: Keep it human, compelling, and 'hella smart'.
-                3. Cleanup: If the user's input answers a question from the '🚨 FACILITATOR INQUIRY', remove that question.
-                4. Return ONLY the FULL updated narrative for the '{curr_sub['sub']}' section.
+                UPDATE the '{curr_sub['sub']}' narrative with NEW DETAIL. 
+                - Braid the info into the flow.
+                - Remove answered questions from '🚨 FACILITATOR INQUIRY'.
+                - Return FULL UPDATED NARRATIVE ONLY.
                 
-                EXISTING TEXT:
-                {edited_text}
+                CURRENT: {edited_text}
                 """
-                
                 new_narrative = get_soul_rebel_consultant(user_input, update_prompt)
                 
-                # FORCE SYNC: Update both master sources
+                # CRITICAL: Update state AND increment revision to force UI update
                 st.session_state.guide_content[sub_key] = new_narrative
-                st.session_state[f"text_val_{sub_key}"] = new_narrative
-                
-                # Force the UI to refresh with the new content
+                st.session_state.rev += 1 
                 st.rerun()
 
-    # 3. ROADMAP (RIGHT COLUMN)
+    # 3. ROADMAP (RIGHT SIDE)
     with col2:
         st.subheader("📋 Blueprint Roadmap")
         for i, item in enumerate(guide_structure):
@@ -122,17 +115,12 @@ def run(user_id):
                 st.caption(f"⚪ {item['sub']}")
         
         st.write("---")
-        
-        # D. COMMIT GATE
         is_light = "🚨 FACILITATOR INQUIRY" in edited_text
-        
         if is_light:
-            st.error("Please address the Facilitator's questions above to reach the Gold Standard.")
+            st.error("Please address the Facilitator's questions to reach the Gold Standard.")
             
         if st.button("🔥 Commit & Advance", use_container_width=True, disabled=is_light):
-            # Persist this specific part to the DB
             save_brand_data(user_id, edited_text, chamber=f"guide_part_{sub_key}")
-            
-            # Move to next subsection
             st.session_state.guide_idx += 1
+            st.session_state.rev = 0 # Reset revision for next section
             st.rerun()
