@@ -102,65 +102,83 @@ def run(user_id):
 
     curr_idx = st.session_state.guide_idx
 
-    # --- FINAL MASTER COMPILATION (WITH WORD DOCUMENT EXPORT ENGINE) ---
+    # --- FINAL MASTER COMPILATION (WITH DB SAVE & ADVANCE) ---
     if curr_idx >= len(guide_structure):
         st.success("🎉 All sections meticulously forged! Your Master Soul Guide is complete.")
         
-        # Suture and Braid text blocks for interface display
+        # Stitch the entire narrative together for the screen view
         full_text = "\n\n".join([st.session_state.guide_content.get(item['id'], '') for item in guide_structure])
-        st.text_area("The Strategic Individual Master Document", value=full_text, height=500)
+        st.text_area("The Strategic Individual Master Document", value=full_text, height=450)
         
-        # Word Document Compiling Sequence
-        try:
-            from docx import Document
-            from io import BytesIO
-            
-            docx_buffer = BytesIO()
-            doc = Document()
-            
-            # Add dynamic, clean header hierarchy
-            doc.add_heading("STRATEGIC INDIVIDUAL: MASTER SOUL GUIDE", level=0)
-            doc.add_paragraph("Generated via Gemini StratOS • High-Fidelity Strategic Architecture")
-            doc.add_page_break()
-            
-            for item in guide_structure:
-                section_text = st.session_state.guide_content.get(item['id'], '').strip()
-                
-                if section_text:
-                    # Strip out any dangling Facilitator tags before writing to standard document format
-                    if "🚨 FACILITATOR INQUIRY" in section_text:
-                        section_text = section_text.split("🚨 FACILITATOR INQUIRY")[0].strip()
-                        
-                    doc.add_heading(item['label'], level=1)
-                    doc.add_heading(item['sub'], level=2)
+        # Action Column Layout for the Final Gate
+        c1, c2 = st.columns(2)
+        
+        with c1:
+            # 1. DATABASE SAVE & ADVANCE TO BRAND GUARDIAN
+            if st.button("💾 Save Final Strategy & Advance", use_container_width=True, type="primary"):
+                with st.spinner("Locking Master Soul Guide into the database..."):
+                    # Save the complete stitched document to the main soul_guide column
+                    save_brand_data(user_id, full_text, chamber="soul_guide")
                     
-                    # Read lines to map markdown lists to clean native Word elements
-                    for line in section_text.split("\n"):
-                        clean_line = line.strip()
-                        if not clean_line:
-                            continue
-                        if clean_line.startswith("-") or clean_line.startswith("*"):
-                            doc.add_paragraph(clean_line[1:].strip(), style='List Bullet')
-                        else:
-                            doc.add_paragraph(clean_line)
+                    # Programmatically advance the user's sidebar position to the Brand Guardian phase
+                    try:
+                        from utils.supabase_db import get_supabase_client
+                        supabase = get_supabase_client()
+                        # Update the navigation state in the profiles table so it reloads on Brand Guardian
+                        supabase.table("profiles").update({"last_nav": "4. The Brand Guardian"}).eq("user_id", user_id).execute()
+                        st.session_state.last_nav = "4. The Brand Guardian"
+                    except Exception as e:
+                        st.warning("Strategy saved locally, but navigation auto-advance encountered an issue.")
+                    
+                    st.success("Strategy locked! Moving to Brand Guardian...")
+                    time.sleep(1.5)
+                    st.rerun()
+                    
+        with c2:
+            # 2. WORD DOCUMENT EXPORT ENGINE
+            try:
+                from docx import Document
+                from io import BytesIO
+                
+                docx_buffer = BytesIO()
+                doc = Document()
+                
+                doc.add_heading("STRATEGIC INDIVIDUAL: MASTER SOUL GUIDE", level=0)
+                doc.add_paragraph("Generated via Gemini StratOS • High-Fidelity Strategic Architecture")
+                doc.add_page_break()
+                
+                for item in guide_structure:
+                    section_text = st.session_state.guide_content.get(item['id'], '').strip()
+                    if section_text:
+                        if "🚨 FACILITATOR INQUIRY" in section_text:
+                            section_text = section_text.split("🚨 FACILITATOR INQUIRY")[0].strip()
                             
-                    doc.add_paragraph("\n") # Section break spacing
-            
-            doc.save(docx_buffer)
-            docx_buffer.seek(0)
-            
-            # Export Action Button
-            st.download_button(
-                label="📄 Export to Word Document (.docx)",
-                data=docx_buffer,
-                file_name="Master_Soul_Guide_Final.docx",
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                use_container_width=True
-            )
-            
-        except ImportError:
-            st.error("Missing export dependency. Please run: pip install python-docx")
-        
+                        doc.add_heading(item['label'], level=1)
+                        doc.add_heading(item['sub'], level=2)
+                        
+                        for line in section_text.split("\n"):
+                            clean_line = line.strip()
+                            if not clean_line:
+                                continue
+                            if clean_line.startswith("-") or clean_line.startswith("*"):
+                                doc.add_paragraph(clean_line[1:].strip(), style='List Bullet')
+                            else:
+                                doc.add_paragraph(clean_line)
+                        doc.add_paragraph("\n")
+                
+                doc.save(docx_buffer)
+                docx_buffer.seek(0)
+                
+                st.download_button(
+                    label="📄 Export to Word Document (.docx)",
+                    data=docx_buffer,
+                    file_name="Master_Soul_Guide_Final.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    use_container_width=True
+                )
+            except ImportError:
+                st.error("Please run: pip3 install python-docx to enable Word export.")
+
         st.write("---")
         if st.button("⬅️ Go Back to Edit Sections", use_container_width=True):
             st.session_state.guide_idx = len(guide_structure) - 1
