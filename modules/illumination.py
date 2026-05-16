@@ -77,37 +77,34 @@ def run(user_id):
         edited_text = st.text_area("Refine subsection narrative:", value=current_text, height=400, key=f"area_{sub_key}")
         st.session_state.guide_content[sub_key] = edited_text
 
-        # 4. COLLABORATIVE SYNTHESIS (Thought-Provoking Questions)
+        # 4. COLLABORATIVE SYNTHESIS (THE ADAPTIVE ENGINE)
         st.write("---")
         user_input = st.chat_input(f"Feed more detail into {curr_sub['sub']}...")
+        
         if user_input:
-            with st.spinner("Braiding details into narrative..."):
+            with st.spinner("Braiding new details into the narrative..."):
+                # This methodology forces the AI to be an editor, not a re-writer
                 update_prompt = f"""
-                Update the {curr_sub['sub']} subsection. 
-                Synthesize the user's answer into the narrative and remove the specific inquiry that was answered.
+                ROLE: Godzspeed Soul Rebel Facilitator.
+                TASK: Synthesize the user's NEW INPUT into the CURRENT TEXT for the '{curr_sub['sub']}' subsection.
+                
+                STRICT EDITORIAL RULES:
+                1. DO NOT discard the existing narrative; EXPAND and REFINE it[cite: 105].
+                2. Use the new input to address and REMOVE any '🚨 FACILITATOR INQUIRY' questions that have been answered.
+                3. Maintain the 'Human, compelling, and hella smart' tone throughout[cite: 326].
+                4. Ensure the output is the FULL updated subsection narrative.
                 """
-                new_text = get_soul_rebel_consultant(user_input, update_prompt + "\n\nCURRENT TEXT:\n" + edited_text)
+                
+                # We send the AI the CURRENT text and the NEW details together
+                current_text_to_edit = edited_text 
+                
+                new_text = get_soul_rebel_consultant(
+                    user_input, 
+                    f"{update_prompt}\n\nCURRENT TEXT:\n{current_text_to_edit}"
+                )
+                
+                # Update the session state so the text area adapts immediately
                 st.session_state.guide_content[sub_key] = new_text
+                
+                # Force a rerun to refresh the text area with the integrated details
                 st.rerun()
-
-    with col2:
-        st.subheader("📋 Blueprint Roadmap")
-        for i, item in enumerate(guide_structure):
-            if i < curr_idx:
-                st.write(f"✅ {item['sub']}")
-            elif i == curr_idx:
-                st.markdown(f"**👉 {item['sub']}**")
-            else:
-                st.caption(f"⚪ {item['sub']}")
-        
-        st.write("---")
-        # Ensure the user doesn't commit a section that still has active inquiries
-        is_light = "🚨 FACILITATOR INQUIRY" in edited_text
-        
-        if is_light:
-            st.error("Section incomplete. Please address the Facilitator's questions to reach the Gold Standard.")
-        
-        if st.button("🔥 Commit & Advance Subsection", use_container_width=True, disabled=is_light):
-            save_brand_data(user_id, st.session_state.guide_content[sub_key], chamber=f"guide_part_{sub_key}")
-            st.session_state.guide_idx += 1
-            st.rerun()
