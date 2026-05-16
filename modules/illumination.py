@@ -3,6 +3,16 @@ import time
 from utils.gemini_ai import get_soul_rebel_consultant
 from utils.supabase_db import save_brand_data, load_brand_data
 
+# --- ENVIRONMENT FORCE-INSTALL PATCH ---
+try:
+    from docx import Document
+except ImportError:
+    import subprocess
+    import sys
+    with st.spinner("🔧 StratOS environment sync: Installing Word Export dependencies..."):
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "python-docx"])
+    st.rerun()
+
 def run(user_id):
     st.title("✨ Phase 03: Illumination")
     st.caption("Forging the Strategic Individual: Subsection by Subsection.")
