@@ -91,7 +91,6 @@ def run(user_id):
     if "guide_idx" not in st.session_state:
         st.session_state.guide_idx = 0
     if "guide_content" not in st.session_state:
-        # Load any existing data from the database columns directly if they are there
         st.session_state.guide_content = {}
         for item in guide_structure:
             col_name = f"guide_part_{item['id']}"
@@ -103,12 +102,66 @@ def run(user_id):
 
     curr_idx = st.session_state.guide_idx
 
-    # --- FINAL MASTER COMPILATION ---
+    # --- FINAL MASTER COMPILATION (WITH WORD DOCUMENT EXPORT ENGINE) ---
     if curr_idx >= len(guide_structure):
         st.success("🎉 All sections meticulously forged! Your Master Soul Guide is complete.")
-        full_text = "\n\n".join([st.session_state.guide_content.get(item['id'], '') for item in guide_structure])
-        st.text_area("The Strategic Individual Master Document", value=full_text, height=600)
         
+        # Suture and Braid text blocks for interface display
+        full_text = "\n\n".join([st.session_state.guide_content.get(item['id'], '') for item in guide_structure])
+        st.text_area("The Strategic Individual Master Document", value=full_text, height=500)
+        
+        # Word Document Compiling Sequence
+        try:
+            from docx import Document
+            from io import BytesIO
+            
+            docx_buffer = BytesIO()
+            doc = Document()
+            
+            # Add dynamic, clean header hierarchy
+            doc.add_heading("STRATEGIC INDIVIDUAL: MASTER SOUL GUIDE", level=0)
+            doc.add_paragraph("Generated via Gemini StratOS • High-Fidelity Strategic Architecture")
+            doc.add_page_break()
+            
+            for item in guide_structure:
+                section_text = st.session_state.guide_content.get(item['id'], '').strip()
+                
+                if section_text:
+                    # Strip out any dangling Facilitator tags before writing to standard document format
+                    if "🚨 FACILITATOR INQUIRY" in section_text:
+                        section_text = section_text.split("🚨 FACILITATOR INQUIRY")[0].strip()
+                        
+                    doc.add_heading(item['label'], level=1)
+                    doc.add_heading(item['sub'], level=2)
+                    
+                    # Read lines to map markdown lists to clean native Word elements
+                    for line in section_text.split("\n"):
+                        clean_line = line.strip()
+                        if not clean_line:
+                            continue
+                        if clean_line.startswith("-") or clean_line.startswith("*"):
+                            doc.add_paragraph(clean_line[1:].strip(), style='List Bullet')
+                        else:
+                            doc.add_paragraph(clean_line)
+                            
+                    doc.add_paragraph("\n") # Section break spacing
+            
+            doc.save(docx_buffer)
+            docx_buffer.seek(0)
+            
+            # Export Action Button
+            st.download_button(
+                label="📄 Export to Word Document (.docx)",
+                data=docx_buffer,
+                file_name="Master_Soul_Guide_Final.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                use_container_width=True
+            )
+            
+        except ImportError:
+            st.error("Missing export dependency. Please run: pip install python-docx")
+        
+        st.write("---")
         if st.button("⬅️ Go Back to Edit Sections", use_container_width=True):
             st.session_state.guide_idx = len(guide_structure) - 1
             st.rerun()
@@ -180,7 +233,6 @@ def run(user_id):
         st.write("---")
         b_col1, b_col2 = st.columns(2)
         with b_col1:
-            # PREVIOUS BUTTON (Only show if we aren't on the very first step)
             if curr_idx > 0:
                 if st.button("⬅️ Save & Go Back", use_container_width=True):
                     save_brand_data(user_id, edited_text, chamber=f"guide_part_{sub_key}")
@@ -188,10 +240,15 @@ def run(user_id):
                     st.session_state.rev = 0
                     st.rerun()
         with b_col2:
-            # COMMIT GATEKEEPER FOR ADVANCING
             is_light = "🚨 FACILITATOR INQUIRY" in edited_text
             if st.button("🔥 Commit & Advance", use_container_width=True, disabled=is_light):
                 save_brand_data(user_id, edited_text, chamber=f"guide_part_{sub_key}")
+                
+                # If we are finishing up the last index step, compile the master copy block to the DB
+                if curr_idx == len(guide_structure) - 1:
+                    full_compiled_text = "\n\n".join([st.session_state.guide_content.get(item['id'], '') for item in guide_structure])
+                    save_brand_data(user_id, full_compiled_text, chamber="soul_guide")
+                    
                 st.session_state.guide_idx += 1
                 st.session_state.rev = 0
                 st.rerun()
@@ -204,9 +261,7 @@ def run(user_id):
         
         for i, item in enumerate(guide_structure):
             if i < curr_idx:
-                # Upgraded to a button styled to look like a historic log link
                 if st.button(f"✅ {item['sub']}", key=f"jump_{item['id']}", use_container_width=True, help="Jump back to this section"):
-                    # Save current work before leaping
                     save_brand_data(user_id, edited_text, chamber=f"guide_part_{sub_key}")
                     st.session_state.guide_idx = i
                     st.session_state.rev = 0
