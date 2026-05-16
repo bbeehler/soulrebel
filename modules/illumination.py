@@ -5,130 +5,105 @@ from utils.supabase_db import save_brand_data, load_brand_data
 
 def run(user_id):
     st.title("✨ Phase 03: Illumination")
-    st.caption("Establishing the Strategic Individual through a high-fidelity Master Document.")
+    st.caption("Forging the Strategic Individual: One Section at a Time.")
     st.write("---")
     
-    # 1. LOAD AUDIT DATA
+    # 1. LOAD AUDIT DATA & INITIALIZE STATE
     db_data = load_brand_data(user_id)
     brand_data = db_data if db_data else {}
     
-    if "final_soul_guide" not in st.session_state:
-        st.session_state.final_soul_guide = brand_data.get("soul_guide", "")
+    # Define the 6-Section sequence
+    guide_sections = [
+        {"id": "identity", "label": "SECTION 1: BRAND IDENTITY", "focus": "Big Idea, Narrative Meaning, Vision, Mission"},
+        {"id": "transformation", "label": "SECTION 2: TRANSFORMATION PROCESS", "focus": "The 3-Step Radical Methodology"},
+        {"id": "anchors", "label": "SECTION 3: SOUL ANCHORS", "focus": "Values, Beliefs (We believe), Behaviours (We always)"},
+        {"id": "positioning", "label": "SECTION 4: BRAND POSITIONING", "focus": "1Soul Statement, Offerings, Target Audience Allies/Partners"},
+        {"id": "expression", "label": "SECTION 5: BRAND EXPRESSION", "focus": "Slogan, Voice (Human/Smart), Personality (Catalyst)"},
+        {"id": "legacy", "label": "SECTION 6: SOUL TIES", "focus": "Brand Legacy & Key Soul Markers (Do I/Am I KPIs)"}
+    ]
 
-    # 2. GENERATION LOGIC: HARD-CODED ARCHITECTURAL MANDATE
-    if not st.session_state.final_soul_guide:
-        if st.button("🔥 Illuminate the Master Soul Guide", use_container_width=True):
-            with st.spinner("Synthesizing your Strategic Individual..."):
-                
-                # ENFORCED STRUCTURE (Based on your Gold Standard document)
-                methodology = """
+    if "guide_step_idx" not in st.session_state:
+        st.session_state.guide_step_idx = 0
+    if "final_soul_guide_parts" not in st.session_state:
+        # Load existing guide parts if they exist
+        st.session_state.final_soul_guide_parts = brand_data.get("soul_guide_parts", {})
+
+    current_idx = st.session_state.guide_step_idx
+    
+    # Check if we've completed all sections
+    if current_idx >= len(guide_sections):
+        st.success("🎉 All sections committed! Your Strategic Individual is complete.")
+        full_guide = "\n\n".join(st.session_state.final_soul_guide_parts.values())
+        st.text_area("Final Master Document", value=full_guide, height=600)
+        if st.button("🗑️ Reset and Re-Illuminate"):
+            st.session_state.guide_step_idx = 0
+            st.session_state.final_soul_guide_parts = {}
+            st.rerun()
+        return
+
+    current_section = guide_sections[current_idx]
+
+    # 2. WORKSPACE LAYOUT
+    col1, col2 = st.columns([3, 2])
+
+    with col1:
+        st.subheader(current_section["label"])
+        st.caption(f"Strategic Focus: {current_section['focus']}")
+        
+        # Initial Draft Generation for this section only
+        section_key = current_section["id"]
+        if section_key not in st.session_state.final_soul_guide_parts:
+            with st.spinner(f"Drafting {current_section['label']} from Audit data..."):
+                methodology = f"""
                 ROLE: Godzspeed Soul Rebel Facilitator.
-                TASK: Generate a Master Soul Guide. You MUST use the following headers exactly.
-                
-                MANDATORY SECTION HEADERS:
-                1. SECTION 1: BRAND IDENTITY
-                   - Big Idea (The rousing affirmation)
-                   - What it Means (The deep narrative)
-                   - Vision & Mission
-                
-                2. SECTION 2: TRANSFORMATION PROCESS
-                   - Our Transformation Process (Detail the 3-step radical methodology)
-                
-                3. SECTION 3: SOUL ANCHORS
-                   - Our Culture
-                   - Our Values (Humility, Diversity, Curiosity, etc. explained)
-                   - Beliefs (Written as 'We believe...')
-                   - Behaviours (Written as 'We always...')
-                
-                4. SECTION 4: BRAND POSITIONING
-                   - 1Soul Statement
-                   - Our Offering (Staff, Clients, Communities)
-                   - Target Audience (Detailed profiles of Allies and Partners)
-                
-                5. SECTION 5: BRAND EXPRESSION
-                   - Slogan
-                   - Brand Voice (Human, compelling, and hella smart)
-                   - Brand Personality (The Caring Catalyst)
-                
-                6. SECTION 6: SOUL TIES
-                   - Brand Legacy (What we want to be known for)
-                   - Key Soul Markers (KPIs framed as 'Do I/Am I' audit questions)
-
-                INSTRUCTION: 
-                - Fill these sections using the Soul Audit data[cite: 190].
-                - If data is missing for a section, provide a placeholder and add a 'FACILITATOR INQUIRY' at the bottom to ask the user for it[cite: 71, 72].
+                TASK: Draft ONLY {current_section['label']}.
+                FOCUS: {current_section['focus']}
+                SOURCE: Use the Soul Audit data provided. 
+                TONE: Human, compelling, and hella smart.
                 """
+                audit_context = str(brand_data)
+                draft = get_soul_rebel_consultant(f"Draft {current_section['label']}", methodology + audit_context)
+                st.session_state.final_soul_guide_parts[section_key] = draft
 
-                audit_context = f"""
-                SOUL (PurpUS): {brand_data.get('purpus_summary')}
-                MIND (Identity): {brand_data.get('brand_identity')}
-                BODY (Experience): {brand_data.get('brand_experience')}
-                BODY (Impact): {brand_data.get('brand_impact')}
-                """
-                
-                guide = get_soul_rebel_consultant("Illuminate the Master Guide using the 6-Section Strategic Individual structure.", methodology + audit_context)
-                st.session_state.final_soul_guide = guide
-                save_brand_data(user_id, guide, chamber="soul_guide")
-                st.rerun()
+        # The Workspace for the current section
+        current_draft = st.session_state.final_soul_guide_parts[section_key]
+        edited_section = st.text_area("Refine this section:", value=current_draft, height=450, key=f"edit_{section_key}")
+        st.session_state.final_soul_guide_parts[section_key] = edited_section
 
-    # 3. MASTER WORKSPACE
-    else:
-        st.subheader("📜 The Strategic Individual Master Document")
-        
-        if "FACILITATOR INQUIRY" in st.session_state.final_soul_guide:
-            st.warning("The Facilitator has questions to help deepen specific sections of your Guide.")
-        
-        edited_text = st.text_area(
-            "Refine your strategic narrative:", 
-            value=st.session_state.final_soul_guide, 
-            height=600,
-            key="guide_editor_field"
-        )
-        
-        # 4. COLLABORATIVE REFINEMENT (THE SYNTHESIS ENGINE)
+        # Collaborative Synthesis Loop
         st.write("---")
-        st.write("💬 **Refine with the Facilitator**")
-        guide_input = st.chat_input("Provide details to expand a specific section...")
-        
+        guide_input = st.chat_input(f"Add more detail or refine {current_section['label']}...")
         if guide_input:
-            with st.spinner("Synthesizing and updating your Master Guide..."):
-                # This methodology forces the AI to be an editor, not a re-writer
-                update_methodology = """
-                ROLE: Godzspeed Soul Rebel Facilitator.
-                TASK: Synthesize the user's new input and UPDATE the Master Soul Guide.
-                
-                STRICT EDITORIAL RULES:
-                1. DO NOT overwrite the entire document with a short response. 
-                2. Use the new input to EXPAND and REFINE the relevant sections of the CURRENT DOCUMENT.
-                3. Maintain the 6-SECTION structure: Identity, Transformation, Anchors, Positioning, Expression, Legacy.
-                4. Ensure the new content matches the 'Human, compelling, and hella smart' tone.
-                5. If this new info satisfies a 'FACILITATOR INQUIRY', remove that inquiry from the text.
-                6. Output the FULL UPDATED DOCUMENT.
-                """
-                
-                # We send the AI the CURRENT guide and the NEW details
-                current_document = st.session_state.final_soul_guide
-                
-                # The AI synthesizes the answer INTO the document
-                updated_guide = get_soul_rebel_consultant(
-                    guide_input, 
-                    f"{update_methodology}\n\nCURRENT DOCUMENT:\n{current_document}"
-                )
-                
-                # Update Session and DB
-                st.session_state.final_soul_guide = updated_guide
-                save_brand_data(user_id, updated_guide, chamber="soul_guide")
-                
+            with st.spinner("Synthesizing..."):
+                update_prompt = f"Update this section only: {current_section['label']}. Maintain the professional tone."
+                new_draft = get_soul_rebel_consultant(guide_input, update_prompt + "\n\nCURRENT SECTION:\n" + edited_section)
+                st.session_state.final_soul_guide_parts[section_key] = new_draft
                 st.rerun()
 
-        # 5. ACTION CONTROLS
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            if st.button("💾 Save Strategy", use_container_width=True):
-                save_brand_data(user_id, edited_text, chamber="soul_guide")
-                st.success("Soul Guide Saved.")
-        with c2:
-            if st.button("🗑️ Reset Guide", use_container_width=True):
-                save_brand_data(user_id, None, chamber="soul_guide")
-                st.session_state.final_soul_guide = ""
-                st.rerun()
+    with col2:
+        st.subheader("🧬 Guide Progress")
+        # Display completed sections as uneditable history
+        for i, section in enumerate(guide_sections):
+            if i < current_idx:
+                with st.expander(f"✅ {section['label']}", expanded=False):
+                    st.markdown(st.session_state.final_soul_guide_parts.get(section['id'], ""))
+            elif i == current_idx:
+                st.info(f"👉 Currently Crafting: {section['label']}")
+            else:
+                st.caption(f"⚪ Pending: {section['label']}")
+        
+        st.write("---")
+        # COMMIT GATE
+        if st.button(f"🔥 Commit & Advance to Section {current_idx + 2}" if current_idx < 5 else "🔥 Finalize Master Guide", use_container_width=True):
+            # Save progress to database
+            save_brand_data(user_id, st.session_state.final_soul_guide_parts[section_key], chamber=f"guide_part_{section_key}")
+            
+            # If it's the final section, compile the full guide
+            if current_idx == 5:
+                full_guide = "\n\n".join([st.session_state.final_soul_guide_parts[s["id"]] for s in guide_sections])
+                save_brand_data(user_id, full_guide, chamber="soul_guide")
+            
+            st.session_state.guide_step_idx += 1
+            st.success("Section locked. Moving forward...")
+            time.sleep(1)
+            st.rerun()
