@@ -1,12 +1,12 @@
 import streamlit as st
 import time
 from utils.gemini_ai import get_soul_rebel_consultant
-from utils.supabase_db import get_supabase_client
+from utils.supabase_db import supabase  # FIXED: Importing the direct client instance
 
 def load_blueprints():
     """Fetches our strict content blueprints directly from Supabase."""
     try:
-        supabase = get_supabase_client()
+        # FIXED: Using the native 'supabase' client instance directly
         response = supabase.table("brand_content_blueprints").select("*").execute()
         return response.data if response.data else []
     except Exception as e:
@@ -27,13 +27,12 @@ def run(user_id):
     # Extract unique categories and platforms for our dropdowns
     categories = list(set([bp['category'] for bp in blueprints]))
     
-    # 2. SELECTION CONFIGURATOR HUB (Sidebar or top parameters)
+    # 2. SELECTION CONFIGURATOR HUB
     st.subheader("📋 Define the Asset Parameters")
     
     col1, col2 = st.columns(2)
     with col1:
         selected_category = st.selectbox("Select Content Category:", categories)
-        # Filter platforms based on the selected category to match the blueprint matrix
         available_platforms = [bp['platform'] for bp in blueprints if bp['category'] == selected_category]
         selected_platform = st.selectbox("Select Target Publishing Platform:", available_platforms)
     
@@ -67,8 +66,7 @@ def run(user_id):
     if st.button("✨ Generate Strategic Suggestion from Playbook", use_container_width=True):
         with st.spinner("Analyzing your Master Soul Guide and crafting blueprint-aligned copy..."):
             try:
-                supabase = get_supabase_client()
-                # Fetch the master compiled soul guide from phase 3 to use as context
+                # FIXED: Using the native 'supabase' instance directly
                 strategy_res = supabase.table("brand_strategy").select("soul_guide").eq("user_id", user_id).single().execute()
                 soul_guide_context = strategy_res.data.get("soul_guide", "") if strategy_res.data else ""
                 
@@ -76,7 +74,6 @@ def run(user_id):
                     st.error("🚨 Master Soul Guide not found. Please complete Phase 03: Illumination before planning content.")
                     return
 
-                # Instruct the AI to build high-fidelity copy using the structural matrix rules
                 prompt = f"""
                 ROLE: Godzspeed Soul Rebel Brand Guardian.
                 TASK: Generate a piece of ready-to-publish raw copy for the asset title: '{content_title}'.
@@ -106,7 +103,6 @@ def run(user_id):
         st.info("### 🤖 Brand Guardian Raw Suggestion")
         st.write(st.session_state.guardian_suggestion)
         
-        # Interactive Control Buttons for the Suggestion
         s_col1, s_col2 = st.columns(2)
         with s_col1:
             if st.button("✅ Accept & Move to Active Workspace", use_container_width=True, type="primary"):
@@ -118,24 +114,21 @@ def run(user_id):
                 st.session_state.guardian_suggestion = ""
                 st.rerun()
 
-    # 5. ACTIVE LIVE WORKSPACE (Where the user refines and types)
+    # 5. ACTIVE LIVE WORKSPACE
     st.write("---")
     st.subheader("📝 Active Asset Workspace")
     
-    # Versioned key prevents widget shadowing when accepting a suggestion or updating via chat
     workspace_key = f"guardian_text_area_v{st.session_state.guardian_rev}"
     
     edited_body = st.text_area(
         "Refine, write, or manually format your asset here:",
         value=st.session_state.workspace_text,
         height=400,
-        key=workspace_key,
-        help="This is the text that must pass the final compliance check before moving to the publishing calendar."
+        key=workspace_key
     )
-    # Sync typing changes into memory state
     st.session_state.workspace_text = edited_body
 
-    # 6. COLLABORATIVE AI REFINEMENT HUB (Braid details or feedback into the text box)
+    # 6. COLLABORATIVE AI REFINEMENT HUB
     if st.session_state.workspace_text:
         st.write("---")
         user_feedback = st.chat_input("Ask the Guardian to rewrite, expand, or fix tone issues for this asset...")
