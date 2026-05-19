@@ -88,14 +88,23 @@ def run(user_id):
         }
     ]
 
+    # --- PERSISTENT DATA INITIALIZATION & SMART RESUME ENGINE ---
     if "guide_idx" not in st.session_state:
         st.session_state.guide_idx = 0
-    if "guide_content" not in st.session_state:
+
+    if "guide_content" not in st.session_state or not st.session_state.guide_content:
         st.session_state.guide_content = {}
-        for item in guide_structure:
+        highest_completed_idx = -1
+        
+        # Scan the database rows to discover what subsections have already been finalized
+        for i, item in enumerate(guide_structure):
             col_name = f"guide_part_{item['id']}"
             if col_name in brand_data and brand_data[col_name]:
                 st.session_state.guide_content[item['id']] = brand_data[col_name]
+                highest_completed_idx = i
+        
+        # Point the state index exactly to the first uncompleted section roadblock
+        st.session_state.guide_idx = highest_completed_idx + 1
                 
     if "rev" not in st.session_state:
         st.session_state.rev = 0
@@ -124,7 +133,6 @@ def run(user_id):
                     try:
                         from utils.supabase_db import get_supabase_client
                         supabase = get_supabase_client()
-                        # Update the navigation state in the profiles table so it reloads on Brand Guardian
                         supabase.table("profiles").update({"last_nav": "4. The Brand Guardian"}).eq("user_id", user_id).execute()
                         st.session_state.last_nav = "4. The Brand Guardian"
                     except Exception as e:
