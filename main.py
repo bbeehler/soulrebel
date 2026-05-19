@@ -1,6 +1,6 @@
 import streamlit as st
 from streamlit_supabase_auth import login_form, logout_button
-from modules import discovery, illumination, profile_settings, wizard
+from modules import discovery, illumination, guardian, profile_settings, wizard  # Added guardian import
 from utils.supabase_db import supabase
 
 # Set page configuration
@@ -56,7 +56,7 @@ def main():
         except Exception:
             st.session_state.current_nav = "1. The Soul Sprint"
 
-    # 2. HANDLE PROGRAMMATIC REDIRECTS
+    # 2. HANDLE PROGRAMMATIC REDIRECTS (e.g., advancing from Phase 03)
     if "target_page" in st.session_state:
         target = st.session_state.target_page
         st.session_state.current_nav = target
@@ -113,8 +113,8 @@ def main():
             illumination.run(user_id)
             
         elif st.session_state.current_nav == "3. Brand Guardian":
-            st.title("🛡️ Brand Guardian")
-            st.info("Aligning content with your Brand Soul. Coming soon.")
+            # Directing the workspace router to our interactive content gatekeeper module
+            guardian.run(user_id)
             
         elif st.session_state.current_nav == "4. O2O Analytics":
             st.title("📊 O2O Analytics")
