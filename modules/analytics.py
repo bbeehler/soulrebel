@@ -52,7 +52,6 @@ def run(user_id):
     st.subheader("🛡️ The Playbook Enforcement Score")
     grade, explanation, color = calculate_soul_guide_grade(user_id)
     
-    # FIXED: Replaced unsafe_style_allowed with correct parameter unsafe_allow_html=True
     st.markdown(
         f"""
         <div style="background-color:#1e1e1e; padding:20px; border-radius:10px; border-left: 8px solid {color}; margin-bottom:25px;">
@@ -64,10 +63,67 @@ def run(user_id):
         unsafe_allow_html=True
     )
 
+    # 2. THE MANUAL OPERATIONS DATA ENTRY PANEL (WHERE USERS ENTER THE DATA)
+    with st.expander("📥 Manual Operations Log Entry Form", expanded=False):
+        st.markdown("### Log Daily Performance Metrics")
+        st.caption("Record inputs and real-world results for a specific business day to populate your trends.")
+        
+        form_date = st.date_input("Metrics Logging Date Target:", value=datetime.date.today(), key="analytics_log_date")
+        
+        st.write("---")
+        f_col1, f_col2 = st.columns(2)
+        
+        with f_col1:
+            st.markdown("#### 📱 Digital Campaign Inputs")
+            log_campaign = st.text_input("Active Campaign Name:", value="General Awareness", key="an_log_camp")
+            log_platform = st.selectbox("Digital Distribution Channel:", ["LinkedIn", "Substack Blog", "Website Blog", "Facebook", "Instagram", "TikTok", "YouTube", "Internal Intranet"], key="an_log_plat")
+            log_spend = st.number_input("Ad Dollars Spent ($):", min_value=0.0, step=10.0, key="an_log_spend")
+            log_impressions = st.number_input("Impressions Logged:", min_value=0, step=100, key="an_log_imp")
+            log_clicks = st.number_input("Clicks / Engagements Recorded:", min_value=0, step=10, key="an_log_clicks")
+            
+        with f_col2:
+            st.markdown("#### 🏢 Realized Offline Outcomes")
+            log_traffic = st.number_input("Physical Foot Traffic / Door Count Count:", min_value=0, step=10, key="an_log_traf")
+            log_conversions = st.number_input("Physical Conversions (Signups, Bookings, Orders):", min_value=0, step=5, key="an_log_conv")
+            log_revenue = st.number_input("Gross Realized Revenue ($):", min_value=0.0, step=100.0, key="an_log_rev")
+            
+        st.write("   ")
+        if st.button("🔥 Commit Operations Log to Database", use_container_width=True, type="primary"):
+            with st.spinner("Writing operational indicators to data cloud..."):
+                try:
+                    # 1. Format payload mappings
+                    digital_payload = {
+                        "user_id": user_id, "campaign_name": log_campaign, "platform": log_platform,
+                        "ad_spend": log_spend, "impressions": log_impressions, "clicks_or_engagements": log_clicks,
+                        "recorded_date": str(form_date)
+                    }
+                    offline_payload = {
+                        "user_id": user_id, "foot_traffic_count": log_traffic, "physical_conversions": log_conversions,
+                        "gross_realized_revenue": log_revenue, "recorded_date": str(form_date)
+                    }
+                    
+                    # 2. Save Digital Layer
+                    supabase.table("brand_digital_inputs").insert(digital_payload).execute()
+                    
+                    # 3. Upsert Offline Result Layer safely
+                    check_exist = supabase.table("brand_offline_outcomes").select("id").eq("user_id", user_id).eq("recorded_date", str(form_date)).execute()
+                    if check_exist.data:
+                        supabase.table("brand_offline_outcomes").update(offline_payload).eq("id", check_exist.data[0]["id"]).execute()
+                    else:
+                        supabase.table("brand_offline_outcomes").insert(offline_payload).execute()
+                        
+                    st.success(f"Metrics record for {form_date} safely committed and locked!")
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Database write failure: {e}")
+
+    st.write("---")
+
     # LOAD TIME-SERIES DATABASES
     digital_data, offline_data = load_o2o_data(user_id)
 
-    # 2. SELECTION METRIC CONTROLLER HUB
+    # 3. SELECTION METRIC CONTROLLER HUB
     st.subheader("📐 Universal Multi-Touch Attribution Engine")
     
     col1, col2 = st.columns([1, 2])
@@ -80,12 +136,10 @@ def run(user_id):
         
         # INTERACTIVE SIMULATION SEED BUTTON
         st.write("---")
-        st.caption("Database empty? Seed high-fidelity operational simulation values to verify analytics trends.")
+        st.caption("Don't feel like typing manual lines? Seed simulation statistics to instantly verify analytics chart trends.")
         if st.button("⚡ Seed Universal O2O Simulation Data", use_container_width=True):
-            # FIXED: Capitalized St.spinner changed to correct lowercase st.spinner
             with st.spinner("Seeding time-series data logs..."):
                 try:
-                    # Clear out stale data to avoid overlapping timelines
                     supabase.table("brand_digital_inputs").delete().eq("user_id", user_id).execute()
                     supabase.table("brand_offline_outcomes").delete().eq("user_id", user_id).execute()
                     
@@ -93,13 +147,11 @@ def run(user_id):
                     for i in range(7):
                         past_date = str(today - datetime.timedelta(days=i))
                         
-                        # Populate multi-channel digital entries
                         supabase.table("brand_digital_inputs").insert([
                             {"user_id": user_id, "campaign_name": "The Core Manifesto", "platform": "Substack Blog", "ad_spend": 0.00, "impressions": 1200 + (i*150), "clicks_or_engagements": 300 + (i*20), "recorded_date": past_date},
                             {"user_id": user_id, "campaign_name": "Pattern Interrupt", "platform": "LinkedIn", "ad_spend": 150.00 + (i*50), "impressions": 5000 + (i*400), "clicks_or_engagements": 450 + (i*35), "recorded_date": past_date}
                         ]).execute()
                         
-                        # Populate tracking baseline outcomes
                         supabase.table("brand_offline_outcomes").insert({
                             "user_id": user_id,
                             "foot_traffic_count": 350 + (i * 45) + int(np.random.randint(-30, 30)),
@@ -114,10 +166,10 @@ def run(user_id):
                 except Exception as e:
                     st.error(f"Seeding process failed: {e}")
 
-    # 3. HIGH-FIDELITY VISUALIZATION LAYER
+    # 4. HIGH-FIDELITY VISUALIZATION LAYER
     with col2:
         if not digital_data or not offline_data:
-            st.warning("📊 Awaiting data logs. Seed simulation statistics above to render metrics charts.")
+            st.warning("📊 Awaiting data logs. Use the input form expander above to record numbers, or click the simulation seed button to draw metrics trends charts.")
         else:
             try:
                 import plotly.express as px
@@ -125,7 +177,6 @@ def run(user_id):
                 df_digital = pd.DataFrame(digital_data)
                 df_offline = pd.DataFrame(offline_data)
                 
-                # Group total spend by date
                 df_spend_grouped = df_digital.groupby("recorded_date")["ad_spend"].sum().reset_index()
                 df_merged = pd.merge(df_spend_grouped, df_offline, on="recorded_date")
                 
@@ -142,7 +193,7 @@ def run(user_id):
             except Exception as e:
                 st.error(f"Failed rendering chart layouts: {e}")
 
-    # 4. DATA TABLES LEDGER LOG
+    # 5. DATA TABLES LEDGER LOG
     if digital_data and offline_data:
         st.write("---")
         st.subheader("📋 Realized Operational Outcomes Tracker")
