@@ -15,6 +15,10 @@ def check_profile_exists(user_id):
         return False
 
 def main():
+    # --- ECOSYSTEM VIEWPORT INITIALIZATION ---
+    if "ecosystem_sync_version" not in st.session_state:
+        st.session_state.ecosystem_sync_version = 0
+
     # 1. Define Navigation Options
     nav_options = [
         "1. The Soul Sprint", 
@@ -105,23 +109,24 @@ def main():
             
             st.write("---")
 
-        # --- MAIN WORKSPACE LOGIC ---
-        if st.session_state.current_nav == "1. The Soul Sprint":
-            discovery.run(user_id)
+        # --- DYNAMIC HARDWARE VIEWPORT REPAINT LAYER ---
+        # Wrapping module rendering within a sync-versioned container key allows the settings matrix 
+        # to trigger a layout mutation, discarding stale caches instantly on data purges.
+        with st.container(key=f"ecosystem_viewport_v_{st.session_state.ecosystem_sync_version}"):
+            if st.session_state.current_nav == "1. The Soul Sprint":
+                discovery.run(user_id)
 
-        elif st.session_state.current_nav == "2. The Soul Guide":
-            illumination.run(user_id)
-            
-        elif st.session_state.current_nav == "3. Brand Guardian":
-            # Directing the workspace router to our interactive content gatekeeper module
-            guardian.run(user_id)
-            
-        elif st.session_state.current_nav == "4. O2O Analytics":
-            # This triggers the code you just wrote!
-            analytics.run(user_id)
-            
-        elif st.session_state.current_nav == "⚙️ Profile Settings":
-            profile_settings.run(user_id)
+            elif st.session_state.current_nav == "2. The Soul Guide":
+                illumination.run(user_id)
+                
+            elif st.session_state.current_nav == "3. Brand Guardian":
+                guardian.run(user_id)
+                
+            elif st.session_state.current_nav == "4. O2O Analytics":
+                analytics.run(user_id)
+                
+            elif st.session_state.current_nav == "⚙️ Profile Settings":
+                profile_settings.run(user_id)
 
 if __name__ == "__main__":
     main()
