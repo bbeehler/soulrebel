@@ -146,7 +146,6 @@ def run(user_id):
             st.markdown("### 📈 Operational Pulse Timeline")
             fig_timeline = go.Figure()
             
-            # FIXED: Added explicit yaxis="y1" mapping target to guarantee strict layout compilation
             fig_timeline.add_trace(go.Scatter(
                 x=df_merged["recorded_date"], y=df_merged["foot_traffic_count"],
                 name="Physical Foot Traffic", mode="lines+markers",
@@ -161,12 +160,20 @@ def run(user_id):
                 yaxis="y2"
             ))
             
+            # FIXED: Migrated raw 'titlefont' properties to unified title nested font dictionaries
             fig_timeline.update_layout(
                 title="Digital Marketing Capital Surge vs Spatial Foot Traffic Correlation",
                 template="plotly_dark",
                 hovermode="x unified",
-                yaxis=dict(title="Physical Foot Traffic (Persons)", titlefont=dict(color="#3498db"), tickfont=dict(color="#3498db")),
-                yaxis2=dict(title="Digital Ad Spend ($)", titlefont=dict(color="#e74c3c"), tickfont=dict(color="#e74c3c"), anchor="x", overlaying="y", side="right"),
+                yaxis=dict(
+                    title=dict(text="Physical Foot Traffic (Persons)", font=dict(color="#3498db")), 
+                    tickfont=dict(color="#3498db")
+                ),
+                yaxis2=dict(
+                    title=dict(text="Digital Ad Spend ($)", font=dict(color="#e74c3c")), 
+                    tickfont=dict(color="#e74c3c"), 
+                    anchor="x", overlaying="y", side="right"
+                ),
                 legend=dict(x=0.01, y=0.99, bgcolor="rgba(0,0,0,0.5)")
             )
             st.plotly_chart(fig_timeline, use_container_width=True)
