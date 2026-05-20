@@ -126,7 +126,7 @@ def run(user_id):
     st.subheader("📐 Live Multi-Touch Attribution Engine")
     attribution_model = st.selectbox(
         "Select Active Multi-Touch Model Allocation Logic:",
-        ["Linear (Equal Split Across Path)", "Time-Decay (Proximity to Visit)", "Position-Based (U-Shaped First/Last Focus)"]
+        ["Linear (Equal Spread Across Path)", "Time-Decay (Proximity to Visit)", "Position-Based (U-Shaped First/Last Focus)"]
     )
     
     if not digital_data or not offline_data:
@@ -139,7 +139,6 @@ def run(user_id):
             df_digital = pd.DataFrame(digital_data)
             df_offline = pd.DataFrame(offline_data)
             
-            # Group spend by date axis
             df_spend_grouped = df_digital.groupby("recorded_date")["ad_spend"].sum().reset_index()
             df_merged = pd.merge(df_spend_grouped, df_offline, on="recorded_date").sort_values("recorded_date")
 
@@ -160,6 +159,7 @@ def run(user_id):
                 yaxis="y2"
             ))
             
+            # FIXED: Corrected tickfont parameters inside yaxis2 dictionary structure
             fig_timeline.update_layout(
                 title="Digital Marketing Capital Surge vs Spatial Foot Traffic Correlation",
                 template="plotly_dark",
