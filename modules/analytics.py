@@ -52,6 +52,7 @@ def run(user_id):
     st.subheader("🛡️ The Playbook Enforcement Score")
     grade, explanation, color = calculate_soul_guide_grade(user_id)
     
+    # FIXED: Replaced unsafe_style_allowed with correct parameter unsafe_allow_html=True
     st.markdown(
         f"""
         <div style="background-color:#1e1e1e; padding:20px; border-radius:10px; border-left: 8px solid {color}; margin-bottom:25px;">
@@ -60,7 +61,7 @@ def run(user_id):
             <p style="color:#fff; font-size:16px; margin:0; font-style:italic;">{explanation}</p>
         </div>
         """, 
-        unsafe_style_allowed=True
+        unsafe_allow_html=True
     )
 
     # LOAD TIME-SERIES DATABASES
@@ -81,6 +82,7 @@ def run(user_id):
         st.write("---")
         st.caption("Database empty? Seed high-fidelity operational simulation values to verify analytics trends.")
         if st.button("⚡ Seed Universal O2O Simulation Data", use_container_width=True):
+            # FIXED: Capitalized St.spinner changed to correct lowercase st.spinner
             with st.spinner("Seeding time-series data logs..."):
                 try:
                     # Clear out stale data to avoid overlapping timelines
