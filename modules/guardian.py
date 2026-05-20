@@ -98,10 +98,12 @@ def run(user_id):
         st.session_state.compliance_report = None
     if "last_loaded_key" not in st.session_state:
         st.session_state.last_loaded_key = ""
+    if "guardian_rev" not in st.session_state:
+        st.session_state.guardian_rev = 0
 
     current_asset_key = f"{selected_platform}_{content_title}_{publish_date}"
     
-    # Auto-load draft from table row if focus parameters change
+    # Auto-load draft from table row if focus parameters change manually in inputs
     if st.session_state.last_loaded_key != current_asset_key and content_title:
         try:
             existing_res = supabase.table("brand_content_items")\
@@ -170,6 +172,7 @@ def run(user_id):
         with s_col1:
             if st.button("✅ Accept & Move to Active Workspace", use_container_width=True, type="primary"):
                 st.session_state.workspace_text = st.session_state.guardian_suggestion
+                st.session_state.guardian_rev += 1  # Force workspace redraw
                 st.success("Copy seamlessly transferred to active workspace!")
                 time.sleep(0.5)
                 st.rerun()
@@ -183,12 +186,14 @@ def run(user_id):
     st.subheader(f"📝 Workspace: {selected_platform} Asset")
     st.caption(f"Currently managing workspace data for: **{content_title if content_title else 'Untitled Asset'}** targeted for rollout on **{publish_date}**.")
     
-    # FIXED: Decoupled key stops Streamlit API mutation exception crashes completely
+    # Dynamic revision tracking key ensures viewport completely repaints when custom loading triggers
+    workspace_key = f"main_editor_rev_{st.session_state.guardian_rev}"
+    
     edited_body = st.text_area(
         "Refine, write, or manually format your asset here:",
         value=st.session_state.workspace_text,
         height=350,
-        key="guardian_main_editor"
+        key=workspace_key
     )
     st.session_state.workspace_text = edited_body
 
@@ -204,6 +209,7 @@ def run(user_id):
                 """
                 revised_text = get_soul_rebel_consultant(user_feedback, refine_prompt)
                 st.session_state.workspace_text = revised_text
+                st.session_state.guardian_rev += 1  # Force repaint following AI stream revisions
                 st.rerun()
 
     # 6. COMPLIANCE SCAN MECHANISM
@@ -307,10 +313,11 @@ def run(user_id):
                 
                 st.session_state.override_title = ""
                 st.session_state.override_date = datetime.date.today()
+                st.session_state.guardian_rev += 1
                 time.sleep(1)
                 st.rerun()
 
-    # 8. THE INTERACTIVE STRATEGIC KANBAN CONTENT CALENDAR (ALL PIPELINES FULLY PRESERVED)
+    # 8. THE INTERACTIVE STRATEGIC KANBAN CONTENT CALENDAR
     st.write("---")
     st.subheader("📅 Live Strategic Content Pipeline Calendar")
     calendar_data = load_content_calendar(user_id)
@@ -328,7 +335,7 @@ def run(user_id):
                         st.markdown(f"**{item['title']}**")
                         st.caption(f"📅 **Publish:** {item['publish_date']}\n\n🛠️ **Channel:** {item['platform']} | 🗂️ {item['category']}")
                         
-                        # FIXED: Bypasses direct widget injection, solving the exception for good
+                        # --- SAFE INDIRECT CARD SELECTION SYNC WITH REPAINT KEY TRIGGER ---
                         if st.button("Open in Active Workspace", key=f"load_item_{item['id']}", use_container_width=True):
                             st.session_state.override_cat = item['category']
                             st.session_state.override_plat = item['platform']
@@ -339,6 +346,9 @@ def run(user_id):
                             st.session_state.guardian_suggestion = item['suggested_body'] or ""
                             st.session_state.compliance_report = item['guardian_notes']
                             st.session_state.last_loaded_key = f"{item['platform']}_{item['title']}_{item['publish_date']}"
+                            
+                            # Increment the key version to completely reset and redraw the st.text_area layout
+                            st.session_state.guardian_rev += 1
                             st.rerun()
 
         with lane_review:
