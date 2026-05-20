@@ -35,6 +35,20 @@ def run(user_id):
 
     categories = list(set([bp['category'] for bp in blueprints]))
 
+    # INITIALIZE INPUT PARAMETERS IN SESSION STATE FOR CARD-CLICK SYNCING
+    if "guardian_cat_select" not in st.session_state:
+        st.session_state.guardian_cat_select = categories[0]
+    
+    # Filter available platforms based on state category
+    init_plats = [bp['platform'] for bp in blueprints if bp['category'] == st.session_state.guardian_cat_select]
+    if "guardian_plat_select" not in st.session_state:
+        st.session_state.guardian_plat_select = init_plats[0] if init_plats else ""
+        
+    if "guardian_title_input" not in st.session_state:
+        st.session_state.guardian_title_input = ""
+    if "guardian_date_input" not in st.session_state:
+        st.session_state.guardian_date_input = datetime.date.today()
+
     # 2. THE STRATEGIC CALENDAR PARAMETERS PANEL
     st.subheader("📅 Schedule & Parameter Configurations")
     
@@ -42,11 +56,16 @@ def run(user_id):
     with col1:
         selected_category = st.selectbox("Select Content Category Pillar:", categories, key="guardian_cat_select")
         available_platforms = [bp['platform'] for bp in blueprints if bp['category'] == selected_category]
+        
+        # Guard against key switching mismatch errors
+        if st.session_state.guardian_plat_select not in available_platforms and available_platforms:
+            st.session_state.guardian_plat_select = available_platforms[0]
+            
         selected_platform = st.selectbox("Target Publishing Platform / Channel:", available_platforms, key="guardian_plat_select")
     
     with col2:
         content_title = st.text_input("Asset Working Title:", placeholder="e.g., The Illusion of Public Inclusion", key="guardian_title_input")
-        publish_date = st.date_input("Scheduled Publication Date:", value=datetime.date.today(), key="guardian_date_input")
+        publish_date = st.date_input("Scheduled Publication Date:", key="guardian_date_input")
 
     active_blueprint = next((bp for bp in blueprints if bp['category'] == selected_category and bp['platform'] == selected_platform), None)
 
@@ -69,12 +88,11 @@ def run(user_id):
     if "last_loaded_key" not in st.session_state:
         st.session_state.last_loaded_key = ""
 
-    # VERIFY CONTEXT CHANGE: If user changes title, platform, or date, fetch its specific database state
     current_asset_key = f"{selected_platform}_{content_title}_{publish_date}"
     
+    # AUTO-LOAD FROM DB ROW IF THE CONFIG PANEL METRICS CHANGE
     if st.session_state.last_loaded_key != current_asset_key and content_title:
         try:
-            # Query if a record already exists for this exact title, platform, and scheduled slot
             existing_res = supabase.table("brand_content_items")\
                 .select("*")\
                 .eq("user_id", user_id)\
@@ -89,7 +107,6 @@ def run(user_id):
                 st.session_state.guardian_suggestion = asset_record.get("suggested_body", "")
                 st.session_state.compliance_report = asset_record.get("guardian_notes", "")
             else:
-                # Fresh slot configuration: wipe current text to prevent text spilling over from other files
                 st.session_state.workspace_text = ""
                 st.session_state.guardian_suggestion = ""
                 st.session_state.compliance_report = None
@@ -141,9 +158,7 @@ def run(user_id):
         s_col1, s_col2 = st.columns(2)
         with s_col1:
             if st.button("✅ Accept & Move to Active Workspace", use_container_width=True, type="primary"):
-                # Update master tracking variables
                 st.session_state.workspace_text = st.session_state.guardian_suggestion
-                # Force-override the contextual widget key to instantly display text on screen
                 st.session_state[f"text_area_{current_asset_key}"] = st.session_state.guardian_suggestion
                 st.success("Copy seamlessly transferred to active workspace!")
                 time.sleep(0.5)
@@ -158,7 +173,6 @@ def run(user_id):
     st.subheader(f"📝 Workspace: {selected_platform} Asset")
     st.caption(f"Currently managing workspace data for: **{content_title if content_title else 'Untitled Asset'}** targeted for rollout on **{publish_date}**.")
     
-    # Text area widget utilizing context-specific key mapping
     edited_body = st.text_area(
         "Refine, write, or manually format your asset here:",
         value=st.session_state.workspace_text,
@@ -179,7 +193,6 @@ def run(user_id):
                 """
                 revised_text = get_soul_rebel_consultant(user_feedback, refine_prompt)
                 st.session_state.workspace_text = revised_text
-                # Sync back to widget key layer before resetting the viewport
                 st.session_state[f"text_area_{current_asset_key}"] = revised_text
                 st.rerun()
 
@@ -230,7 +243,6 @@ def run(user_id):
         st.write("---")
         b_col1, b_col2 = st.columns(2)
         
-        # Build the payload object map shared across database operations
         payload = {
             "user_id": user_id,
             "title": content_title,
@@ -278,55 +290,3 @@ def run(user_id):
                         supabase.table("brand_content_items").insert(payload).execute()
                         
                     st.success("Asset cleared by Guardian and locked into active Content Calendar!")
-                    
-                    # Wipe temporary buffer variables so user can cleanly transition to planning the next piece
-                    st.session_state.guardian_suggestion = ""
-                    st.session_state.workspace_text = ""
-                    st.session_state.compliance_report = None
-                    st.session_state.last_loaded_key = ""
-                    time.sleep(1)
-                    st.rerun()
-
-    # 8. THE INTERACTIVE STRATEGIC KANBAN CONTENT CALENDAR
-    st.write("---")
-    st.subheader("📅 Live Strategic Content Pipeline Calendar")
-    calendar_data = load_content_calendar(user_id)
-
-    if not calendar_data:
-        st.caption("No assets currently scheduled in the pipeline matrix.")
-    else:
-        lane_draft, lane_review, lane_approved = st.columns(3)
-        
-        with lane_draft:
-            st.markdown("### 📝 Work-in-Progress (Drafts)")
-            for item in calendar_data:
-                if item['status'] == 'draft':
-                    with st.container(border=True):
-                        st.markdown(f"**{item['title']}**")
-                        st.caption(f"📅 **Publish:** {item['publish_date']}\n\n🛠️ **Channel:** {item['platform']} | 🗂️ {item['category']}")
-                        
-                        # Interactive load event
-                        if st.button("Open in Active Workspace", key=f"load_item_{item['id']}", use_container_width=True):
-                            st.session_state.workspace_text = item['current_body']
-                            st.session_state.guardian_suggestion = item['suggested_body'] or ""
-                            st.session_state.compliance_report = item['guardian_notes']
-                            st.session_state.last_loaded_key = f"{item['platform']}_{item['title']}_{item['publish_date']}"
-                            st.rerun()
-
-        with lane_review:
-            st.markdown("### 🔍 Under Review / Failed Scan")
-            for item in calendar_data:
-                if item['status'] == 'guardian_review':
-                    with st.container(border=True):
-                        st.markdown(f"**{item['title']}**")
-                        st.caption(f"📅 **Publish:** {item['publish_date']}\n\n🛠️ **Channel:** {item['platform']}")
-
-        with lane_approved:
-            st.markdown("### 🚀 Approved & Scheduled")
-            for item in calendar_data:
-                if item['status'] == 'approved_for_publishing':
-                    with st.container(border=True):
-                        st.markdown(f"🎉 **{item['title']}**")
-                        st.caption(f"📅 **Go-Live Date:** {item['publish_date']}\n\n🛠️ **Channel:** {item['platform']}")
-                        with st.expander("View Final Cleared Copy"):
-                            st.code(item['current_body'])
