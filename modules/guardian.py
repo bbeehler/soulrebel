@@ -35,35 +35,49 @@ def run(user_id):
 
     categories = list(set([bp['category'] for bp in blueprints]))
 
-    # Initialize select drop parameters in state to guarantee cross-widget click persistence
-    if "guardian_cat_select" not in st.session_state:
-        st.session_state.guardian_cat_select = categories[0]
-    
-    init_plats = [bp['platform'] for bp in blueprints if bp['category'] == st.session_state.guardian_cat_select]
-    if "guardian_plat_select" not in st.session_state:
-        st.session_state.guardian_plat_select = init_plats[0] if init_plats else ""
+    # --- SAFE STATE FOR CONFIGURATION OVERRIDES ---
+    if "override_cat" not in st.session_state:
+        st.session_state.override_cat = categories[0]
         
-    if "guardian_title_input" not in st.session_state:
-        st.session_state.guardian_title_input = ""
-    if "guardian_date_input" not in st.session_state:
-        st.session_state.guardian_date_input = datetime.date.today()
+    init_plats = [bp['platform'] for bp in blueprints if bp['category'] == st.session_state.override_cat]
+    if "override_plat" not in st.session_state:
+        st.session_state.override_plat = init_plats[0] if init_plats else ""
+        
+    if "override_title" not in st.session_state:
+        st.session_state.override_title = ""
+    if "override_date" not in st.session_state:
+        st.session_state.override_date = datetime.date.today()
 
     # 2. THE STRATEGIC CALENDAR PARAMETERS PANEL
     st.subheader("📅 Schedule & Parameter Configurations")
     
     col1, col2 = st.columns(2)
     with col1:
-        selected_category = st.selectbox("Select Content Category Pillar:", categories, key="guardian_cat_select")
+        # Resolve category drop index safely based on our override tracking values
+        try:
+            cat_idx = categories.index(st.session_state.override_cat)
+        except ValueError:
+            cat_idx = 0
+            
+        selected_category = st.selectbox("Select Content Category Pillar:", categories, index=cat_idx)
+        st.session_state.override_cat = selected_category
+        
         available_platforms = [bp['platform'] for bp in blueprints if bp['category'] == selected_category]
         
-        if st.session_state.guardian_plat_select not in available_platforms and available_platforms:
-            st.session_state.guardian_plat_select = available_platforms[0]
+        try:
+            plat_idx = available_platforms.index(st.session_state.override_plat)
+        except ValueError:
+            plat_idx = 0
             
-        selected_platform = st.selectbox("Target Publishing Platform / Channel:", available_platforms, key="guardian_plat_select")
+        selected_platform = st.selectbox("Target Publishing Platform / Channel:", available_platforms, index=plat_idx)
+        st.session_state.override_plat = selected_platform
     
     with col2:
-        content_title = st.text_input("Asset Working Title:", placeholder="e.g., The Illusion of Public Inclusion", key="guardian_title_input")
-        publish_date = st.date_input("Scheduled Publication Date:", key="guardian_date_input")
+        content_title = st.text_input("Asset Working Title:", value=st.session_state.override_title, placeholder="e.g., The Illusion of Public Inclusion")
+        st.session_state.override_title = content_title
+        
+        publish_date = st.date_input("Scheduled Publication Date:", value=st.session_state.override_date)
+        st.session_state.override_date = publish_date
 
     active_blueprint = next((bp for bp in blueprints if bp['category'] == selected_category and bp['platform'] == selected_platform), None)
 
@@ -88,7 +102,7 @@ def run(user_id):
 
     current_asset_key = f"{selected_platform}_{content_title}_{publish_date}"
     
-    # Auto-load draft from table row if user shifts focus parameters manually
+    # Auto-load draft from table row if focus parameters change
     if st.session_state.last_loaded_key != current_asset_key and content_title:
         try:
             existing_res = supabase.table("brand_content_items")\
@@ -292,10 +306,14 @@ def run(user_id):
                 st.session_state.workspace_text = ""
                 st.session_state.compliance_report = None
                 st.session_state.last_loaded_key = ""
+                
+                # Reset configuration overrides back to clear values on successful publishing commit
+                st.session_state.override_title = ""
+                st.session_state.override_date = datetime.date.today()
                 time.sleep(1)
                 st.rerun()
 
-    # 8. THE INTERACTIVE STRATEGIC KANBAN CONTENT CALENDAR
+    # 8. THE INTERACTIVE STRATEGIC KANBAN CONTENT CALENDAR (ALL PIPELINES FULLY PRESERVED)
     st.write("---")
     st.subheader("📅 Live Strategic Content Pipeline Calendar")
     calendar_data = load_content_calendar(user_id)
@@ -313,11 +331,13 @@ def run(user_id):
                         st.markdown(f"**{item['title']}**")
                         st.caption(f"📅 **Publish:** {item['publish_date']}\n\n🛠️ **Channel:** {item['platform']} | 🗂️ {item['category']}")
                         
+                        # --- SAFE INDIRECT CARD SELECTION SYNC ---
                         if st.button("Open in Active Workspace", key=f"load_item_{item['id']}", use_container_width=True):
-                            st.session_state.guardian_cat_select = item['category']
-                            st.session_state.guardian_plat_select = item['platform']
-                            st.session_state.guardian_title_input = item['title']
-                            st.session_state.guardian_date_input = datetime.datetime.strptime(item['publish_date'], "%Y-%m-%d").date()
+                            # Move parameters safely to override targets (no direct key-write crashes!)
+                            st.session_state.override_cat = item['category']
+                            st.session_state.override_plat = item['platform']
+                            st.session_state.override_title = item['title']
+                            st.session_state.override_date = datetime.datetime.strptime(item['publish_date'], "%Y-%m-%d").date()
                             
                             st.session_state.workspace_text = item['current_body']
                             st.session_state.guardian_suggestion = item['suggested_body'] or ""
