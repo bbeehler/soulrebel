@@ -1,6 +1,6 @@
 import streamlit as st
 from streamlit_supabase_auth import login_form, logout_button
-from modules import discovery, illumination, guardian, profile_settings, wizard, analytics
+from modules import discovery, illumination, guardian, analytics, profile_settings, wizard
 from utils.supabase_db import supabase
 
 # Set page configuration
@@ -117,7 +117,7 @@ def main():
             guardian.run(user_id)
             
         elif st.session_state.current_nav == "4. O2O Analytics":
-            # Fire the universal validation dashboard
+            # This triggers the code you just wrote!
             analytics.run(user_id)
             
         elif st.session_state.current_nav == "⚙️ Profile Settings":
