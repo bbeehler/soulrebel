@@ -98,8 +98,6 @@ def run(user_id):
                         "gross_realized_revenue": log_revenue, "recorded_date": str(form_date)
                     }
                     
-                    # --- FIX 1: CHANNEL ISOLATION UPSERT ENGINE ---
-                    # Check if this user already logged an entry for this EXACT platform on this EXACT day
                     check_digital = supabase.table("brand_digital_inputs").select("id")\
                         .eq("user_id", user_id).eq("platform", log_platform).eq("recorded_date", str(form_date)).execute()
                         
@@ -108,7 +106,6 @@ def run(user_id):
                     else:
                         supabase.table("brand_digital_inputs").insert(digital_payload).execute()
                     
-                    # Save offline outcomes for the day
                     check_offline = supabase.table("brand_offline_outcomes").select("id").eq("user_id", user_id).eq("recorded_date", str(form_date)).execute()
                     if check_offline.data:
                         supabase.table("brand_offline_outcomes").update(offline_payload).eq("id", check_offline.data[0]["id"]).execute()
@@ -123,48 +120,110 @@ def run(user_id):
 
     st.write("---")
 
-    # LOAD TIME-SERIES DATABASES
+    # LOAD DATA STREAMS
     digital_data, offline_data = load_o2o_data(user_id)
 
-    # 3. SELECTION METRIC CONTROLLER HUB & VISUALIZATION LAYER
-    st.subheader("📐 Universal Multi-Touch Attribution Engine")
+    st.subheader("📐 Live Multi-Touch Attribution Engine")
+    attribution_model = st.selectbox(
+        "Select Active Multi-Touch Model Allocation Logic:",
+        ["Linear (Equal Split Across Path)", "Time-Decay (Proximity to Visit)", "Position-Based (U-Shaped First/Last Focus)"]
+    )
     
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        attribution_model = st.selectbox(
-            "Select Multi-Touch Model Allocation:",
-            ["Linear (Equal Spread)", "Time-Decay (Proximity Weight)", "Position-Based (U-Shaped Focus)"]
-        )
-        st.info(f"**Active Operational Logic:** Shifting conversion visualizations using a native pathing matrix.")
+    if not digital_data or not offline_data:
+        st.warning("📊 Awaiting data entries. Drop daily numbers into the log form expander above to construct your visual dashboards.")
+    else:
+        try:
+            import plotly.express as px
+            import plotly.graph_objects as go
+            
+            df_digital = pd.DataFrame(digital_data)
+            df_offline = pd.DataFrame(offline_data)
+            
+            # Group spend by date axis
+            df_spend_grouped = df_digital.groupby("recorded_date")["ad_spend"].sum().reset_index()
+            df_merged = pd.merge(df_spend_grouped, df_offline, on="recorded_date").sort_values("recorded_date")
 
-    with col2:
-        if not digital_data or not offline_data:
-            st.warning("📊 Awaiting data logs. Use the input form expander above to record day-to-day metrics and draw your charts.")
-        else:
-            try:
-                import plotly.express as px
-                
-                df_digital = pd.DataFrame(digital_data)
-                df_offline = pd.DataFrame(offline_data)
-                
-                # --- FIX 2: CHANNELS ACCUMULATE INSIDE CHART MERGE ---
-                df_spend_grouped = df_digital.groupby("recorded_date")["ad_spend"].sum().reset_index()
-                df_merged = pd.merge(df_spend_grouped, df_offline, on="recorded_date")
-                
-                fig = px.line(
-                    df_merged, 
-                    x="recorded_date", 
-                    y=["foot_traffic_count", "ad_spend"],
-                    labels={"value": "Metrics Scale", "recorded_date": "Operating Date"},
-                    title="Total Online Investment vs Realized Offline Foot Traffic Correlation",
-                    template="plotly_dark",
-                    color_discrete_sequence=["#3498db", "#e74c3c"]
+            # --- VISUAL PILLAR 1: DUAL-AXIS CORRELATION TIMELINE ---
+            st.markdown("### 📈 Operational Pulse Timeline")
+            fig_timeline = go.Figure()
+            
+            fig_timeline.add_trace(go.Scatter(
+                x=df_merged["recorded_date"], y=df_merged["foot_traffic_count"],
+                name="Physical Foot Traffic", mode="lines+markers",
+                line=dict(color="#3498db", width=3)
+            ))
+            
+            fig_timeline.add_trace(go.Scatter(
+                x=df_merged["recorded_date"], y=df_merged["ad_spend"],
+                name="Digital Ad Spend ($)", mode="lines+markers",
+                line=dict(color="#e74c3c", width=3, dash="dot"),
+                yaxis="y2"
+            ))
+            
+            fig_timeline.update_layout(
+                title="Digital Marketing Capital Surge vs Spatial Foot Traffic Correlation",
+                template="plotly_dark",
+                hovermode="x unified",
+                yaxis=dict(title="Physical Foot Traffic (Persons)", titlefont=dict(color="#3498db"), tickfont=dict(color="#3498db")),
+                yaxis2=dict(title="Digital Ad Spend ($)", titlefont=dict(color="#e74c3c"), tickfont=dict(color="#e74c3c"), anchor="x", overlaying="y", side="right"),
+                legend=dict(x=0.01, y=0.99, bgcolor="rgba(0,0,0,0.5)")
+            )
+            st.plotly_chart(fig_timeline, use_container_width=True)
+            
+            st.write("---")
+            
+            # --- VISUAL PILLAR 2: SHARE OF VOICE DONUT ANALYSIS ---
+            st.markdown("### 🎯 Distribution Dynamics")
+            v_col1, v_col2 = st.columns(2)
+            
+            df_platform_totals = df_digital.groupby("platform")[["ad_spend", "clicks_or_engagements"]].sum().reset_index()
+            
+            with v_col1:
+                fig_spend_share = px.pie(
+                    df_platform_totals, values="ad_spend", names="platform", hole=0.5,
+                    title="Capital Investment Allocation per Channel",
+                    template="plotly_dark", color_discrete_sequence=px.colors.qualitative.Pastel
                 )
-                st.plotly_chart(fig, use_container_width=True)
-            except Exception as e:
-                st.error(f"Failed rendering chart layouts: {e}")
+                fig_spend_share.update_traces(textposition="inside", textinfo="percent+label")
+                st.plotly_chart(fig_spend_share, use_container_width=True)
+                
+            with v_col2:
+                fig_click_share = px.pie(
+                    df_platform_totals, values="clicks_or_engagements", names="platform", hole=0.5,
+                    title="Realized Audience Engagement Share per Channel",
+                    template="plotly_dark", color_discrete_sequence=px.colors.qualitative.Safe
+                )
+                fig_click_share.update_traces(textposition="inside", textinfo="percent+label")
+                st.plotly_chart(fig_click_share, use_container_width=True)
 
-    # 4. CHANNELS LEDGER TRACKER LOG (FIX 3: DYNAMIC COMPARATIVE LOOKUP)
+            st.write("---")
+            
+            # --- VISUAL PILLAR 3: CROSS-CHANNEL ATTRITION FUNNEL ---
+            st.markdown("### 🌪️ StratOS Stratified Conversion Funnel")
+            
+            total_impressions = df_digital["impressions"].sum()
+            total_engagements = df_digital["clicks_or_engagements"].sum()
+            total_conversions = df_offline["physical_conversions"].sum()
+            
+            funnel_data = dict(
+                number=[total_impressions, total_engagements, total_conversions],
+                stage=["Digital Impressions Served", "Active Digital Engagements", "Realized Physical Spatial Conversions"]
+            )
+            
+            fig_funnel = px.bar(
+                funnel_data, x="number", y="stage", orientation="h",
+                title="Universal StratOS Cross-Channel Conversion Pipeline Volume",
+                labels={"number": "Aggregate Volume Count", "stage": "Funnel Phase"},
+                template="plotly_dark",
+                color="stage", color_discrete_sequence=["#9b59b6", "#34495e", "#2ecc71"]
+            )
+            fig_funnel.update_layout(showlegend=False)
+            st.plotly_chart(fig_funnel, use_container_width=True)
+
+        except Exception as e:
+            st.error(f"Failed rendering optimized charts matrix: {e}")
+
+    # 4. CHANNELS LEDGER TRACKER LOGS
     if digital_data and offline_data:
         st.write("---")
         st.subheader("📋 Comprehensive Digital Inputs Ledger")
