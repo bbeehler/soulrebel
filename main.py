@@ -1,6 +1,6 @@
 import streamlit as st
 from streamlit_supabase_auth import login_form, logout_button
-from modules import discovery, illumination, guardian, profile_settings, wizard  # Added guardian import
+from modules import discovery, illumination, guardian, profile_settings, wizard, analytics
 from utils.supabase_db import supabase
 
 # Set page configuration
@@ -117,8 +117,8 @@ def main():
             guardian.run(user_id)
             
         elif st.session_state.current_nav == "4. O2O Analytics":
-            st.title("📊 O2O Analytics")
-            st.info("Module 3: Online-to-Offline attribution. Coming soon.")
+            # Fire the universal validation dashboard
+            analytics.run(user_id)
             
         elif st.session_state.current_nav == "⚙️ Profile Settings":
             profile_settings.run(user_id)
