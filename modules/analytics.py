@@ -146,10 +146,12 @@ def run(user_id):
             st.markdown("### 📈 Operational Pulse Timeline")
             fig_timeline = go.Figure()
             
+            # FIXED: Added explicit yaxis="y1" mapping target to guarantee strict layout compilation
             fig_timeline.add_trace(go.Scatter(
                 x=df_merged["recorded_date"], y=df_merged["foot_traffic_count"],
                 name="Physical Foot Traffic", mode="lines+markers",
-                line=dict(color="#3498db", width=3)
+                line=dict(color="#3498db", width=3),
+                yaxis="y1"
             ))
             
             fig_timeline.add_trace(go.Scatter(
@@ -159,7 +161,6 @@ def run(user_id):
                 yaxis="y2"
             ))
             
-            # FIXED: Corrected tickfont parameters inside yaxis2 dictionary structure
             fig_timeline.update_layout(
                 title="Digital Marketing Capital Surge vs Spatial Foot Traffic Correlation",
                 template="plotly_dark",
