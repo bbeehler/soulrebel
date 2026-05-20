@@ -35,11 +35,10 @@ def run(user_id):
 
     categories = list(set([bp['category'] for bp in blueprints]))
 
-    # INITIALIZE INPUT PARAMETERS IN SESSION STATE FOR CARD-CLICK SYNCING
+    # Initialize select drop parameters in state to guarantee cross-widget click persistence
     if "guardian_cat_select" not in st.session_state:
         st.session_state.guardian_cat_select = categories[0]
     
-    # Filter available platforms based on state category
     init_plats = [bp['platform'] for bp in blueprints if bp['category'] == st.session_state.guardian_cat_select]
     if "guardian_plat_select" not in st.session_state:
         st.session_state.guardian_plat_select = init_plats[0] if init_plats else ""
@@ -57,7 +56,6 @@ def run(user_id):
         selected_category = st.selectbox("Select Content Category Pillar:", categories, key="guardian_cat_select")
         available_platforms = [bp['platform'] for bp in blueprints if bp['category'] == selected_category]
         
-        # Guard against key switching mismatch errors
         if st.session_state.guardian_plat_select not in available_platforms and available_platforms:
             st.session_state.guardian_plat_select = available_platforms[0]
             
@@ -90,7 +88,7 @@ def run(user_id):
 
     current_asset_key = f"{selected_platform}_{content_title}_{publish_date}"
     
-    # AUTO-LOAD FROM DB ROW IF THE CONFIG PANEL METRICS CHANGE
+    # Auto-load draft from table row if user shifts focus parameters manually
     if st.session_state.last_loaded_key != current_asset_key and content_title:
         try:
             existing_res = supabase.table("brand_content_items")\
@@ -197,89 +195,69 @@ def run(user_id):
                 st.rerun()
 
     # 6. COMPLIANCE SCAN MECHANISM
-    if st.session_state.workspace_text:
-        st.write("---")
-        st.subheader("🛡️ Compliance & Core Soul Audit Scan")
-        
-        c_col1, c_col2 = st.columns([1, 2])
-        with c_col1:
-            if st.button("🔍 Run Brand Soul Alignment Scan", use_container_width=True, type="secondary"):
-                with st.spinner("Analyzing text for playbook alignment violations..."):
-                    try:
-                        strategy_res = supabase.table("brand_strategy").select("soul_guide").eq("user_id", user_id).single().execute()
-                        soul_guide_context = strategy_res.data.get("soul_guide", "") if strategy_res.data else ""
-                        
-                        scan_prompt = f"""
-                        TASK: Audit the copy against the strict brand guidelines.
-                        - Tone Guide: {active_blueprint['tonal_guardrails']}
-                        - Structural Demands: {active_blueprint['structural_rules']}
-                        - Core Soul: {soul_guide_context}
-                        
-                        TEXT TO AUDIT:
-                        {edited_body}
-                        
-                        OUTPUT FORMAT: Return a structured text score report. 
-                        1. Start with exactly 'SCORE: PASS' or 'SCORE: FAIL' based on tonal integrity.
-                        2. Follow with bulleted analytical notes explaining why it matches or breaks the brand standard.
-                        """
-                        report = get_soul_rebel_consultant("Audit text", scan_prompt)
-                        st.session_state.compliance_report = report
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Scan error: {e}")
+    st.write("---")
+    st.subheader("🛡️ Compliance & Core Soul Audit Scan")
+    
+    c_col1, c_col2 = st.columns([1, 2])
+    with c_col1:
+        if st.button("🔍 Run Brand Soul Alignment Scan", use_container_width=True, type="secondary"):
+            with st.spinner("Analyzing text for playbook alignment violations..."):
+                try:
+                    strategy_res = supabase.table("brand_strategy").select("soul_guide").eq("user_id", user_id).single().execute()
+                    soul_guide_context = strategy_res.data.get("soul_guide", "") if strategy_res.data else ""
+                    
+                    scan_prompt = f"""
+                    TASK: Audit the copy against the strict brand guidelines.
+                    - Tone Guide: {active_blueprint['tonal_guardrails']}
+                    - Structural Demands: {active_blueprint['structural_rules']}
+                    - Core Soul: {soul_guide_context}
+                    
+                    TEXT TO AUDIT:
+                    {edited_body}
+                    
+                    OUTPUT FORMAT: Return a structured text score report. 
+                    1. Start with exactly 'SCORE: PASS' or 'SCORE: FAIL' based on tonal integrity.
+                    2. Follow with bulleted analytical notes explaining why it matches or breaks the brand standard.
+                    """
+                    report = get_soul_rebel_consultant("Audit text", scan_prompt)
+                    st.session_state.compliance_report = report
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Scan error: {e}")
 
-        with c_col2:
-            if st.session_state.compliance_report:
-                report_text = st.session_state.compliance_report
-                is_pass = "SCORE: PASS" in report_text
-                
-                if is_pass:
-                    st.success("🎉 BRAND GUARDIAN AUDIT: PASSED")
-                else:
-                    st.error("🚨 BRAND GUARDIAN AUDIT: FAILED COMPLIANCE")
-                st.info(report_text)
-
-        # 7. BULLETPROOF CALENDAR SAVE AND COMMIT CONTROL (UPSERT ENGINE)
-        st.write("---")
-        b_col1, b_col2 = st.columns(2)
-        
-        payload = {
-            "user_id": user_id,
-            "title": content_title,
-            "suggested_body": st.session_state.guardian_suggestion,
-            "current_body": edited_body,
-            "category": selected_category,
-            "platform": selected_platform,
-            "publish_date": str(publish_date),
-            "guardian_notes": st.session_state.compliance_report
-        }
-        
-        with b_col1:
-            if st.button("💾 Save Progress as Draft", use_container_width=True):
-                if not content_title:
-                    st.error("Please provide an Asset Working Title before committing to the calendar data layers.")
-                else:
-                    with st.spinner("Locking draft to schedule line..."):
-                        payload["status"] = "draft"
-                        
-                        check_exist = supabase.table("brand_content_items").select("id")\
-                            .eq("user_id", user_id).eq("title", content_title).eq("platform", selected_platform).eq("publish_date", str(publish_date)).execute()
-                            
-                        if check_exist.data:
-                            supabase.table("brand_content_items").update(payload).eq("id", check_exist.data[0]["id"]).execute()
-                        else:
-                            supabase.table("brand_content_items").insert(payload).execute()
-                            
-                        st.success(f"Asset for {selected_platform} saved successfully as a Draft!")
-                        time.sleep(1)
-                        st.rerun()
-
-        with b_col2:
-            has_passed = st.session_state.compliance_report is not None and "SCORE: PASS" in st.session_state.compliance_report
+    with c_col2:
+        if st.session_state.compliance_report:
+            report_text = st.session_state.compliance_report
+            is_pass = "SCORE: PASS" in report_text
             
-            if st.button("🔥 Approve & Commit to Content Pipeline", use_container_width=True, disabled=not has_passed, type="primary"):
-                with st.spinner("Locking verified asset into publication calendar..."):
-                    payload["status"] = "approved_for_publishing"
+            if is_pass:
+                st.success("🎉 BRAND GUARDIAN AUDIT: PASSED")
+            else:
+                st.error("🚨 BRAND GUARDIAN AUDIT: FAILED COMPLIANCE")
+            st.info(report_text)
+
+    # 7. BULLETPROOF CALENDAR SAVE AND COMMIT CONTROL (UPSERT ENGINE)
+    st.write("---")
+    b_col1, b_col2 = st.columns(2)
+    
+    payload = {
+        "user_id": user_id,
+        "title": content_title,
+        "suggested_body": st.session_state.guardian_suggestion,
+        "current_body": edited_body,
+        "category": selected_category,
+        "platform": selected_platform,
+        "publish_date": str(publish_date),
+        "guardian_notes": st.session_state.compliance_report
+    }
+    
+    with b_col1:
+        if st.button("💾 Save Progress as Draft", use_container_width=True):
+            if not content_title:
+                st.error("Please provide an Asset Working Title before committing to the calendar data layers.")
+            else:
+                with st.spinner("Locking draft to schedule line..."):
+                    payload["status"] = "draft"
                     
                     check_exist = supabase.table("brand_content_items").select("id")\
                         .eq("user_id", user_id).eq("title", content_title).eq("platform", selected_platform).eq("publish_date", str(publish_date)).execute()
@@ -289,4 +267,81 @@ def run(user_id):
                     else:
                         supabase.table("brand_content_items").insert(payload).execute()
                         
-                    st.success("Asset cleared by Guardian and locked into active Content Calendar!")
+                    st.success(f"Asset for {selected_platform} saved successfully as a Draft!")
+                    time.sleep(1)
+                    st.rerun()
+
+    with b_col2:
+        has_passed = st.session_state.compliance_report is not None and "SCORE: PASS" in st.session_state.compliance_report
+        
+        if st.button("🔥 Approve & Commit to Content Pipeline", use_container_width=True, disabled=not has_passed, type="primary"):
+            with st.spinner("Locking verified asset into publication calendar..."):
+                payload["status"] = "approved_for_publishing"
+                
+                check_exist = supabase.table("brand_content_items").select("id")\
+                    .eq("user_id", user_id).eq("title", content_title).eq("platform", selected_platform).eq("publish_date", str(publish_date)).execute()
+                    
+                if check_exist.data:
+                    supabase.table("brand_content_items").update(payload).eq("id", check_exist.data[0]["id"]).execute()
+                else:
+                    supabase.table("brand_content_items").insert(payload).execute()
+                    
+                st.success("Asset cleared by Guardian and locked into active Content Calendar!")
+                
+                st.session_state.guardian_suggestion = ""
+                st.session_state.workspace_text = ""
+                st.session_state.compliance_report = None
+                st.session_state.last_loaded_key = ""
+                time.sleep(1)
+                st.rerun()
+
+    # 8. THE INTERACTIVE STRATEGIC KANBAN CONTENT CALENDAR
+    st.write("---")
+    st.subheader("📅 Live Strategic Content Pipeline Calendar")
+    calendar_data = load_content_calendar(user_id)
+
+    if not calendar_data:
+        st.caption("No assets currently scheduled in the pipeline matrix.")
+    else:
+        lane_draft, lane_review, lane_approved = st.columns(3)
+        
+        with lane_draft:
+            st.markdown("### 📝 Work-in-Progress (Drafts)")
+            for item in calendar_data:
+                if item['status'] == 'draft':
+                    with st.container(border=True):
+                        st.markdown(f"**{item['title']}**")
+                        st.caption(f"📅 **Publish:** {item['publish_date']}\n\n🛠️ **Channel:** {item['platform']} | 🗂️ {item['category']}")
+                        
+                        if st.button("Open in Active Workspace", key=f"load_item_{item['id']}", use_container_width=True):
+                            st.session_state.guardian_cat_select = item['category']
+                            st.session_state.guardian_plat_select = item['platform']
+                            st.session_state.guardian_title_input = item['title']
+                            st.session_state.guardian_date_input = datetime.datetime.strptime(item['publish_date'], "%Y-%m-%d").date()
+                            
+                            st.session_state.workspace_text = item['current_body']
+                            st.session_state.guardian_suggestion = item['suggested_body'] or ""
+                            st.session_state.compliance_report = item['guardian_notes']
+                            
+                            target_key = f"{item['platform']}_{item['title']}_{item['publish_date']}"
+                            st.session_state[f"text_area_{target_key}"] = item['current_body']
+                            st.session_state.last_loaded_key = target_key
+                            st.rerun()
+
+        with lane_review:
+            st.markdown("### 🔍 Under Review / Failed Scan")
+            for item in calendar_data:
+                if item['status'] == 'guardian_review' or (item['status'] == 'draft' and item['guardian_notes'] and "SCORE: FAIL" in item['guardian_notes']):
+                    with st.container(border=True):
+                        st.markdown(f"**{item['title']}**")
+                        st.caption(f"📅 **Publish:** {item['publish_date']}\n\n🛠️ **Channel:** {item['platform']}")
+
+        with lane_approved:
+            st.markdown("### 🚀 Approved & Scheduled")
+            for item in calendar_data:
+                if item['status'] == 'approved_for_publishing':
+                    with st.container(border=True):
+                        st.markdown(f"🎉 **{item['title']}**")
+                        st.caption(f"📅 **Go-Live Date:** {item['publish_date']}\n\n🛠️ **Channel:** {item['platform']}")
+                        with st.expander("View Final Cleared Copy"):
+                            st.code(item['current_body'])
