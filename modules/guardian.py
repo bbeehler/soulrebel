@@ -69,7 +69,7 @@ def run(user_id):
     if "last_loaded_key" not in st.session_state:
         st.session_state.last_loaded_key = ""
 
-    # DVERIFY CONTEXT CHANGE: If user changes title, platform, or date, fetch its specific database state
+    # VERIFY CONTEXT CHANGE: If user changes title, platform, or date, fetch its specific database state
     current_asset_key = f"{selected_platform}_{content_title}_{publish_date}"
     
     if st.session_state.last_loaded_key != current_asset_key and content_title:
@@ -141,7 +141,12 @@ def run(user_id):
         s_col1, s_col2 = st.columns(2)
         with s_col1:
             if st.button("✅ Accept & Move to Active Workspace", use_container_width=True, type="primary"):
+                # Update master tracking variables
                 st.session_state.workspace_text = st.session_state.guardian_suggestion
+                # Force-override the contextual widget key to instantly display text on screen
+                st.session_state[f"text_area_{current_asset_key}"] = st.session_state.guardian_suggestion
+                st.success("Copy seamlessly transferred to active workspace!")
+                time.sleep(0.5)
                 st.rerun()
         with s_col2:
             if st.button("❌ Reject Suggestion", use_container_width=True):
@@ -153,7 +158,7 @@ def run(user_id):
     st.subheader(f"📝 Workspace: {selected_platform} Asset")
     st.caption(f"Currently managing workspace data for: **{content_title if content_title else 'Untitled Asset'}** targeted for rollout on **{publish_date}**.")
     
-    # We use a tracking key built from the specific context metrics to handle reloading text areas instantly
+    # Text area widget utilizing context-specific key mapping
     edited_body = st.text_area(
         "Refine, write, or manually format your asset here:",
         value=st.session_state.workspace_text,
@@ -174,6 +179,8 @@ def run(user_id):
                 """
                 revised_text = get_soul_rebel_consultant(user_feedback, refine_prompt)
                 st.session_state.workspace_text = revised_text
+                # Sync back to widget key layer before resetting the viewport
+                st.session_state[f"text_area_{current_asset_key}"] = revised_text
                 st.rerun()
 
     # 6. COMPLIANCE SCAN MECHANISM
@@ -243,7 +250,6 @@ def run(user_id):
                     with st.spinner("Locking draft to schedule line..."):
                         payload["status"] = "draft"
                         
-                        # Match row based on criteria to see if updating or inserting fresh slot
                         check_exist = supabase.table("brand_content_items").select("id")\
                             .eq("user_id", user_id).eq("title", content_title).eq("platform", selected_platform).eq("publish_date", str(publish_date)).execute()
                             
