@@ -53,7 +53,6 @@ def run(user_id):
     
     col1, col2 = st.columns(2)
     with col1:
-        # Resolve category drop index safely based on our override tracking values
         try:
             cat_idx = categories.index(st.session_state.override_cat)
         except ValueError:
@@ -171,7 +170,6 @@ def run(user_id):
         with s_col1:
             if st.button("✅ Accept & Move to Active Workspace", use_container_width=True, type="primary"):
                 st.session_state.workspace_text = st.session_state.guardian_suggestion
-                st.session_state[f"text_area_{current_asset_key}"] = st.session_state.guardian_suggestion
                 st.success("Copy seamlessly transferred to active workspace!")
                 time.sleep(0.5)
                 st.rerun()
@@ -185,11 +183,12 @@ def run(user_id):
     st.subheader(f"📝 Workspace: {selected_platform} Asset")
     st.caption(f"Currently managing workspace data for: **{content_title if content_title else 'Untitled Asset'}** targeted for rollout on **{publish_date}**.")
     
+    # FIXED: Decoupled key stops Streamlit API mutation exception crashes completely
     edited_body = st.text_area(
         "Refine, write, or manually format your asset here:",
         value=st.session_state.workspace_text,
         height=350,
-        key=f"text_area_{current_asset_key}"
+        key="guardian_main_editor"
     )
     st.session_state.workspace_text = edited_body
 
@@ -205,7 +204,6 @@ def run(user_id):
                 """
                 revised_text = get_soul_rebel_consultant(user_feedback, refine_prompt)
                 st.session_state.workspace_text = revised_text
-                st.session_state[f"text_area_{current_asset_key}"] = revised_text
                 st.rerun()
 
     # 6. COMPLIANCE SCAN MECHANISM
@@ -307,7 +305,6 @@ def run(user_id):
                 st.session_state.compliance_report = None
                 st.session_state.last_loaded_key = ""
                 
-                # Reset configuration overrides back to clear values on successful publishing commit
                 st.session_state.override_title = ""
                 st.session_state.override_date = datetime.date.today()
                 time.sleep(1)
@@ -331,9 +328,8 @@ def run(user_id):
                         st.markdown(f"**{item['title']}**")
                         st.caption(f"📅 **Publish:** {item['publish_date']}\n\n🛠️ **Channel:** {item['platform']} | 🗂️ {item['category']}")
                         
-                        # --- SAFE INDIRECT CARD SELECTION SYNC ---
+                        # FIXED: Bypasses direct widget injection, solving the exception for good
                         if st.button("Open in Active Workspace", key=f"load_item_{item['id']}", use_container_width=True):
-                            # Move parameters safely to override targets (no direct key-write crashes!)
                             st.session_state.override_cat = item['category']
                             st.session_state.override_plat = item['platform']
                             st.session_state.override_title = item['title']
@@ -342,10 +338,7 @@ def run(user_id):
                             st.session_state.workspace_text = item['current_body']
                             st.session_state.guardian_suggestion = item['suggested_body'] or ""
                             st.session_state.compliance_report = item['guardian_notes']
-                            
-                            target_key = f"{item['platform']}_{item['title']}_{item['publish_date']}"
-                            st.session_state[f"text_area_{target_key}"] = item['current_body']
-                            st.session_state.last_loaded_key = target_key
+                            st.session_state.last_loaded_key = f"{item['platform']}_{item['title']}_{item['publish_date']}"
                             st.rerun()
 
         with lane_review:
