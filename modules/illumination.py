@@ -129,12 +129,12 @@ def run(user_id):
                     # Save the complete stitched document to the main soul_guide column
                     save_brand_data(user_id, full_text, chamber="soul_guide")
                     
-                    # Programmatically advance the user's sidebar position to the Brand Guardian phase
+                    # FIXED: Naming metrics targeted directly to track your exact sidebar string parameters
                     try:
                         from utils.supabase_db import get_supabase_client
                         supabase = get_supabase_client()
-                        supabase.table("profiles").update({"last_nav": "3. The Brand Guardian"}).eq("user_id", user_id).execute()
-                        st.session_state.last_nav = "3. The Brand Guardian"
+                        supabase.table("profiles").update({"last_nav": "3. Brand Guardian"}).eq("user_id", user_id).execute()
+                        st.session_state.current_nav = "3. Brand Guardian"
                     except Exception as e:
                         st.warning("Strategy saved locally, but navigation auto-advance encountered an issue.")
                     
