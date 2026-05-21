@@ -60,7 +60,7 @@ def main():
         except Exception:
             st.session_state.current_nav = "1. The Soul Sprint"
 
-    2. HANDLE PROGRAMMATIC REDIRECTS (e.g., advancing from Phase 03)
+    2. HANDLE PROGRAMMATIC REDIRECTS
     if "target_page" in st.session_state:
         target = st.session_state.target_page
         st.session_state.current_nav = target
