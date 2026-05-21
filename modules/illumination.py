@@ -133,8 +133,8 @@ def run(user_id):
                     try:
                         from utils.supabase_db import get_supabase_client
                         supabase = get_supabase_client()
-                        supabase.table("profiles").update({"last_nav": "4. The Brand Guardian"}).eq("user_id", user_id).execute()
-                        st.session_state.last_nav = "4. The Brand Guardian"
+                        supabase.table("profiles").update({"last_nav": "3. The Brand Guardian"}).eq("user_id", user_id).execute()
+                        st.session_state.last_nav = "3. The Brand Guardian"
                     except Exception as e:
                         st.warning("Strategy saved locally, but navigation auto-advance encountered an issue.")
                     
