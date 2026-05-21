@@ -60,18 +60,14 @@ def main():
         except Exception:
             st.session_state.current_nav = "1. The Soul Sprint"
 
-    # 2. HANDLE PROGRAMMATIC REDIRECTS (FIXED: Full State Sync Layer)
+    # 2. HANDLE PROGRAMMATIC REDIRECTS (Intercepts state before widget generation)
     if "target_page" in st.session_state:
         target = st.session_state.target_page
-        st.session_state.current_nav = target
-        st.session_state.sidebar_radio = target # Sync widget key data
         
-        # Lock position into database profile row
-        try:
-            supabase.table("profiles").update({"last_nav": target}).eq("user_id", user_id).execute()
-        except:
-            pass
-            
+        # Pre-assign state definitions before rendering UI inputs
+        st.session_state.current_nav = target
+        st.session_state.sidebar_radio = target
+        
         del st.session_state.target_page
         st.rerun()
 
