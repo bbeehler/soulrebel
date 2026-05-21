@@ -132,10 +132,15 @@ def run(user_id):
                     try:
                         from utils.supabase_db import get_supabase_client
                         supabase = get_supabase_client()
-                        # Update the persistent database position
+                        
+                        # FIXED: Matched string precisely to main.py sidebar configuration arrays
                         supabase.table("profiles").update({"last_nav": "3. Brand Guardian"}).eq("user_id", user_id).execute()
                         
-                        # --- THE FIX: Pass to target_page so main.py handles the redirect ---
+                        # FIXED: Explicitly sync session navigation parameters
+                        st.session_state.current_nav = "3. Brand Guardian"
+                        
+                        # FIXED: Synchronize sidebar widget key states to avoid view resets
+                        st.session_state.sidebar_radio = "3. Brand Guardian"
                         st.session_state.target_page = "3. Brand Guardian"
                         
                     except Exception as e:
