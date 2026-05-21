@@ -129,12 +129,15 @@ def run(user_id):
                     # Save the complete stitched document to the main soul_guide column
                     save_brand_data(user_id, full_text, chamber="soul_guide")
                     
-                    # FIXED: Naming metrics targeted directly to track your exact sidebar string parameters
                     try:
                         from utils.supabase_db import get_supabase_client
                         supabase = get_supabase_client()
+                        # Update the persistent database position
                         supabase.table("profiles").update({"last_nav": "3. Brand Guardian"}).eq("user_id", user_id).execute()
-                        st.session_state.current_nav = "3. Brand Guardian"
+                        
+                        # --- THE FIX: Pass to target_page so main.py handles the redirect ---
+                        st.session_state.target_page = "3. Brand Guardian"
+                        
                     except Exception as e:
                         st.warning("Strategy saved locally, but navigation auto-advance encountered an issue.")
                     
