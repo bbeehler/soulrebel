@@ -103,8 +103,9 @@ def run(user_id):
                 st.session_state.guide_content[item['id']] = brand_data[col_name]
                 highest_completed_idx = i
         
-        # Point the state index exactly to the first uncompleted section roadblock
-        st.session_state.guide_idx = highest_completed_idx + 1
+        # FIXED: Only enforce resume index loops if the workspace navigation isn't processing an outbound redirect
+        if st.session_state.get("current_nav", "2. The Soul Guide") == "2. The Soul Guide":
+            st.session_state.guide_idx = highest_completed_idx + 1
                 
     if "rev" not in st.session_state:
         st.session_state.rev = 0
