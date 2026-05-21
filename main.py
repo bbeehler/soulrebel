@@ -48,6 +48,28 @@ def main():
     user_id = session['user']['id']
     user_email = session['user']['email']
 
+    # =========================================================================
+    # CRITICAL INTERCEPT: FORCE WIDGET STATE RESET BEFORE SIDEBAR RENDERS
+    # =========================================================================
+    if "target_page" in st.session_state:
+        target = st.session_state.target_page
+        
+        # Override the persistent session states
+        st.session_state.current_nav = target
+        
+        # Overwrite internal widget cache key directly so st.radio initializes here
+        st.session_state["sidebar_radio"] = target
+        
+        # Update the database profile position map
+        try:
+            supabase.table("profiles").update({"last_nav": target}).eq("user_id", user_id).execute()
+        except:
+            pass
+            
+        del st.session_state.target_page
+        st.rerun()
+    # =========================================================================
+
     # --- PERSISTENCE LOGIC: Initial Load ---
     if "current_nav" not in st.session_state:
         try:
@@ -59,17 +81,6 @@ def main():
                 st.session_state.current_nav = "1. The Soul Sprint"
         except Exception:
             st.session_state.current_nav = "1. The Soul Sprint"
-
-    # 2. HANDLE PROGRAMMATIC REDIRECTS (Intercepts state before widget generation)
-    if "target_page" in st.session_state:
-        target = st.session_state.target_page
-        
-        # Pre-assign state definitions before rendering UI inputs
-        st.session_state.current_nav = target
-        st.session_state.sidebar_radio = target
-        
-        del st.session_state.target_page
-        st.rerun()
 
     # 3. ROUTING CHECK
     profile_exists = check_profile_exists(user_id)

@@ -133,10 +133,10 @@ def run(user_id):
                         from utils.supabase_db import get_supabase_client
                         supabase = get_supabase_client()
                         
-                        # Update the persistent database position
+                        # 1. Update the database record so it persists across logins
                         supabase.table("profiles").update({"last_nav": "3. Brand Guardian"}).eq("user_id", user_id).execute()
                         
-                        # SET REDIRECT FLAG FOR MAIN.PY
+                        # 2. Set the redirect trigger flag for main.py
                         st.session_state.target_page = "3. Brand Guardian"
                         
                     except Exception as e:
