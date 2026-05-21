@@ -139,7 +139,7 @@ def run(user_id):
                         st.warning("Strategy saved locally, but navigation auto-advance encountered an issue.")
                     
                     st.success("Strategy locked! Moving to Brand Guardian...")
-                    time.sleep(1.5)
+                    time.sleep(1.0)
                     st.rerun()
                     
         with c2:
