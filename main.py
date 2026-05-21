@@ -60,11 +60,18 @@ def main():
         except Exception:
             st.session_state.current_nav = "1. The Soul Sprint"
 
-    # 2. HANDLE PROGRAMMATIC REDIRECTS
+    # 2. HANDLE PROGRAMMATIC REDIRECTS (FIXED: Full State Sync Layer)
     if "target_page" in st.session_state:
         target = st.session_state.target_page
         st.session_state.current_nav = target
-        ...
+        st.session_state.sidebar_radio = target # Sync widget key data
+        
+        # Lock position into database profile row
+        try:
+            supabase.table("profiles").update({"last_nav": target}).eq("user_id", user_id).execute()
+        except:
+            pass
+            
         del st.session_state.target_page
         st.rerun()
 
@@ -106,8 +113,6 @@ def main():
             st.write("---")
 
         # --- DYNAMIC HARDWARE VIEWPORT REPAINT LAYER ---
-        # Wrapping module rendering within a sync-versioned container key allows the settings matrix 
-        # to trigger a layout mutation, discarding stale caches instantly on data purges.
         with st.container(key=f"ecosystem_viewport_v_{st.session_state.ecosystem_sync_version}"):
             if st.session_state.current_nav == "1. The Soul Sprint":
                 discovery.run(user_id)
