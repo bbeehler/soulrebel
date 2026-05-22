@@ -48,6 +48,12 @@ def clean_display_text(architecture_text):
     text = re.sub(r"\bGodzspeed\b", "", text, flags=re.IGNORECASE)
     return text
 
+# FIXED: NEW CALLBACK TRIPPERS TO AUTOMATICALLY INVALIDATE COMPLIANCE UPON TEXT EDITS
+def invalidate_previous_compliance_scan():
+    """Wipes previous audit reports instantly when user text changes are detected."""
+    st.session_state.compliance_report = None
+    st.session_state.content_ready_for_scan = False
+
 def run(user_id):
     st.title("🛡️ The Brand Campaign & Guardian Control")
     st.caption("From High-Level Campaign Formulation to Hard Omni-Channel Compliance Audits.")
@@ -342,20 +348,22 @@ def run(user_id):
                     else:
                         final_text = raw_suggestion
                     
-                    # FIXED: Decoupled widget state allocation avoids API override exceptions completely
                     st.session_state.workspace_text = final_text
                     st.session_state.active_content_suggestion = ""
+                    # Wipes old compliance parameters clean during content structural injection updates
+                    invalidate_previous_compliance_scan()
                     st.rerun()
 
             # --- EDITING CANVAS ---
             st.write(" ")
-            # FIXED: Canvas now tracks static layout states driven strictly by independent state variables
+            # FIXED: Added native on_change parameter linking directly back to state dynamic invalidators
             edited_body = st.text_area(
                 "Active Composition Canvas:",
                 value=st.session_state.workspace_text,
                 height=300,
                 key="guardian_workspace_canvas_field",
-                help="Refine your raw copy body text blocks here."
+                on_change=invalidate_previous_compliance_scan,
+                help="Refine your raw copy body text blocks here. Modifying text will automatically require a fresh compliance scan."
             )
             st.session_state.workspace_text = re.sub(r"\bGodzspeed\b", "", edited_body, flags=re.IGNORECASE)
 
@@ -383,6 +391,8 @@ def run(user_id):
                         else:
                             st.session_state.workspace_text = refined_output
                             
+                        # Force old checks off on iterative chat inputs updates as well
+                        invalidate_previous_compliance_scan()
                         st.rerun()
 
                 if st.button("🔒 Lock Workspace & Proceed to Compliance Scan", use_container_width=True):
@@ -521,7 +531,6 @@ def run(user_id):
                                 st.session_state.override_plat = item['platform']
                                 st.session_state.override_title = item['title']
                                 st.session_state.override_date = datetime.datetime.strptime(item['publish_date'], "%Y-%m-%d").date()
-                                # FIXED: Safely seeding standard state elements updates canvas layouts instantly
                                 st.session_state.workspace_text = item['current_body']
                                 st.session_state.compliance_report = None  
                                 st.session_state.content_ready_for_scan = False
@@ -550,7 +559,6 @@ def run(user_id):
                             st.session_state.override_title = item['title']
                             st.session_state.override_date = datetime.datetime.strptime(item['publish_date'], "%Y-%m-%d").date()
                             
-                            # FIXED: Direct safe state injection eliminates dynamic key mutations entirely
                             st.session_state.workspace_text = item['current_body']
                             st.session_state.active_content_suggestion = item['suggested_body'] or ""
                             st.session_state.compliance_report = item['guardian_notes']
