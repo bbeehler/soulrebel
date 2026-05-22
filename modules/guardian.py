@@ -44,9 +44,7 @@ def clean_display_text(architecture_text):
     """Removes backend payload blocks and scrubs any forbidden agency terms."""
     if not architecture_text:
         return ""
-    # Strip backend system parameters
     text = re.sub(r"\[PILLARS_DATA_START\].*?\[PILLARS_DATA_END\]", "", architecture_text, flags=re.DOTALL).strip()
-    # HARD FAILURE CENSOR: Erases any structural agency leaks automatically
     text = re.sub(r"\bGodzspeed\b", "", text, flags=re.IGNORECASE)
     return text
 
@@ -80,8 +78,6 @@ def run(user_id):
     try:
         strategy_res = supabase.table("brand_strategy").select("soul_guide").eq("user_id", user_id).single().execute()
         soul_guide_context = strategy_res.data.get("soul_guide", "") if strategy_res.data else ""
-        
-        # Scrub master guide text of raw agency titles right out of the data block on load
         soul_guide_context = re.sub(r"\bGodzspeed\b", "", soul_guide_context, flags=re.IGNORECASE)
         
         workspace_row = supabase.table("brand_content_items")\
@@ -239,7 +235,7 @@ def run(user_id):
         st.write("---")
 
         # =====================================================================
-        # STAGE 02: DYNAMIC BLUEPRINT CONTENT ENGINE
+        # STAGE 02: BLUEPRINT CONTENT ENGINE (ZERO-STRATEGY CRITICAL FIX)
         # =====================================================================
         st.markdown("## 📝 Stage 2: Content Generation & Blueprint Tailoring")
         
@@ -298,33 +294,41 @@ def run(user_id):
                         st.error("Missing selected blueprint matching key paths.")
                     else:
                         with st.spinner("Synthesizing copy parameters inside blueprint channels..."):
+                            # UNYIELDING ENGINE RULES DEFINING AN ACCURATE, PILLAR-ALIGNED EXECUTION COPY OUTBOX
                             prompt = f"""
-                            ROLE: Expert Asset Copywriter.
-                            TASK: Draft high-engagement copy that strictly bridges the active campaign direction with the specific brand guide blueprint rules.
+                            ROLE: Expert Copywriter & Asset Producer.
+                            TASK: Write the final, ready-to-publish raw content copy for an asset titled: '{content_title}'.
                             
-                            🚨 HARD GEOMETRIC LIMIT REQUIREMENT:
-                            The selected delivery vehicle is '{chosen_channel}'. Your output block MUST stay completely below {active_specs['char_max']} total characters.
+                            🚨 CRITICAL CORE EXECUTION LAW:
+                            - You must ONLY return the actual, finalized content body copy block matching the channel specs below.
+                            - Do NOT output strategy overviews, structural outlines, placeholder suggestions, recommendations, bullet point lists of advice, or preamble explanations. 
+                            - Dive straight into the copy text. If the selected channel is an Email Blast, write the full, cohesive copy body of that email. If it is a social post, write the exact post caption blocks.
                             
-                            🚨 FORBIDDEN AGENCY LABELS:
-                            - You are an individual professional voice writing content for your personal digital platform.
-                            - You must ABSOLUTELY NOT use, mention, or print the word 'Godzspeed' or refer to any marketing agency entity anywhere within your copy block or layout syntax. 
+                            🚨 HARD GEOMETRIC LIMIT CEILING:
+                            The target distribution vessel is '{chosen_channel}'. Your output copy text MUST stay completely below {active_specs['char_max']} characters. Trim fat, be concise, and fit the frame.
                             
-                            LOCKED STRATEGIC CAMPAIGN DIRECTION: 
+                            🚨 FORBIDDEN LABELS:
+                            - Write purely from the individual user's specific perspective.
+                            - You must ABSOLUTELY NOT use, mention, or print the word 'Godzspeed' or refer to any marketing agency entity anywhere within your output layout.
+                            
+                            STRATEGIC CAMPAIGN CAMPAIGN UNDERLAY: 
                             {st.session_state.committed_campaign_data.get('architecture')}
                             
                             USER'S INITIAL CAMPAIGN INTENT: 
                             "{st.session_state.committed_campaign_data.get('intent')}"
                             
-                            🎯 BRAND_CONTENT_BLUEPRINTS COMPLIANCE CONSTRAINTS:
-                            - CATEGORY PILLAR: {chosen_pillar}
-                            - PLATFORM CHANNEL: {chosen_channel}
-                            - FORMAT STRUCTURE: {active_blueprint.get('medium_type')}
-                            - TARGET LENGTH: {active_blueprint.get('target_length')}
-                            - TONAL GUARDRAILS: {active_blueprint.get('tonal_guardrails')}
-                            - STRUCTURAL RULES: {active_blueprint.get('structural_rules')}
+                            🎯 ACTIVE COMPLIANCE MATRIX BLUEPRINT DIRECTIVES:
+                            - CATEGORY PILLAR CONTEXT: {chosen_pillar}
+                            - DISTRIBUTION CHANNEL: {chosen_channel}
+                            - BLUEPRINT FORMAT STRUCTURE: {active_blueprint.get('medium_type')}
+                            - BLUEPRINT TARGET LENGTH: {active_blueprint.get('target_length')}
+                            - BLUEPRINT TONAL LAWS: {active_blueprint.get('tonal_guardrails')}
+                            - BLUEPRINT STRUCTURAL RULES: {active_blueprint.get('structural_rules')}
+                            - MASTER INTEL BRAND PLAYBOOK: {soul_guide_context}
+                            
+                            OUTPUT VERBATIM SPECIFICATION: Provide the direct copy block text now. No introductions, no notes.
                             """
                             raw_out = get_soul_rebel_consultant("Draft Content Piece", prompt)
-                            # Hard Programmatic scrub before assigning value
                             st.session_state.active_content_suggestion = clean_display_text(raw_out)
                             st.rerun()
             with g_buttons[1]:
@@ -344,7 +348,7 @@ def run(user_id):
                     
                     if len(raw_suggestion) > active_specs['char_max']:
                         st.session_state.workspace_text = raw_suggestion[:active_specs['char_max']]
-                        st.warning(f"✂️ The generated copy was automatically truncated to fit the absolute {active_specs['char_max']} limit.")
+                        st.warning(f"✂ *The copy hit structural thresholds and was automatically truncated to stay compliant.*")
                     else:
                         st.session_state.workspace_text = raw_suggestion
                         
@@ -361,7 +365,6 @@ def run(user_id):
                 key=w_key,
                 help="Refine your copy body blocks here. Once satisfied, click Lock Workspace to enable the scan."
             )
-            # Programmatic sanitization filter running live on input string assignments
             st.session_state.workspace_text = re.sub(r"\bGodzspeed\b", "", edited_body, flags=re.IGNORECASE)
 
             c_length = len(st.session_state.workspace_text)
@@ -376,8 +379,8 @@ def run(user_id):
                     with st.spinner("Recalibrating narrative lines against layout specs..."):
                         refine_prompt = f"""
                         TASK: Revise the copy text based on user directions. Ensure text bounds fit rules for {chosen_channel}.
-                        🚨 AUTOMATIC HARD LENGTH CONTROL: You MUST compress the output to sit completely beneath {active_specs['char_max']} characters.
-                        CRITICAL CONSTRAINT: Focus strictly on the core theme. Do not invent outside narrative hooks or use the word 'Godzspeed'.
+                        🚨 AUTOMATIC TRUNCATION METRIC: You MUST compress the output to sit completely beneath {active_specs['char_max']} characters. Avoid advisory statements or summaries; return ONLY raw draft text.
+                        CRITICAL CONSTRAINT: Focus strictly on the core theme. Do not use the word 'Godzspeed'.
                         EXISTING BODY LAYOUT:\n{st.session_state.workspace_text}
                         """
                         refined_output = get_soul_rebel_consultant(chat_feedback, refine_prompt)
@@ -388,6 +391,7 @@ def run(user_id):
                         else:
                             st.session_state.workspace_text = refined_output
                             
+                        st.sidebar.success("Copy refined!")
                         st.session_state.guardian_rev += 1
                         st.rerun()
 
