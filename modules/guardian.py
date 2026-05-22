@@ -19,7 +19,12 @@ PLATFORM_LIMITS = {
 def load_content_calendar(user_id):
     """Fetches planned, drafted, and fully committed assets from database layers."""
     try:
-        response = supabase.table("brand_content_items").select("*").eq("user_id", user_id).order("publish_date").execute()
+        # Exclude our special campaign workspace row from showing up in the user's actual content timelines
+        response = supabase.table("brand_content_items")\
+            .select("*")\
+            .eq("user_id", user_id)\
+            .neq("title", "MASTER_CAMPAIGN_WORKSPACE")\
+            .order("publish_date").execute()
         return response.data if response.data else []
     except Exception as e:
         st.error(f"Error pulling calendar matrix rows: {e}")
@@ -49,32 +54,52 @@ def run(user_id):
     if "guardian_rev" not in st.session_state:
         st.session_state.guardian_rev = 0
 
-    # --- DYNAMIC INITIAL DATABASE RESUME CHECK MATRIX ---
+    # --- INITIAL LOAD ENGINE: Rehydrate from the existing Content Items table ---
+    soul_guide_context = ""
     try:
-        strategy_res = supabase.table("brand_strategy").select("soul_guide, campaign_meta").eq("user_id", user_id).single().execute()
+        # Fetch soul guide context from the strategy table
+        strategy_res = supabase.table("brand_strategy").select("soul_guide").eq("user_id", user_id).single().execute()
         soul_guide_context = strategy_res.data.get("soul_guide", "") if strategy_res.data else ""
-        db_campaign_meta = strategy_res.data.get("campaign_meta") if strategy_res.data else None
         
-        # If database campaign configuration elements exist, auto-hydrate session states seamlessly
-        if db_campaign_meta and not st.session_state.campaign_committed and "intent" in db_campaign_meta:
-            st.session_state.campaign_committed = True
-            st.session_state.committed_campaign_data = db_campaign_meta
-    except:
-        soul_guide_context = ""
-        db_campaign_meta = None
+        # Pull or verify step 1 progress using the unified campaign tracker row
+        workspace_row = supabase.table("brand_content_items")\
+            .select("*")\
+            .eq("user_id", user_id)\
+            .eq("title", "MASTER_CAMPAIGN_WORKSPACE")\
+            .execute()
+            
+        if workspace_row.data:
+            record = workspace_row.data[0]
+            status_flag = record.get("status", "")
+            
+            if status_flag == "approved_for_publishing" and not st.session_state.campaign_committed:
+                st.session_state.campaign_committed = True
+                st.session_state.committed_campaign_data = {
+                    "intent": record.get("current_body", ""),
+                    "architecture": record.get("suggested_body", "")
+                }
+            elif status_flag == "draft" and not st.session_state.campaign_suggestion:
+                st.session_state.campaign_suggestion = record.get("suggested_body", "")
+                # Store text area default fallback target
+                if "init_intent_fallback" not in st.session_state:
+                    st.session_state.init_intent_fallback = record.get("current_body", "")
+    except Exception as e:
+        pass
 
     # Layout Split: Central Operational Stepper on left vs Live Timeline on right
     col_main, col_sidebar = st.columns([5, 2], gap="large")
 
     with col_main:
         # =====================================================================
-        # STAGE 01: THE STRATEGIC CAMPAIGN BUILDER (WITH PERSISTENCE LOGIC)
+        # STAGE 01: THE STRATEGIC CAMPAIGN BUILDER (Zero-Migration Table Reuse)
         # =====================================================================
         st.markdown("## 🎯 Stage 1: Campaign Strategic Direction")
         
         if not st.session_state.campaign_committed:
+            fallback_text = st.session_state.get("init_intent_fallback", "")
             campaign_intent = st.text_area(
                 "Describe your campaign objective or initiative purpose:",
+                value=fallback_text,
                 placeholder="e.g., We are organizing a charity campaign to raise money for municipal services...",
                 help="Type what you want to accomplish. The system will figure out the marketing pillars and optimal distribution mix."
             )
@@ -114,12 +139,41 @@ def run(user_id):
                             ### 📱 Recommended Distribution Channels
                             (Map the user's exact concept into optimal platforms like LinkedIn, Substack, Facebook, etc., detailing exactly how the user's specific text should be configured for each channel)
                             """
-                            st.session_state.campaign_suggestion = get_soul_rebel_consultant("Draft Campaign Framework", prompt)
+                            suggestion_output = get_soul_rebel_consultant("Draft Campaign Framework", prompt)
+                            
+                            # REUSING CONTENT ITEMS TABLE: Save raw brainstorm with a 'draft' identifier flag
+                            sync_payload = {
+                                "user_id": user_id,
+                                "title": "MASTER_CAMPAIGN_WORKSPACE",
+                                "current_body": campaign_intent,
+                                "suggested_body": suggestion_output,
+                                "status": "draft",
+                                "category": "CAMPAIGN_SYSTEM",
+                                "platform": "SYSTEM_WORKBENCH",
+                                "publish_date": str(datetime.date.today())
+                            }
+                            try:
+                                check_row = supabase.table("brand_content_items").select("id").eq("user_id", user_id).eq("title", "MASTER_CAMPAIGN_WORKSPACE").execute()
+                                if check_row.data:
+                                    supabase.table("brand_content_items").update(sync_payload).eq("id", check_row.data[0]["id"]).execute()
+                                else:
+                                    supabase.table("brand_content_items").insert(sync_payload).execute()
+                            except:
+                                pass
+
+                            st.session_state.campaign_suggestion = suggestion_output
+                            st.session_state.init_intent_fallback = campaign_intent
                             st.rerun()
             
             with c_actions[1]:
                 if st.button("🔄 Reset Campaign", use_container_width=True):
+                    try:
+                        supabase.table("brand_content_items").delete().eq("user_id", user_id).eq("title", "MASTER_CAMPAIGN_WORKSPACE").execute()
+                    except:
+                        pass
                     st.session_state.campaign_suggestion = ""
+                    if "init_intent_fallback" in st.session_state:
+                        del st.session_state.init_intent_fallback
                     st.rerun()
 
             if st.session_state.campaign_suggestion:
@@ -127,19 +181,31 @@ def run(user_id):
                 st.write(st.session_state.campaign_suggestion)
                 
                 if st.button("🔥 Commit Strategy & Unlock Content Creation", use_container_width=True, type="primary"):
-                    meta_payload = {
+                    commit_payload = {
+                        "user_id": user_id,
+                        "title": "MASTER_CAMPAIGN_WORKSPACE",
+                        "current_body": campaign_intent,
+                        "suggested_body": st.session_state.campaign_suggestion,
+                        "status": "approved_for_publishing", # Changes status flags to lock Stage 1 down
+                        "category": "CAMPAIGN_SYSTEM",
+                        "platform": "SYSTEM_WORKBENCH",
+                        "publish_date": str(datetime.date.today())
+                    }
+                    try:
+                        check_row = supabase.table("brand_content_items").select("id").eq("user_id", user_id).eq("title", "MASTER_CAMPAIGN_WORKSPACE").execute()
+                        if check_row.data:
+                            supabase.table("brand_content_items").update(commit_payload).eq("id", check_row.data[0]["id"]).execute()
+                        else:
+                            supabase.table("brand_content_items").insert(commit_payload).execute()
+                    except:
+                        pass
+                        
+                    st.session_state.campaign_committed = True
+                    st.session_state.committed_campaign_data = {
                         "intent": campaign_intent,
                         "architecture": st.session_state.campaign_suggestion
                     }
-                    # FIXED: Instantly persist configuration metrics to database row to survive cache purges
-                    try:
-                        supabase.table("brand_strategy").update({"campaign_meta": meta_payload}).eq("user_id", user_id).execute()
-                    except Exception as e:
-                        st.warning(f"Database sync delayed but running: {e}")
-                        
-                    st.session_state.campaign_committed = True
-                    st.session_state.committed_campaign_data = meta_payload
-                    st.success("Strategic direction locked and saved safely to database profiles!")
+                    st.success("Strategic direction locked and saved safely to production table layers!")
                     time.sleep(1.0)
                     st.rerun()
         else:
@@ -147,9 +213,8 @@ def run(user_id):
             with st.expander("View Active Campaign Strategic Parameters"):
                 st.write(st.session_state.committed_campaign_data.get("architecture", ""))
             if st.button("🗑️ Scrap Strategy & Restart Campaign", type="secondary"):
-                # Clear local workspace state fields alongside cloud references
                 try:
-                    supabase.table("brand_strategy").update({"campaign_meta": None}).eq("user_id", user_id).execute()
+                    supabase.table("brand_content_items").delete().eq("user_id", user_id).eq("title", "MASTER_CAMPAIGN_WORKSPACE").execute()
                 except:
                     pass
                 st.session_state.campaign_committed = False
@@ -158,6 +223,8 @@ def run(user_id):
                 st.session_state.workspace_text = ""
                 st.session_state.active_content_suggestion = ""
                 st.session_state.compliance_report = None
+                if "init_intent_fallback" in st.session_state:
+                    del st.session_state.init_intent_fallback
                 st.rerun()
 
         st.write("---")
@@ -172,7 +239,6 @@ def run(user_id):
         elif not soul_guide_context:
             st.error("🚨 Master Soul Guide context not detected. Please finalize Phase 03: Illumination to populate strategic values.")
         else:
-            # PRELOADED PILLARS DIRECTLY FROM MASTER BLUEPRINT ENTRIES
             preloaded_pillars = [
                 "SECTION 1: BRAND IDENTITY",
                 "SECTION 2: BRAND POSITIONING",
@@ -188,7 +254,6 @@ def run(user_id):
                     help="Select which explicit core pillar area from your Phase 03 document to target for this content item."
                 )
             with g_col2:
-                # DYNAMIC ROADMAP BRIDGE: Feeds channels explicitly under the constraint parameters of the chosen pillar
                 chosen_channel = st.selectbox("Target Channel / Platform Matrix:", list(PLATFORM_LIMITS.keys()))
             
             active_specs = PLATFORM_LIMITS[chosen_channel]
@@ -209,7 +274,6 @@ def run(user_id):
                         st.error("Provide a working headline title to fuel the engine parameters context.")
                     else:
                         with st.spinner("Synthesizing copy parameters inside blueprint channels..."):
-                            # FIXED: Prompt explicitly maps chosen_pillar properties and loops channel specs natively
                             prompt = f"""
                             ROLE: Expert Asset Copywriter.
                             TASK: Draft high-engagement copy that strictly bridges the active campaign direction with the specific brand guide pillar rules.
