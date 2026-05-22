@@ -252,8 +252,15 @@ def run(user_id):
                     st.markdown(f"**Tonal Guardrails:** *{active_blueprint.get('tonal_guardrails', 'None')}*")
                     st.markdown(f"**Structural Rules:** *{active_blueprint.get('structural_rules', 'None')}*")
 
-            content_title = st.text_input("Asset Working Title:", placeholder="e.g., The Impact of Collective Movement")
+            content_title = st.text_input("Asset Working Title:", placeholder="e.g., Special Announcement: Help Us Make an Impact")
             publish_date = st.date_input("Target Publishing Window Date:", datetime.date.today())
+
+            # FIXED: NEW INJECTED USER DIRECTIVE FIELD FOR HIGH-FIDELITY COPY CONTROL
+            custom_generation_prompt = st.text_area(
+                "Specific Copywriting Instructions for this piece (Optional Guide Rails):",
+                placeholder="e.g., Write a high-urgency email blast asking our contacts to register or donate right now. Keep it direct and emotional...",
+                help="Type exactly what you want this specific piece of content to focus on, and the engine will build the copy based directly on your instructions."
+            )
 
             st.write(" ")
             
@@ -267,7 +274,18 @@ def run(user_id):
                         st.error("Missing selected blueprint matching key paths.")
                     else:
                         with st.spinner("Generating raw platform content asset copy..."):
-                            # PURE GENERATION COMMAND - ZERO STRATEGY, RAW DEPLOYABLE ASSET TEXT ONLY
+                            
+                            # Build the dynamic user command block if provided
+                            user_instruction_block = ""
+                            if custom_generation_prompt:
+                                user_instruction_block = f"""
+                                =======================================================================
+                                🚨 CRITICAL USER OPERATIONAL INSTRUCTIONS:
+                                You MUST directly prioritize and fulfill these copywriting requirements:
+                                "{custom_generation_prompt}"
+                                =======================================================================
+                                """
+
                             prompt = f"""
                             ROLE: Expert Direct-Response Copywriter.
                             TASK: Write the final, ready-to-publish raw body text for an asset titled: '{content_title}'.
@@ -276,6 +294,8 @@ def run(user_id):
                             - You must ONLY write and return the literal, deployable copy block for the channel '{chosen_channel}'.
                             - Do NOT output strategic outlines, introductory remarks, summaries, placeholder advice, meta commentary, notes, or execution tips. 
                             - Dive straight into the copy text immediately. If the target channel is an Email Blast, write the full cohesive email body. If it is a Facebook or LinkedIn post, output only the actual post caption copy with text hooks and matching formatting.
+                            
+                            {user_instruction_block}
                             
                             🚨 ABSOLUTELY FORBIDDEN LABELS:
                             - Never print, reference, or output the word 'Godzspeed'. Write from the individual user's perspective.
@@ -316,7 +336,6 @@ def run(user_id):
                 
                 if st.button("✅ Transfer Suggestion to Active Workspace", use_container_width=True):
                     raw_suggestion = st.session_state.active_content_suggestion
-                    # Fail-safe programmatic truncation to never break layouts
                     if len(raw_suggestion) > active_specs['char_max']:
                         st.session_state.workspace_text = raw_suggestion[:active_specs['char_max']]
                         st.warning(f"✂️ The generated copy was automatically sliced to fit the absolute {active_specs['char_max']} character ceiling.")
@@ -336,7 +355,6 @@ def run(user_id):
                 key=w_key,
                 help="Refine your raw copy body text blocks here."
             )
-            # Programmatic text scrubbing to protect input state from leaking strings
             st.session_state.workspace_text = re.sub(r"\bGodzspeed\b", "", edited_body, flags=re.IGNORECASE)
 
             c_length = len(st.session_state.workspace_text)
