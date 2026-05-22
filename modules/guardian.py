@@ -4,6 +4,39 @@ import time
 from utils.gemini_ai import get_soul_rebel_consultant
 from utils.supabase_db import supabase
 
+# =====================================================================
+# HARD PLATFORM API SPECIFICATIONS MATRIX
+# =====================================================================
+PLATFORM_LIMITS = {
+    "Facebook": {
+        "char_max": 5000,
+        "ideal_image": "1080 x 1080 px (Square) or 1200 x 628 px (Landscape)",
+        "aspect_ratio": "1:1 or 1.91:1",
+        "safe_zone": "Front-load primary hooks within the first 125 characters before the 'See More' truncation cutoff."
+    },
+    "Instagram": {
+        "char_max": 2200,
+        "ideal_image": "1080 x 1350 px (Portrait 4:5 Default) or 1080 x 1920 px (Reels 9:16)",
+        "aspect_ratio": "4:5 or 9:16",
+        "safe_zone": "For Reels/Stories, leave top 15% and bottom 20% clear of text overlays to protect against UI buttons."
+    },
+    "LinkedIn": {
+        "char_max": 3000,
+        "ideal_image": "1200 x 1200 px (Square) or 1080 x 1350 px (Mobile Carousel Document View)",
+        "aspect_ratio": "1:1 or 4:5",
+        "safe_zone": "Engage readers completely within the first 140-210 characters before truncation sets in."
+    },
+    "TikTok": {
+        "char_max": 2200,
+        "ideal_image": "1080 x 1920 px (Vertical Video/Carousel 9:16 Format)",
+        "aspect_ratio": "9:16 Vert",
+        "safe_zone": "Keep interactive text clear of the top 120px header and bottom 250px engagement bar rails."
+    },
+    "Website Blog": {"char_max": 99999, "ideal_image": "1200 x 630 px (OG Graph Header)", "aspect_ratio": "1.91:1", "safe_zone": "Standard SEO metadata guidelines apply."},
+    "Substack Blog": {"char_max": 99999, "ideal_image": "1200 x 600 px (Feature Banner Banner)", "aspect_ratio": "2:1", "safe_zone": "Optimized for continuous, clean newsletter reading streams."},
+    "Internal Intranet": {"char_max": 20000, "ideal_image": "Full Screen Responsive Banner", "aspect_ratio": "Variable Layout", "safe_zone": "Internal corporate network bounds apply."}
+}
+
 def load_blueprints():
     """Fetches strict content blueprints matrix from Supabase."""
     try:
@@ -115,13 +148,25 @@ def run(user_id):
             st.session_state.override_date = publish_date
 
         active_blueprint = next((bp for bp in blueprints if bp['category'] == selected_category and bp['platform'] == selected_platform), None)
+        plat_specs = PLATFORM_LIMITS.get(selected_platform, {"char_max": 5000, "ideal_image": "1080x1080", "aspect_ratio": "1:1", "safe_zone": "None"})
 
+        # Native Integration of API constraints right inside your expanded blueprint display
         if active_blueprint:
-            with st.expander("🔍 View Active Channel Blueprint Guardrails", expanded=False):
-                st.markdown(f"**Medium Format:** {active_blueprint['medium_type']}")
-                st.markdown(f"**Target Depth/Length:** {active_blueprint['target_length']}")
-                st.markdown(f"**Strict Tonal Rules:** *{active_blueprint['tonal_guardrails']}*")
-                st.markdown(f"**Strict Structural Mandates:** {active_blueprint['structural_rules']}")
+            with st.expander("🔍 View Active Channel Blueprint & Platform Constraints", expanded=True):
+                c_spec1, c_spec2 = st.columns(2)
+                with c_spec1:
+                    st.markdown("**📋 Strategy Directives**")
+                    st.markdown(f"- **Format:** {active_blueprint['medium_type']}")
+                    st.markdown(f"- **Target Depth:** {active_blueprint['target_length']}")
+                    st.markdown(f"- **Structural Rules:** {active_blueprint['structural_rules']}")
+                with c_spec2:
+                    st.markdown("**📱 Hard Platform API Specifications**")
+                    st.markdown(f"- **Max Character Limit:** `{plat_specs['char_max']:,}` characters")
+                    st.markdown(f"- **Ideal Resolution:** `{plat_specs['ideal_image']}`")
+                    st.markdown(f"- **Required Aspect Ratio:** `{plat_specs['aspect_ratio']}`")
+                st.write(" ")
+                st.markdown(f"⚠️ **Safe Zone Metric:** *{plat_specs['safe_zone']}*")
+                st.markdown(f"🎯 **Strict Tonal Guardrail:** *{active_blueprint['tonal_guardrails']}*")
 
         # DATA ENGINE SYNCHRONIZATION HANDSHAKE
         current_asset_key = f"{selected_platform}_{content_title}_{publish_date}"
@@ -152,7 +197,7 @@ def run(user_id):
         st.write("---")
 
         # =====================================================================
-        # STEP 2: BLUEPRINT COMPLIANT GENERATION
+        # STEP 2: HARDENED BLUEPRINT COMPLIANT GENERATION
         # =====================================================================
         st.markdown("### 💡 Step 2: Playbook Synthesis Suggestion")
         
@@ -163,6 +208,8 @@ def run(user_id):
         ):
             if not content_title:
                 st.error("Please fill in an Asset Working Title to provide contextual fuel for generation.")
+            elif not active_blueprint:
+                st.error("No configuration guardrails found for this selection combination.")
             else:
                 with st.spinner("Analyzing your Master Soul Guide and crafting blueprint-aligned copy..."):
                     try:
@@ -179,16 +226,23 @@ def run(user_id):
                         
                         CRITICAL FILTER: You must write purely from the user's specific perspective. Do NOT use, reference, or include the agency name 'Godzspeed' anywhere in your thought process, structural notes, or generated output copy.
                         
-                        STRICT COMPLIANCE MATRIX PARAMETERS:
-                        - Category: {selected_category} | Platform: {selected_platform}
-                        - Format Target: {active_blueprint['medium_type']} | Length Target: {active_blueprint['target_length']}
-                        - Tone Rules: {active_blueprint['tonal_guardrails']}
-                        - Structural Rules: {active_blueprint['structural_rules']}
+                        =======================================================================
+                        🔥 HARD PLATFORM & ARCHITECTURAL LIMITS — YOU MUST COMPLY VERBATIM:
+                        - CHANNEL PLATFORM: {selected_platform}
+                        - STRICT MAXIMUM CHARACTER LIMIT: {plat_specs['char_max']} characters (Do NOT exceed under any circumstance)
+                        - IDEAL TARGET RESOLUTION: {plat_specs['ideal_image']}
+                        - TARGET MEDIUM FORMAT: {active_blueprint['medium_type']}
+                        - TARGET DEPTH / LENGTH: {active_blueprint['target_length']}
+                        - STRICT TONAL LAWS: {active_blueprint['tonal_guardrails']}
+                        - MANDATORY STRUCTURAL RULES: {active_blueprint['structural_rules']}
+                        =======================================================================
                         
-                        MASTER TONAL PLAYBOOK CONTEXT:
+                        CRITICAL COPYWRITING DIRECTIVE: You must structure the copy layout to conform to the formatting laws of {selected_platform}. For instance, if writing for Instagram or TikTok, keep layout structured for vertical readability with crisp pacing. Ensure the overall character volume sits safely below {plat_specs['char_max']}.
+                        
+                        MASTER PLAYBOOK PERSPECTIVE CONTEXT:
                         {soul_guide_context}
                         
-                        OUTPUT: Provide only the fully-written copy block matching these parameters. Speak with poetic, commanding, elite 'hella smart' authority, focusing natively on strategic organizational communication, digital analytics frameworks, and marketing mix allocation model narratives.
+                        OUTPUT: Provide only the fully-written copy block matching these parameters. Speak with poetic, commanding, elite 'hella smart' authority, focusing natively on strategic organizational communication, digital analytics frameworks, and marketing mix allocation model narratives. Do not append explanatory introductions or postscript commentary.
                         """
                         suggestion = get_soul_rebel_consultant(f"Generate content for {content_title}", prompt)
                         st.session_state.guardian_suggestion = suggestion
@@ -231,13 +285,26 @@ def run(user_id):
         )
         st.session_state.workspace_text = edited_body
 
+        # Dynamic live counter to monitor real-time character caps
+        curr_len = len(edited_body)
+        if curr_len > plat_specs['char_max']:
+            st.error(f"❌ Platform Overflow: Current text spans `{curr_len:,}` characters. This breaks the structural limit of `{plat_specs['char_max']:,}` for {selected_platform}!")
+        else:
+            st.caption(f"📊 Volume Metrics: `{curr_len:,}` / `{plat_specs['char_max']:,}` allowed characters for {selected_platform}.")
+
         if st.session_state.workspace_text:
             user_feedback = st.chat_input("Ask the Guardian to rewrite, expand, or adjust tone parameters for this workspace...")
             if user_feedback:
                 with st.spinner("Recalibrating asset against the corporate blueprint..."):
                     refine_prompt = f"""
                     ROLE: Professional Brand Guardian.
-                    TASK: Revise the EXISTING TEXT based on the USER FEEDBACK. Keep tone strict: {active_blueprint['tonal_guardrails']}.
+                    TASK: Revise the EXISTING TEXT based on the USER FEEDBACK. 
+                    
+                    STRICT PARAMETER CONSTRAINT REFERENCE:
+                    - Keep tone strict: {active_blueprint['tonal_guardrails'] if active_blueprint else 'Professional'}
+                    - Follow structural rules: {active_blueprint['structural_rules'] if active_blueprint else 'Standard'}
+                    - Platform Maximum Limit: {plat_specs['char_max']} characters.
+                    
                     CRITICAL CONSTRAINT: Absolutely do not use or output the word 'Godzspeed'.
                     EXISTING TEXT:\n{edited_body}
                     """
@@ -249,7 +316,7 @@ def run(user_id):
         st.write("---")
 
         # =====================================================================
-        # STEP 4: HARDENED COMPLIANCE SCAN MECHANISM WITH ADAPTIVE JUSTIFICATION OVERRIDES
+        # STEP 4: HARDENED COMPLIANCE SCAN MECHANISM WITH PLATFORM INTEGRATION RULES
         # =====================================================================
         st.markdown("### 🛡️ Step 4: Brand Alignment & Compliance Gate")
         
@@ -267,17 +334,21 @@ def run(user_id):
                         soul_guide_context = strategy_res.data.get("soul_guide", "") if strategy_res.data else ""
                         
                         scan_prompt = f"""
-                        ROLE: Strict Brand Identity Compliance Auditor.
-                        TASK: Audit the copy block against absolute tactical positioning metrics and blueprint bounds.
+                        ROLE: Strict Brand Identity & Technical Channel Auditor.
+                        TASK: Audit the copy block against absolute tactical positioning metrics, channel blueprints, and platform parameters.
+                        
+                        HARD API LIMIT MANDATE:
+                        The active platform selection is '{selected_platform}'. If the total character volume of the provided text (`{curr_len}`) exceeds the absolute maximum threshold of `{plat_specs['char_max']}`, you MUST immediately issue a hard FAIL. 
                         
                         THEMATIC ALIGNMENT ENFORCEMENT FILTER: 
                         The primary focus of this asset must remain tightly linked to corporate strategy, digital distribution pipelines, strategic media analysis, marketing execution metrics, or executive communication frameworks. 
-                        If the asset working title or narrative text covers random consumer commodities, lifestyle hobbies, bicycles, or unaligned market sectors, you MUST immediately issue a hard fail standard on line 1. Do not bend rules or rationalize compliance for irrelevant topics.
+                        If the asset working title or narrative text covers random consumer commodities, lifestyle hobbies, bicycles, or unaligned market sectors, you MUST immediately issue a hard fail standard on line 1. Do not bend rules or rationalize compliance for irrelevant topics unless a custom context applies.
                         
                         CRITICAL CONSTRAINT: Do not look for, reference, or mention the name 'Godzspeed'.
                         
                         AUDIT SCOPE:
                         - Asset Title Focus: '{content_title}'
+                        - Platform Limits: {plat_specs['char_max']} chars Max | Resolution Standard: {plat_specs['ideal_image']}
                         - Tone Guide: {active_blueprint['tonal_guardrails']}
                         - Structural Demands: {active_blueprint['structural_rules']}
                         - Core Soul Guide: {soul_guide_context}
@@ -310,7 +381,7 @@ def run(user_id):
                     st.error("🚨 BRAND GUARDIAN AUDIT: FAILED COMPLIANCE")
                     st.info(report_text)
                     
-                    # NEW FEATURE: ADAPTIVE JUSTIFICATION OVERRIDE COMPONENT
+                    # ADAPTIVE JUSTIFICATION OVERRIDE COMPONENT
                     st.write("---")
                     st.markdown("#### 🛠️ Campaign Justification Matrix")
                     st.caption("If this asset covers an off-brand CSR initiative, charity drive, or special project (e.g., a bicycle ride fundraiser), explain the business purpose below to override the core scope block.")
@@ -331,16 +402,17 @@ def run(user_id):
                                     soul_guide_context = strategy_res.data.get("soul_guide", "") if strategy_res.data else ""
                                     
                                     override_prompt = f"""
-                                    ROLE: Adaptive Brand Identity Compliance Auditor.
-                                    TASK: Re-evaluate the previously failed text asset, taking into account the user's explicit business justification or fundraising exception rules.
+                                    ROLE: Adaptive Brand Identity & Technical Channel Auditor.
+                                    TASK: Re-evaluate the previously failed text asset, taking into account the user's explicit business justification and technical constraints.
                                     
                                     USER CAMPAIGN JUSTIFICATION/CONTEXT:
                                     {justification_context}
                                     
-                                    If the user's justification frames this off-brand topic (like a bicycle ride) as a legitimate, approved corporate initiative, corporate responsibility fundraiser, or strategic community project, you are authorized to grant a 'SCORE: PASS'. You must still ensure the execution style matches the core tonal guide rules.
+                                    If the user's justification frames this off-brand topic (like a bicycle ride) as a legitimate, approved corporate initiative, corporate responsibility fundraiser, or strategic community project, you are authorized to grant a 'SCORE: PASS' as long as the content sits under the hard platform character cap of `{plat_specs['char_max']}` and matches your core tone guide mechanics.
                                     
                                     AUDIT SCOPE:
                                     - Asset Title Focus: '{content_title}'
+                                    - Hard API Limit: {plat_specs['char_max']} Max Chars
                                     - Tone Guide: {active_blueprint['tonal_guardrails']}
                                     - Structural Demands: {active_blueprint['structural_rules']}
                                     - Core Soul Guide: {soul_guide_context}
@@ -353,163 +425,4 @@ def run(user_id):
                                     2. Follow with a markdown header titled '### 📊 Audit Breakdown Notes' detailing the override evaluation outcome.
                                     """
                                     override_report = get_soul_rebel_consultant("Override audit text", override_prompt)
-                                    st.session_state.compliance_report = override_report
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"Override processing error: {e}")
-
-        st.write("---")
-
-        # PIPELINE ACTIONS AND OPERATIONS
-        st.markdown("### 💾 Step 5: Commit to Pipeline")
-        b_col1, b_col2 = st.columns(2)
-        
-        payload = {
-            "user_id": user_id, "title": content_title,
-            "suggested_body": st.session_state.guardian_suggestion, "current_body": edited_body,
-            "category": selected_category, "platform": selected_platform,
-            "publish_date": str(publish_date), "guardian_notes": st.session_state.compliance_report
-        }
-        
-        with b_col1:
-            if st.button(
-                "💾 Save Progress as Draft", 
-                use_container_width=True,
-                help="Saves the current copy blocks as a draft on the layout board without locking the asset timeline down."
-            ):
-                if not content_title:
-                    st.error("Please provide an Asset Working Title before committing to the calendar data layers.")
-                else:
-                    with st.spinner("Locking draft to schedule line..."):
-                        payload["status"] = "draft"
-                        
-                        check_exist = supabase.table("brand_content_items").select("id")\
-                            .eq("user_id", user_id).eq("title", content_title).eq("platform", selected_platform).eq("publish_date", str(publish_date)).execute()
-                            
-                        if check_exist.data:
-                            supabase.table("brand_content_items").update(payload).eq("id", check_exist.data[0]["id"]).execute()
-                        else:
-                            supabase.table("brand_content_items").insert(payload).execute()
-                            
-                        st.success(f"Asset for {selected_platform} saved successfully as a Draft!")
-                        time.sleep(1)
-                        st.rerun()
-
-        with b_col2:
-            # First line parser logic validates strict pass evaluation parameters to toggle the pipeline lock
-            first_line = st.session_state.compliance_report.split("\n")[0] if st.session_state.compliance_report and "\n" in st.session_state.compliance_report else (st.session_state.compliance_report or "")
-            has_passed = st.session_state.compliance_report is not None and ("SCORE: PASS" in first_line or st.session_state.compliance_report.startswith("SCORE: PASS"))
-            
-            if st.button(
-                "🔥 Approve & Commit to Content Pipeline", 
-                use_container_width=True, 
-                disabled=not has_passed, 
-                type="primary",
-                help="Permanently locks this asset down as approved for scheduling. This button remains locked until the compliance scan returns a passing grade."
-            ):
-                with st.spinner("Locking verified asset into publication calendar..."):
-                    payload["status"] = "approved_for_publishing"
-                    
-                    check_exist = supabase.table("brand_content_items").select("id")\
-                        .eq("user_id", user_id).eq("title", content_title).eq("platform", selected_platform).eq("publish_date", str(publish_date)).execute()
-                        
-                    if check_exist.data:
-                        supabase.table("brand_content_items").update(payload).eq("id", check_exist.data[0]["id"]).execute()
-                    else:
-                        supabase.table("brand_content_items").insert(payload).execute()
-                        
-                    st.success("Asset cleared by Guardian and locked into active Content Calendar!")
-                    
-                    st.session_state.guardian_suggestion = ""
-                    st.session_state.workspace_text = ""
-                    st.session_state.compliance_report = None
-                    st.session_state.last_loaded_key = ""
-                    st.session_state.override_title = ""
-                    st.session_state.override_date = datetime.date.today()
-                    st.session_state.guardian_rev += 1
-                    time.sleep(1)
-                    st.rerun()
-
-    # =====================================================================
-    # RIGHT SIDEBAR COLUMN: THE SCHEDULING & ROLLOUT TIMELINE BAR
-    # =====================================================================
-    with col_sidebar:
-        st.markdown("### 📋 Omni Timeline")
-        st.caption("Active overview of pending and published operational campaign schedules across channels.")
-        st.write("---")
-        
-        calendar_data = load_content_calendar(user_id)
-        
-        if not calendar_data:
-            st.info("No content scheduled in the pipeline matrix yet.")
-        else:
-            st.markdown("#### 🚀 Scheduled for Release")
-            approved_items = [i for i in calendar_data if i['status'] == 'approved_for_publishing']
-            if not approved_items:
-                st.caption("No assets currently cleared for deployment.")
-            for item in approved_items:
-                with st.container(border=True):
-                    st.markdown(f"**🟢 {item['title']}**")
-                    st.caption(f"📅 **Go-Live:** {item['publish_date']}\n\n📱 **Platform:** {item['platform']}")
-                    
-                    with st.expander("View Cleared Text"):
-                        st.code(item['current_body'])
-                        st.write(" ")
-                        
-                        # MANAGEMENT ACTION TRAY FOR COMMITTED ITEMS
-                        m_col1, m_col2 = st.columns(2)
-                        with m_col1:
-                            if st.button("↩️ Edit Asset", key=f"revert_approved_{item['id']}", use_container_width=True, help="Revert status back to draft and load copy back into active editing workspace."):
-                                try:
-                                    supabase.table("brand_content_items").update({"status": "draft"}).eq("id", item['id']).execute()
-                                    
-                                    st.session_state.override_cat = item['category']
-                                    st.session_state.override_plat = item['platform']
-                                    st.session_state.override_title = item['title']
-                                    st.session_state.override_date = datetime.datetime.strptime(item['publish_date'], "%Y-%m-%d").date()
-                                    st.session_state.workspace_text = item['current_body']
-                                    st.session_state.guardian_suggestion = item['suggested_body'] or ""
-                                    st.session_state.compliance_report = item['guardian_notes']
-                                    st.session_state.last_loaded_key = f"{item['platform']}_{item['title']}_{item['publish_date']}"
-                                    
-                                    st.session_state.guardian_rev += 1
-                                    st.success("Reverted to draft!")
-                                    time.sleep(0.5)
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"Reversion failed: {e}")
-                                    
-                        with m_col2:
-                            if st.button("🗑️ Delete", key=f"delete_approved_{item['id']}", use_container_width=True, help="Permanently delete this approved item from the cloud calendar database."):
-                                try:
-                                    supabase.table("brand_content_items").delete().eq("id", item['id']).execute()
-                                    st.success("Deleted from pipeline!")
-                                    time.sleep(0.5)
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"Deletion failed: {e}")
-            
-            st.write(" ")
-            st.markdown("#### 🔍 Pending & Incomplete Drafts")
-            draft_items = [i for i in calendar_data if i['status'] == 'draft']
-            if not draft_items:
-                st.caption("No dynamic drafts sitting in queue.")
-            for item in draft_items:
-                with st.container(border=True):
-                    is_failed = item['guardian_notes'] and "SCORE: FAIL" in item['guardian_notes']
-                    badge = "🚨 Audit Flagged" if is_failed else "📝 Draft In-Progress"
-                    
-                    st.markdown(f"**{item['title']}**")
-                    st.caption(f"Status: *{badge}*\n\n📅 **Date:** {item['publish_date']} | 🛠️ {item['platform']}")
-                    
-                    if st.button("Load into Editor", key=f"sidebar_load_{item['id']}", use_container_width=True):
-                        st.session_state.override_cat = item['category']
-                        st.session_state.override_plat = item['platform']
-                        st.session_state.override_title = item['title']
-                        st.session_state.override_date = datetime.datetime.strptime(item['publish_date'], "%Y-%m-%d").date()
-                        st.session_state.workspace_text = item['current_body']
-                        st.session_state.guardian_suggestion = item['suggested_body'] or ""
-                        st.session_state.compliance_report = item['guardian_notes']
-                        st.session_state.last_loaded_key = f"{item['platform']}_{item['title']}_{item['publish_date']}"
-                        st.session_state.guardian_rev += 1
-                        st.rerun()
+                                    st.session_state.compliance_report = override
