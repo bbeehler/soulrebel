@@ -49,19 +49,26 @@ def run(user_id):
     if "guardian_rev" not in st.session_state:
         st.session_state.guardian_rev = 0
 
-    # Dynamic Strategy Fetch for Step 2 Handshaking
+    # --- DYNAMIC INITIAL DATABASE RESUME CHECK MATRIX ---
     try:
-        strategy_res = supabase.table("brand_strategy").select("soul_guide").eq("user_id", user_id).single().execute()
+        strategy_res = supabase.table("brand_strategy").select("soul_guide, campaign_meta").eq("user_id", user_id).single().execute()
         soul_guide_context = strategy_res.data.get("soul_guide", "") if strategy_res.data else ""
+        db_campaign_meta = strategy_res.data.get("campaign_meta") if strategy_res.data else None
+        
+        # If database campaign configuration elements exist, auto-hydrate session states seamlessly
+        if db_campaign_meta and not st.session_state.campaign_committed and "intent" in db_campaign_meta:
+            st.session_state.campaign_committed = True
+            st.session_state.committed_campaign_data = db_campaign_meta
     except:
         soul_guide_context = ""
+        db_campaign_meta = None
 
     # Layout Split: Central Operational Stepper on left vs Live Timeline on right
     col_main, col_sidebar = st.columns([5, 2], gap="large")
 
     with col_main:
         # =====================================================================
-        # STAGE 01: THE STRATEGIC CAMPAIGN BUILDER
+        # STAGE 01: THE STRATEGIC CAMPAIGN BUILDER (WITH PERSISTENCE LOGIC)
         # =====================================================================
         st.markdown("## 🎯 Stage 1: Campaign Strategic Direction")
         
@@ -120,12 +127,19 @@ def run(user_id):
                 st.write(st.session_state.campaign_suggestion)
                 
                 if st.button("🔥 Commit Strategy & Unlock Content Creation", use_container_width=True, type="primary"):
-                    st.session_state.campaign_committed = True
-                    st.session_state.committed_campaign_data = {
+                    meta_payload = {
                         "intent": campaign_intent,
                         "architecture": st.session_state.campaign_suggestion
                     }
-                    st.success("Strategic direction locked! Content creation terminal is now active.")
+                    # FIXED: Instantly persist configuration metrics to database row to survive cache purges
+                    try:
+                        supabase.table("brand_strategy").update({"campaign_meta": meta_payload}).eq("user_id", user_id).execute()
+                    except Exception as e:
+                        st.warning(f"Database sync delayed but running: {e}")
+                        
+                    st.session_state.campaign_committed = True
+                    st.session_state.committed_campaign_data = meta_payload
+                    st.success("Strategic direction locked and saved safely to database profiles!")
                     time.sleep(1.0)
                     st.rerun()
         else:
@@ -133,6 +147,11 @@ def run(user_id):
             with st.expander("View Active Campaign Strategic Parameters"):
                 st.write(st.session_state.committed_campaign_data.get("architecture", ""))
             if st.button("🗑️ Scrap Strategy & Restart Campaign", type="secondary"):
+                # Clear local workspace state fields alongside cloud references
+                try:
+                    supabase.table("brand_strategy").update({"campaign_meta": None}).eq("user_id", user_id).execute()
+                except:
+                    pass
                 st.session_state.campaign_committed = False
                 st.session_state.campaign_suggestion = ""
                 st.session_state.committed_campaign_data = {}
@@ -144,7 +163,7 @@ def run(user_id):
         st.write("---")
 
         # =====================================================================
-        # STAGE 02: BLUEPRINT CONTENT ENGINE (UNLOCKED BY STAGE 1)
+        # STAGE 02: BLUEPRINT CONTENT ENGINE (PILLAR-TO-CHANNEL DIRECT BRIDGE)
         # =====================================================================
         st.markdown("## 📝 Stage 2: Content Generation & Blueprint Tailoring")
         
@@ -169,7 +188,7 @@ def run(user_id):
                     help="Select which explicit core pillar area from your Phase 03 document to target for this content item."
                 )
             with g_col2:
-                # Dynamic Channel Picker mapping based on active selection filters
+                # DYNAMIC ROADMAP BRIDGE: Feeds channels explicitly under the constraint parameters of the chosen pillar
                 chosen_channel = st.selectbox("Target Channel / Platform Matrix:", list(PLATFORM_LIMITS.keys()))
             
             active_specs = PLATFORM_LIMITS[chosen_channel]
@@ -190,10 +209,10 @@ def run(user_id):
                         st.error("Provide a working headline title to fuel the engine parameters context.")
                     else:
                         with st.spinner("Synthesizing copy parameters inside blueprint channels..."):
-                            # HARDENED GENERATION PROMPT: Enforces strict topical compliance using structural refraction logic
+                            # FIXED: Prompt explicitly maps chosen_pillar properties and loops channel specs natively
                             prompt = f"""
                             ROLE: Expert Asset Copywriter.
-                            TASK: Draft high-engagement copy that strictly adheres to the locked campaign framework and preloaded brand pillar text context.
+                            TASK: Draft high-engagement copy that strictly bridges the active campaign direction with the specific brand guide pillar rules.
                             
                             =======================================================================
                             ⚠️ UNYIELDING BOUNDARY CONTROLS:
@@ -209,15 +228,21 @@ def run(user_id):
                             USER'S STATED INITIAL INTENT: 
                             "{st.session_state.committed_campaign_data.get('intent')}"
                             
-                            ACTIVE BRAND PILLAR CONTEXT SECTION: {chosen_pillar}
+                            =======================================================================
+                            🎯 CRITICAL PILLAR-TO-CHANNEL ALIGNMENT LAWS:
+                            - ACTIVE BRAND PILLAR FOCUS: {chosen_pillar}
+                            - TARGET DISTRIBUTION CHANNEL: {chosen_channel}
+                            - MAXIMUM ALLOCATED VOLUME CEILING: {active_specs['char_max']} characters (Do NOT cross)
+                            =======================================================================
+                            
+                            Isolate the elements of '{chosen_pillar}' inside the Master Playbook Text below. Braid those structural elements with your campaign intention text to generate an asset tailored specifically for formatting frameworks inside '{chosen_channel}'.
+                            
                             MASTER BRAND INTEL PLAYBOOK SOURCE CONTEXT:
                             {soul_guide_context}
                             
-                            TARGET DEPLOYMENT CHANNEL: {chosen_channel}
-                            MAX COPY VOLUME LENGTH: {active_specs['char_max']} characters.
                             WORKING TOPIC HEADLINE: {content_title}
                             
-                            OUTPUT: Return only the fully written, ready-to-publish raw copy body blocks. Align the formatting conventions precisely to {chosen_channel}. Do not append introduction remarks or conversational text.
+                            OUTPUT: Return only the fully written, ready-to-publish raw copy body blocks. Align formatting rules directly to {chosen_channel}. Do not append introduction remarks or conversational text.
                             """
                             st.session_state.active_content_suggestion = get_soul_rebel_consultant("Draft Content Piece", prompt)
                             st.rerun()
@@ -289,7 +314,7 @@ def run(user_id):
                 with st.spinner("Auditing thematic lines against active playbook rules..."):
                     scan_prompt = f"""
                     ROLE: Hardened Compliance Auditor & Channel Integrity Sweeper.
-                    TASK: Audit this text copy against absolute architectural limits and user campaign directives.
+                    TASK: Audit this text copy against absolute architectural limits, active pillars, and user campaign directives.
                     
                     CRITICAL COMPLIANCE FILTER: 
                     Verify that this copy matches the user's committed campaign focus topic perfectly. If the copy drifts into unrelated fields, irrelevant stories, or ignores the committed campaign architecture context, you must trigger a hard FAIL.
