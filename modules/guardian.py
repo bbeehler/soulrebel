@@ -48,6 +48,22 @@ def clean_display_text(architecture_text):
     text = re.sub(r"\bGodzspeed\b", "", text, flags=re.IGNORECASE)
     return text
 
+def invalidate_previous_compliance_scan():
+    """Wipes previous audit reports instantly when user text changes are detected."""
+    st.session_state.compliance_report = None
+    st.session_state.content_ready_for_scan = False
+
+@st.dialog("📋 Review Confirmed Asset Copy", width="large")
+def show_review_modal(item_title, item_body):
+    """Renders a clean, centered overlay window to safely inspect published copy scripts."""
+    st.markdown(f"### {item_title}")
+    st.caption("This copy block is locked and scheduled for publication deployment loops.")
+    st.write("---")
+    st.code(item_body, language="text")
+    st.write(" ")
+    if st.button("Close Viewer", use_container_width=True):
+        st.rerun()
+
 def run(user_id):
     st.title("🛡️ The Brand Campaign & Guardian Control")
     st.caption("From High-Level Campaign Formulation to Hard Omni-Channel Compliance Audits.")
@@ -69,8 +85,6 @@ def run(user_id):
         st.session_state.compliance_report = None
     if "content_ready_for_scan" not in st.session_state:
         st.session_state.content_ready_for_scan = False
-    if "guardian_rev" not in st.session_state:
-        st.session_state.guardian_rev = 0
 
     # --- REHYDRATE ACTIVE DATABASE SESSION WORKSPACE ---
     blueprints = load_blueprints()
@@ -128,10 +142,15 @@ def run(user_id):
                     else:
                         with st.spinner("Formulating campaign strategy matrix..."):
                             prompt = f"""
-                            ROLE: Independent Executive Consultant.
+                            ROLE: Independent Executive Consultant & Chief Marketing Architect.
                             TASK: Take the user's specific campaign objective and structure it into a clean distribution framework.
                             
-                            CRITICAL CONSTRAINT: You are ABSOLUTELY FORBIDDEN from using, referencing, or mentioning the name 'Godzspeed'. Write exclusively from the user's personal voice.
+                            🚨 CRITICAL CONSTRAINTS:
+                            - Write purely, directly, and exclusively from the individual user's personal voice.
+                            - You are ABSOLUTELY FORBIDDEN from using, referencing, naming, or mentioning the agency name 'Godzspeed' or any outside marketing agency entity anywhere in your text.
+                            - Ground all insights entirely within the provided Master Soul Guide document.
+                            - You must ONLY use, frame, and structure the exact core topic, objective, and campaign idea specified by the user below.
+                            - Do NOT expand, hallucinate, or generalize beyond what the user wrote.
                             
                             USER'S EXACT CAMPAIGN OBJECTIVE: "{campaign_intent}"
                             USER'S APPROVED SOUL GUIDE INTEL CONTEXT: {soul_guide_context}
@@ -199,7 +218,7 @@ def run(user_id):
                         "intent": campaign_intent,
                         "architecture": st.session_state.campaign_suggestion
                     }
-                    st.success("Strategic direction locked down and saved!")
+                    st.success("Strategic direction locked down and initialized smoothly!")
                     time.sleep(1.0)
                     st.rerun()
         else:
@@ -235,13 +254,15 @@ def run(user_id):
         else:
             available_categories = list(set([bp['category'] for bp in blueprints]))
             
+            is_locked_for_review = st.session_state.content_ready_for_scan
+            
             g_col1, g_col2 = st.columns(2)
             with g_col1:
-                chosen_pillar = st.selectbox("Active Brand Blueprint Category / Pillar:", available_categories)
+                chosen_pillar = st.selectbox("Active Brand Blueprint Category / Pillar:", available_categories, disabled=is_locked_for_review)
             
             filtered_platforms = [bp['platform'] for bp in blueprints if bp['category'] == chosen_pillar]
             with g_col2:
-                chosen_channel = st.selectbox("Target Publishing Platform / Channel:", filtered_platforms if filtered_platforms else list(PLATFORM_LIMITS.keys()))
+                chosen_channel = st.selectbox("Target Publishing Platform / Channel:", filtered_platforms if filtered_platforms else list(PLATFORM_LIMITS.keys()), disabled=is_locked_for_review)
             
             active_blueprint = next((bp for bp in blueprints if bp['category'] == chosen_pillar and bp['platform'] == chosen_channel), None)
             active_specs = PLATFORM_LIMITS.get(chosen_channel, {"char_max": 3000, "ideal_image": "1080x1080", "aspect_ratio": "1:1"})
@@ -252,13 +273,13 @@ def run(user_id):
                     st.markdown(f"**Tonal Guardrails:** *{active_blueprint.get('tonal_guardrails', 'None')}*")
                     st.markdown(f"**Structural Rules:** *{active_blueprint.get('structural_rules', 'None')}*")
 
-            content_title = st.text_input("Asset Working Title:", placeholder="e.g., Special Announcement: Help Us Make an Impact")
-            publish_date = st.date_input("Target Publishing Window Date:", datetime.date.today())
+            content_title = st.text_input("Asset Working Title:", placeholder="e.g., Special Announcement: Help Us Make an Impact", disabled=is_locked_for_review)
+            publish_date = st.date_input("Target Publishing Window Date:", datetime.date.today(), disabled=is_locked_for_review)
 
             custom_generation_prompt = st.text_area(
                 "Specific Copywriting Instructions for this piece (Optional Guide Rails):",
-                placeholder="e.g., Write a high-urgency email blast asking our contacts to register or donate right now. Keep it direct and emotional...",
-                help="Type exactly what you want this specific piece of content to focus on, and the engine will build the copy based directly on your instructions."
+                placeholder="e.g., Write a high-urgency email blast asking our contacts to register or donate right now...",
+                disabled=is_locked_for_review
             )
 
             st.write(" ")
@@ -266,7 +287,7 @@ def run(user_id):
             # --- GENERATION WORKFLOW ACTIONS ---
             g_buttons = st.columns(2)
             with g_buttons[0]:
-                if st.button("✨ Draft Custom Copy Suggestion", use_container_width=True, type="primary"):
+                if st.button("✨ Draft Custom Copy Suggestion", use_container_width=True, type="primary", disabled=is_locked_for_review):
                     if not content_title:
                         st.error("Provide a working title headline to fuel the generation parameters.")
                     elif not active_blueprint:
@@ -276,11 +297,9 @@ def run(user_id):
                             user_instruction_block = ""
                             if custom_generation_prompt:
                                 user_instruction_block = f"""
-                                =======================================================================
                                 🚨 CRITICAL USER OPERATIONAL INSTRUCTIONS:
                                 You MUST directly prioritize and fulfill these copywriting requirements:
                                 "{custom_generation_prompt}"
-                                =======================================================================
                                 """
 
                             prompt = f"""
@@ -288,33 +307,22 @@ def run(user_id):
                             TASK: Write the final, ready-to-publish raw body text for an asset titled: '{content_title}'.
                             
                             🚨 ABSOLUTELY UNYIELDING MASTER CONTENT LAW:
-                            - You must ONLY write and return the literal, deployable copy block for the channel '{chosen_channel}'.
-                            - Do NOT output strategic outlines, introductory remarks, summaries, placeholder advice, meta commentary, notes, or execution tips. 
-                            - Dive straight into the copy text immediately. If the target channel is an Email Blast, write the full cohesive email body. If it is a Facebook or LinkedIn post, output only the actual post caption copy with text hooks and matching formatting.
+                            - ONLY return the literal, deployable copy block for '{chosen_channel}'.
+                            - NO outlines, NO preambles, NO notes. Just the raw draft copy.
                             
                             {user_instruction_block}
                             
-                            🚨 ABSOLUTELY FORBIDDEN LABELS:
-                            - Never print, reference, or output the word 'Godzspeed'. Write from the individual user's perspective.
-                            
                             🚨 STRICT LENGTH CAPS:
-                            Your output copy block text MUST be strictly below {active_specs['char_max']} total characters. Keep it concise.
+                            Output MUST be strictly below {active_specs['char_max']} total characters.
                             
-                            ACTIVE CAMPAIGN FRAMEWORK UNDERLAY:
-                            {st.session_state.committed_campaign_data.get('architecture')}
+                            ACTIVE CAMPAIGN FRAMEWORK: {st.session_state.committed_campaign_data.get('architecture')}
+                            USER INTENT: "{st.session_state.committed_campaign_data.get('intent')}"
                             
-                            USER'S INITIAL CAMPAIGN INTENT:
-                            "{st.session_state.committed_campaign_data.get('intent')}"
-                            
-                            BLUEPRINT PARAMETER GUARDRAILS:
-                            - PILLAR CATEGORY: {chosen_pillar}
-                            - PLATFORM/CHANNEL: {chosen_channel}
-                            - FORMAT STRUCTURE: {active_blueprint.get('medium_type')}
-                            - TONAL GUARDRAILS: {active_blueprint.get('tonal_guardrails')}
-                            - STRUCTURAL RULES: {active_blueprint.get('structural_rules')}
-                            - STRATEGIC SOUL GUIDE CONTEXT: {soul_guide_context}
-                            
-                            OUTPUT VERBATIM SPECIFICATION: Return ONLY the raw deployable copy block text now. No commentary, no headings, no chit-chat.
+                            BLUEPRINT PARAMETERS:
+                            - PILLAR: {chosen_pillar}
+                            - PLATFORM: {chosen_channel}
+                            - TONAL/STRUCTURAL LAWS: {active_blueprint.get('tonal_guardrails')} | {active_blueprint.get('structural_rules')}
+                            - BRAND GUIDE: {soul_guide_context}
                             """
                             raw_out = get_soul_rebel_consultant("Draft Content Piece", prompt)
                             st.session_state.active_content_suggestion = clean_display_text(raw_out)
@@ -333,67 +341,59 @@ def run(user_id):
                 
                 if st.button("✅ Transfer Suggestion to Active Workspace", use_container_width=True):
                     raw_suggestion = st.session_state.active_content_suggestion
-                    
-                    # Apply truncation fail-safe
                     if len(raw_suggestion) > active_specs['char_max']:
                         final_text = raw_suggestion[:active_specs['char_max']]
+                        st.warning(f"✂️ The copy was automatically sliced to fit the {active_specs['char_max']} limit.")
                     else:
                         final_text = raw_suggestion
                     
-                    # FIXED: Explicitly seed the active widget state value behind the scenes to avoid refresh drops
-                    w_key = f"workspace_rev_layer_{st.session_state.guardian_rev}"
-                    st.session_state[w_key] = final_text
                     st.session_state.workspace_text = final_text
-                    
                     st.session_state.active_content_suggestion = ""
+                    invalidate_previous_compliance_scan()
                     st.rerun()
 
             # --- EDITING CANVAS ---
             st.write(" ")
-            w_key = f"workspace_rev_layer_{st.session_state.guardian_rev}"
             edited_body = st.text_area(
                 "Active Composition Canvas:",
                 value=st.session_state.workspace_text,
                 height=300,
-                key=w_key,
+                key="guardian_workspace_canvas_field",
+                on_change=invalidate_previous_compliance_scan,
+                disabled=is_locked_for_review,
                 help="Refine your raw copy body text blocks here."
             )
             st.session_state.workspace_text = re.sub(r"\bGodzspeed\b", "", edited_body, flags=re.IGNORECASE)
 
             c_length = len(st.session_state.workspace_text)
             if c_length > active_specs['char_max']:
-                st.error(f"⚠️ Platform Overflow: Copy scales to `{c_length}` characters. This breaks the hard `{active_specs['char_max']}` threshold for {chosen_channel}!")
+                st.error(f"⚠️ Platform Overflow: `{c_length}` / `{active_specs['char_max']}` chars!")
             else:
-                st.caption(f"Volume Tracker: `{c_length}` / `{active_specs['char_max']}` maximum characters for {chosen_channel}.")
+                st.caption(f"Volume Tracker: `{c_length}` / `{active_specs['char_max']}` characters.")
 
-            if st.session_state.workspace_text:
+            if st.session_state.workspace_text and not is_locked_for_review:
                 chat_feedback = st.chat_input("Ask the controller to rewrite, extend, or trim this text...")
                 if chat_feedback:
                     with st.spinner("Refining asset text body..."):
                         refine_prompt = f"""
-                        TASK: Revise the copy text based on user directions. Ensure text bounds fit rules for {chosen_channel}.
-                        🚨 AUTOMATIC TRUNCATION METRIC: You MUST compress the output to sit completely beneath {active_specs['char_max']} characters. Avoid advisory statements or summaries; return ONLY raw draft text.
-                        CRITICAL CONSTRAINT: Focus strictly on the core theme. Do not use the word 'Godzspeed'.
-                        EXISTING BODY LAYOUT:\n{st.session_state.workspace_text}
+                        TASK: Revise the copy. Ensure text bounds fit {chosen_channel} rules.
+                        🚨 COMPRESS to beneath {active_specs['char_max']} characters. Return ONLY raw draft text.
+                        CRITICAL CONSTRAINT: Do not use the word 'Godzspeed'.
+                        EXISTING BODY:\n{st.session_state.workspace_text}
                         """
                         refined_output = get_soul_rebel_consultant(chat_feedback, refine_prompt)
-                        refined_output = clean_display_text(refined_output)
-                        
-                        if len(refined_output) > active_specs['char_max']:
-                            final_refined = refined_output[:active_specs['char_max']]
-                        else:
-                            final_refined = refined_output
-                        
-                        # Increment revision index and preload next canvas state layout parameters
-                        st.session_state.guardian_rev += 1
-                        next_key = f"workspace_rev_layer_{st.session_state.guardian_rev}"
-                        st.session_state[next_key] = final_refined
-                        st.session_state.workspace_text = final_refined
+                        st.session_state.workspace_text = clean_display_text(refined_output)
+                        invalidate_previous_compliance_scan()
                         st.rerun()
 
-                if st.button("🔒 Lock Workspace & Proceed to Compliance Scan", use_container_width=True):
+                if st.button("🔒 Lock Workspace & Proceed to Compliance Scan", use_container_width=True, disabled=(c_length == 0 or c_length > active_specs['char_max'])):
                     st.session_state.content_ready_for_scan = True
-                    st.success("Workspace locked. Stage 3 Compliance Gate is now authorized to run.")
+                    st.success("Workspace locked. Stage 3 Compliance Gate is now authorized.")
+                    st.rerun()
+            elif is_locked_for_review:
+                if st.button("🔓 Unlock Workspace to Make Adjustments", use_container_width=True):
+                    st.session_state.content_ready_for_scan = False
+                    st.session_state.compliance_report = None
                     st.rerun()
 
         st.write("---")
@@ -406,33 +406,20 @@ def run(user_id):
         if not st.session_state.content_ready_for_scan:
             st.caption("🔒 *Complete your workspace composition steps above and lock down composition to clear the compliance pathways.*")
         else:
-            st.warning(f"**Target System Rule Check:** Auditing copy against {chosen_channel} blueprint rules.")
+            st.warning(f"**Target System Rule Check:** Auditing copy against {chosen_channel} rules.")
             
             if st.button("🔍 Execute Brand Soul Alignment Scan", use_container_width=True, type="primary"):
                 with st.spinner("Auditing thematic lines against active playbook rules..."):
                     scan_prompt = f"""
                     ROLE: Strict Independent Identity & Channel Integrity Sweeper.
-                    TASK: Audit this text copy against absolute architectural limits, active database blueprints, and user campaign directives.
+                    TASK: Audit this text copy against architectural limits and directives.
                     
-                    CRITICAL COMPLIANCE FILTER: Verify that this copy matches the user's committed campaign focus topic perfectly. If it drifts, FAIL it.
-                    HARD PLATFORM CONSTRAINT MANDATE: If the character volume (`{c_length}`) exceeds `{active_specs['char_max']}`, FAIL it.
-                    🚨 CRITICAL CONSTRAINT: Absolutely do not look for, mention, or print the name 'Godzspeed'. If it appears, fail the audit immediately.
+                    🚨 CRITICAL: Do not look for, mention, or print 'Godzspeed'. If it appears, fail the audit.
                     
-                    📐 BRAND CONTENT BLUEPRINT LAWS TO AUDIT AGAINST:
-                    - MATRIC CATEGORY: {chosen_pillar}
-                    - CHANNEL FORMAT: {chosen_channel}
-                    - TONAL LAWS DETECTED: {active_blueprint.get('tonal_guardrails') if active_blueprint else 'None'}
-                    - STRUCTURAL RULES DETECTED: {active_blueprint.get('structural_rules') if active_blueprint else 'None'}
+                    LAWS: {active_blueprint.get('tonal_guardrails')} | {active_blueprint.get('structural_rules')}
+                    TEXT: {st.session_state.workspace_text}
                     
-                    LOCKED CAMPAIGN BLUEPRINT ARCHITECTURE: {st.session_state.committed_campaign_data.get('architecture')}
-                    CORE SYSTEM APPROVED BRAND GUIDE CONTEXT: {soul_guide_context}
-                    
-                    TEXT TO AUDIT:
-                    {st.session_state.workspace_text}
-                    
-                    OUTPUT LAYOUT FORMAT RULES: Your return sequence parameters must match this format structure:
-                    Line 1 must contain exactly either 'SCORE: PASS' or 'SCORE: FAIL'.
-                    Follow with a markdown heading titled '### 📊 Compliance Diagnostic Summary Notes' and outline structural breakdowns explaining the positioning or character-count violation reasons.
+                    OUTPUT: Line 1 must be 'SCORE: PASS' or 'SCORE: FAIL'. Follow with structural summary.
                     """
                     audit_res = get_soul_rebel_consultant("Verify Asset Integrity", scan_prompt)
                     st.session_state.compliance_report = re.sub(r"\bGodzspeed\b", "[CENSORED]", audit_res, flags=re.IGNORECASE)
@@ -440,8 +427,7 @@ def run(user_id):
 
             if st.session_state.compliance_report:
                 report_string = st.session_state.compliance_report
-                first_line = report_string.split("\n")[0] if "\n" in report_string else report_string
-                is_pass = "SCORE: PASS" in first_line or report_string.startswith("SCORE: PASS")
+                is_pass = "SCORE: PASS" in report_string
                 
                 if is_pass:
                     st.success("🎉 BRAND GUARDIAN GATEKEEPER: POSITIONING MATRIX CLEARED (PASSED)")
@@ -463,110 +449,45 @@ def run(user_id):
                 p_buttons = st.columns(2)
                 with p_buttons[0]:
                     if st.button("💾 Save Progress as Draft Room Item", use_container_width=True):
-                        with st.spinner("Pushing metrics to database lines..."):
+                        with st.spinner("Pushing metrics..."):
                             payload["status"] = "draft"
                             exist_check = supabase.table("brand_content_items").select("id").eq("user_id", user_id).eq("title", content_title).eq("platform", chosen_channel).eq("publish_date", str(publish_date)).execute()
                             if exist_check.data:
                                 supabase.table("brand_content_items").update(payload).eq("id", exist_check.data[0]["id"]).execute()
                             else:
                                 supabase.table("brand_content_items").insert(payload).execute()
-                            
-                            st.success("Draft saved successfully!")
+                            st.success("Draft saved!")
                             time.sleep(1)
                             st.rerun()
                 with p_buttons[1]:
                     if st.button("🚀 Approve & Lock for Publication Rollout", use_container_width=True, type="primary", disabled=not is_pass):
-                        with st.spinner("Locking validated asset to calendar matrix..."):
+                        with st.spinner("Locking validated asset..."):
                             payload["status"] = "approved_for_publishing"
                             exist_check = supabase.table("brand_content_items").select("id").eq("user_id", user_id).eq("title", content_title).eq("platform", chosen_channel).eq("publish_date", str(publish_date)).execute()
                             if exist_check.data:
                                 supabase.table("brand_content_items").update(payload).eq("id", exist_check.data[0]["id"]).execute()
                             else:
                                 supabase.table("brand_content_items").insert(payload).execute()
-                            
                             st.session_state.active_content_suggestion = ""
                             st.session_state.workspace_text = ""
                             st.session_state.compliance_report = None
                             st.session_state.content_ready_for_scan = False
-                            st.success("Asset pushed to live operational schedule timeline!")
+                            st.success("Asset pushed to timeline!")
                             time.sleep(1)
                             st.rerun()
 
     # =====================================================================
-    # RIGHT SIDEBAR TIMELINE ENGINE
+    # SIDEBAR ENGINE
     # =====================================================================
     with col_sidebar:
         st.markdown("### 📅 Active Production Timelines")
-        st.caption("Manage or re-edit items within your strategy stream.")
-        st.write("---")
-        
         calendar_data = load_content_calendar(user_id)
         
-        if not calendar_data:
-            st.info("Your tactical rollout timeline pipeline is currently empty.")
-        else:
-            st.markdown("#### 🚀 Scheduled for Release")
-            approved_items = [i for i in calendar_data if i['status'] == 'approved_for_publishing']
-            if not approved_items:
-                st.caption("No assets currently locked for deployment loops.")
-            for item in approved_items:
-                with st.container(border=True):
-                    st.markdown(f"**🟢 {item['title']}**")
-                    st.caption(f"📅 **Rollout:** {item['publish_date']} | 📱 **Platform:** {item['platform']}")
-                    
-                    with st.expander("Review Confirmed Copy"):
-                        st.code(item['current_body'])
-                        st.write(" ")
-                        
-                        m1, m2 = st.columns(2)
-                        with m1:
-                            if st.button("↩️ Re-Edit", key=f"revert_pub_{item['id']}", use_container_width=True):
-                                supabase.table("brand_content_items").update({"status": "draft"}).eq("id", item['id']).execute()
-                                st.session_state.campaign_committed = True
-                                st.session_state.override_cat = item['category']
-                                st.session_state.override_plat = item['platform']
-                                st.session_state.override_title = item['title']
-                                st.session_state.override_date = datetime.datetime.strptime(item['publish_date'], "%Y-%m-%d").date()
-                                st.session_state.workspace_text = item['current_body']
-                                st.session_state.compliance_report = None  
-                                st.session_state.content_ready_for_scan = False
-                                st.session_state.guardian_rev += 1
-                                st.rerun()
-                        with m2:
-                            if st.button("🗑️ Delete", key=f"del_pub_{item['id']}", use_container_width=True):
-                                supabase.table("brand_content_items").delete().eq("id", item['id']).execute()
-                                st.rerun()
-
-            st.write(" ")
-            st.markdown("#### 📝 Workspace Vault Drafts")
-            draft_items = [i for i in calendar_data if i['status'] == 'draft']
-            if not draft_items:
-                st.caption("No work-in-progress drafts sitting inside repository tracks.")
-            for item in draft_items:
-                with st.container(border=True):
-                    st.markdown(f"**🗂️ {item['title']}**")
-                    st.caption(f"📅 **Target:** {item['publish_date']} | 🛠️ **Platform:** {item['platform']}")
-                    
-                    d_actions = st.columns(2)
-                    with d_actions[0]:
-                        if st.button("📂 Load & Edit", key=f"load_draft_item_{item['id']}", use_container_width=True):
-                            st.session_state.campaign_committed = True
-                            st.session_state.override_cat = item['category']
-                            st.session_state.override_plat = item['platform']
-                            st.session_state.override_title = item['title']
-                            st.session_state.override_date = datetime.datetime.strptime(item['publish_date'], "%Y-%m-%d").date()
-                            
-                            # Seed the active revision block on manual sidebar draft loading
-                            w_key = f"workspace_rev_layer_{st.session_state.guardian_rev}"
-                            st.session_state[w_key] = item['current_body']
-                            st.session_state.workspace_text = item['current_body']
-                            
-                            st.session_state.active_content_suggestion = item['suggested_body'] or ""
-                            st.session_state.compliance_report = item['guardian_notes']
-                            st.session_state.content_ready_for_scan = True if item['guardian_notes'] else False
-                            st.session_state.guardian_rev += 1
-                            st.rerun()
-                    with d_actions[1]:
-                        if st.button("🗑️ Delete Draft", key=f"del_draft_item_{item['id']}", use_container_width=True):
-                            supabase.table("brand_content_items").delete().eq("id", item['id']).execute()
-                            st.rerun()
+        for item in [i for i in calendar_data if i['status'] == 'approved_for_publishing']:
+            with st.container(border=True):
+                st.markdown(f"**🟢 {item['title']}**")
+                if st.button("🔍 Review Confirmed Copy", key=f"rev_{item['id']}", use_container_width=True):
+                    show_review_modal(item['title'], item['current_body'])
+                if st.button("↩️ Re-Edit", key=f"revert_{item['id']}", use_container_width=True):
+                    supabase.table("brand_content_items").update({"status": "draft"}).eq("id", item['id']).execute()
+                    st.rerun()
