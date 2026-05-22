@@ -41,10 +41,14 @@ def load_content_calendar(user_id):
         return []
 
 def clean_display_text(architecture_text):
-    """Removes the backend data payload block from showing up in the user display field."""
+    """Removes backend payload blocks and scrubs any forbidden agency terms."""
     if not architecture_text:
         return ""
-    return re.sub(r"\[PILLARS_DATA_START\].*?\[PILLARS_DATA_END\]", "", architecture_text, flags=re.DOTALL).strip()
+    # Strip backend system parameters
+    text = re.sub(r"\[PILLARS_DATA_START\].*?\[PILLARS_DATA_END\]", "", architecture_text, flags=re.DOTALL).strip()
+    # HARD FAILURE CENSOR: Erases any structural agency leaks automatically
+    text = re.sub(r"\bGodzspeed\b", "", text, flags=re.IGNORECASE)
+    return text
 
 def run(user_id):
     st.title("🛡️ The Brand Campaign & Guardian Control")
@@ -77,6 +81,9 @@ def run(user_id):
         strategy_res = supabase.table("brand_strategy").select("soul_guide").eq("user_id", user_id).single().execute()
         soul_guide_context = strategy_res.data.get("soul_guide", "") if strategy_res.data else ""
         
+        # Scrub master guide text of raw agency titles right out of the data block on load
+        soul_guide_context = re.sub(r"\bGodzspeed\b", "", soul_guide_context, flags=re.IGNORECASE)
+        
         workspace_row = supabase.table("brand_content_items")\
             .select("*")\
             .eq("user_id", user_id)\
@@ -90,13 +97,13 @@ def run(user_id):
             if status_flag == "approved_for_publishing" and not st.session_state.campaign_committed:
                 st.session_state.campaign_committed = True
                 st.session_state.committed_campaign_data = {
-                    "intent": record.get("current_body", ""),
-                    "architecture": record.get("suggested_body", "")
+                    "intent": clean_display_text(record.get("current_body", "")),
+                    "architecture": clean_display_text(record.get("suggested_body", ""))
                 }
             elif status_flag == "draft" and not st.session_state.campaign_suggestion:
-                st.session_state.campaign_suggestion = record.get("suggested_body", "")
+                st.session_state.campaign_suggestion = clean_display_text(record.get("suggested_body", ""))
                 if "init_intent_fallback" not in st.session_state:
-                    st.session_state.init_intent_fallback = record.get("current_body", "")
+                    st.session_state.init_intent_fallback = clean_display_text(record.get("current_body", ""))
     except Exception:
         pass
 
@@ -129,15 +136,12 @@ def run(user_id):
                             ROLE: Independent Executive Consultant & Chief Marketing Architect.
                             TASK: Take the user's specific campaign objective and structure it into a clean, execution-ready channel distribution framework.
                             
-                            🚨 CRITICAL NEGATIVE CONSTRAINT — FORBIDDEN REFERENCES:
-                            - You must write purely, directly, and exclusively from the individual user's personal voice.
+                            🚨 CRITICAL CONSTRAINTS:
+                            - Write purely, directly, and exclusively from the individual user's personal voice.
                             - You are ABSOLUTELY FORBIDDEN from using, referencing, naming, or mentioning the agency name 'Godzspeed' or any outside marketing agency entity anywhere in your text.
                             - Ground all insights entirely within the provided Master Soul Guide document.
-                            
-                            ⚠️ UNYIELDING CORE COMMANDS:
                             - You must ONLY use, frame, and structure the exact core topic, objective, and campaign idea specified by the user below.
-                            - You are ABSOLUTELY BANNED from introducing outside concepts, tangent industries, extra creative initiatives, or peripheral sub-topics. 
-                            - Do NOT expand, hallucinate, or generalize beyond what the user wrote. Your job is to package their exact idea into strategic channels, not to invent a new one.
+                            - Do NOT expand, hallucinate, or generalize beyond what the user wrote.
                             
                             USER'S EXACT CAMPAIGN OBJECTIVE: "{campaign_intent}"
                             USER'S APPROVED SOUL GUIDE INTEL CONTEXT: {soul_guide_context}
@@ -153,6 +157,7 @@ def run(user_id):
                             (List exactly which platforms from this selection are required: Facebook, Instagram, LinkedIn, TikTok, Website Blog, Substack Blog)
                             """
                             suggestion_output = get_soul_rebel_consultant("Draft Campaign Framework", prompt)
+                            suggestion_output = clean_display_text(suggestion_output)
                             
                             sync_payload = {
                                 "user_id": user_id, "title": "MASTER_CAMPAIGN_WORKSPACE",
@@ -186,7 +191,7 @@ def run(user_id):
 
             if st.session_state.campaign_suggestion:
                 st.info("### 📋 Recommended Campaign Architecture Matrix")
-                st.write(clean_display_text(st.session_state.campaign_suggestion))
+                st.write(st.session_state.campaign_suggestion)
                 
                 if st.button("🔥 Commit Strategy & Unlock Content Creation", use_container_width=True, type="primary"):
                     commit_payload = {
@@ -215,7 +220,7 @@ def run(user_id):
         else:
             st.success("✅ Campaign Strategy Committed & Locked Into Memory.")
             with st.expander("View Active Campaign Strategic Parameters"):
-                st.write(clean_display_text(st.session_state.committed_campaign_data.get("architecture", "")))
+                st.write(st.session_state.committed_campaign_data.get("architecture", ""))
             if st.button("🗑️ Scrap Strategy & Restart Campaign", type="secondary"):
                 try:
                     supabase.table("brand_content_items").delete().eq("user_id", user_id).eq("title", "MASTER_CAMPAIGN_WORKSPACE").execute()
@@ -234,7 +239,7 @@ def run(user_id):
         st.write("---")
 
         # =====================================================================
-        # STAGE 02: DYNAMIC BLUEPRINT CONTENT ENGINE (AUTOMATIC HARD LIMIT TRUNCATION)
+        # STAGE 02: DYNAMIC BLUEPRINT CONTENT ENGINE
         # =====================================================================
         st.markdown("## 📝 Stage 2: Content Generation & Blueprint Tailoring")
         
@@ -293,22 +298,19 @@ def run(user_id):
                         st.error("Missing selected blueprint matching key paths.")
                     else:
                         with st.spinner("Synthesizing copy parameters inside blueprint channels..."):
-                            # UNCOMPROMISING AI INSTRUCTIONS ENFORCING THE HARD CAP CEILING
                             prompt = f"""
                             ROLE: Expert Asset Copywriter.
                             TASK: Draft high-engagement copy that strictly bridges the active campaign direction with the specific brand guide blueprint rules.
                             
-                            🚨 CRITICAL GEOMETRIC LIMIT REQUIREMENT:
-                            The selected delivery vehicle is '{chosen_channel}'. Your output block MUST stay completely below {active_specs['char_max']} total characters. 
-                            This is an unyielding technical limit. If your text runs long, you break the platform container. Write tightly, summarize complex elements, and count your output length to remain strictly compliant.
+                            🚨 HARD GEOMETRIC LIMIT REQUIREMENT:
+                            The selected delivery vehicle is '{chosen_channel}'. Your output block MUST stay completely below {active_specs['char_max']} total characters.
                             
-                            🚨 HARD CORE MIGRATION COMPLIANCE — FORBIDDEN LABELS:
+                            🚨 FORBIDDEN AGENCY LABELS:
                             - You are an individual professional voice writing content for your personal digital platform.
                             - You must ABSOLUTELY NOT use, mention, or print the word 'Godzspeed' or refer to any marketing agency entity anywhere within your copy block or layout syntax. 
-                            - Failure to comply breaks brand alignment entirely.
                             
                             LOCKED STRATEGIC CAMPAIGN DIRECTION: 
-                            {clean_display_text(st.session_state.committed_campaign_data.get('architecture'))}
+                            {st.session_state.committed_campaign_data.get('architecture')}
                             
                             USER'S INITIAL CAMPAIGN INTENT: 
                             "{st.session_state.committed_campaign_data.get('intent')}"
@@ -321,7 +323,9 @@ def run(user_id):
                             - TONAL GUARDRAILS: {active_blueprint.get('tonal_guardrails')}
                             - STRUCTURAL RULES: {active_blueprint.get('structural_rules')}
                             """
-                            st.session_state.active_content_suggestion = get_soul_rebel_consultant("Draft Content Piece", prompt)
+                            raw_out = get_soul_rebel_consultant("Draft Content Piece", prompt)
+                            # Hard Programmatic scrub before assigning value
+                            st.session_state.active_content_suggestion = clean_display_text(raw_out)
                             st.rerun()
             with g_buttons[1]:
                 if st.button("❌ Clear & Restart Draft", use_container_width=True):
@@ -338,10 +342,9 @@ def run(user_id):
                 if st.button("✅ Transfer Suggestion to Active Workspace", use_container_width=True):
                     raw_suggestion = st.session_state.active_content_suggestion
                     
-                    # HARD FAIL-SAFE PROGRAMMATIC TRUNCATION SLICE: Protects canvas from any overflow character leaks
                     if len(raw_suggestion) > active_specs['char_max']:
                         st.session_state.workspace_text = raw_suggestion[:active_specs['char_max']]
-                        st.warning(f"✂️ The generated copy ran long and was automatically truncated to fit the absolute {active_specs['char_max']} limit for {chosen_channel}.")
+                        st.warning(f"✂️ The generated copy was automatically truncated to fit the absolute {active_specs['char_max']} limit.")
                     else:
                         st.session_state.workspace_text = raw_suggestion
                         
@@ -358,9 +361,10 @@ def run(user_id):
                 key=w_key,
                 help="Refine your copy body blocks here. Once satisfied, click Lock Workspace to enable the scan."
             )
-            st.session_state.workspace_text = edited_body
+            # Programmatic sanitization filter running live on input string assignments
+            st.session_state.workspace_text = re.sub(r"\bGodzspeed\b", "", edited_body, flags=re.IGNORECASE)
 
-            c_length = len(edited_body)
+            c_length = len(st.session_state.workspace_text)
             if c_length > active_specs['char_max']:
                 st.error(f"⚠️ Platform Overflow: Copy scales to `{c_length}` characters. This breaks the hard `{active_specs['char_max']}` threshold for {chosen_channel}!")
             else:
@@ -372,16 +376,13 @@ def run(user_id):
                     with st.spinner("Recalibrating narrative lines against layout specs..."):
                         refine_prompt = f"""
                         TASK: Revise the copy text based on user directions. Ensure text bounds fit rules for {chosen_channel}.
-                        
-                        🚨 AUTOMATIC HARD LENGTH CONTROL:
-                        You MUST compress the output to sit completely beneath the maximum threshold of {active_specs['char_max']} characters. Avoid wordiness.
-                        
+                        🚨 AUTOMATIC HARD LENGTH CONTROL: You MUST compress the output to sit completely beneath {active_specs['char_max']} characters.
                         CRITICAL CONSTRAINT: Focus strictly on the core theme. Do not invent outside narrative hooks or use the word 'Godzspeed'.
-                        EXISTING BODY LAYOUT:\n{edited_body}
+                        EXISTING BODY LAYOUT:\n{st.session_state.workspace_text}
                         """
                         refined_output = get_soul_rebel_consultant(chat_feedback, refine_prompt)
+                        refined_output = clean_display_text(refined_output)
                         
-                        # Apply programmatic slice to conversation stream revisions as well
                         if len(refined_output) > active_specs['char_max']:
                             st.session_state.workspace_text = refined_output[:active_specs['char_max']]
                         else:
@@ -413,13 +414,9 @@ def run(user_id):
                     ROLE: Strict Independent Identity & Channel Integrity Sweeper.
                     TASK: Audit this text copy against absolute architectural limits, active database blueprints, and user campaign directives.
                     
-                    CRITICAL COMPLIANCE FILTER: 
-                    Verify that this copy matches the user's committed campaign focus topic perfectly. If the copy drifts into unrelated fields, irrelevant stories, or ignores the committed campaign architecture context, you must trigger a hard FAIL.
-                    
-                    HARD PLATFORM CONSTRAINT MANDATE:
-                    If the total character volume of the provided text (`{c_length}`) exceeds the platform limit threshold of `{active_specs['char_max']}`, you MUST immediately issue a hard FAIL.
-                    
-                    🚨 CRITICAL CONSTRAINT: Absolutely do not look for, mention, or print the name 'Godzspeed'. If that agency name appears anywhere in the user text canvas, fail the audit immediately.
+                    CRITICAL COMPLIANCE FILTER: Verify that this copy matches the user's committed campaign focus topic perfectly. If it drifts, FAIL it.
+                    HARD PLATFORM CONSTRAINT MANDATE: If the character volume (`{c_length}`) exceeds `{active_specs['char_max']}`, FAIL it.
+                    🚨 CRITICAL CONSTRAINT: Absolutely do not look for, mention, or print the name 'Godzspeed'. If it appears, fail the audit immediately.
                     
                     📐 BRAND CONTENT BLUEPRINT LAWS TO AUDIT AGAINST:
                     - MATRIC CATEGORY: {chosen_pillar}
@@ -427,20 +424,18 @@ def run(user_id):
                     - TONAL LAWS DETECTED: {active_blueprint.get('tonal_guardrails') if active_blueprint else 'None'}
                     - STRUCTURAL RULES DETECTED: {active_blueprint.get('structural_rules') if active_blueprint else 'None'}
                     
-                    LOCKED CAMPAIGN BLUEPRINT ARCHITECTURE:
-                    {clean_display_text(st.session_state.committed_campaign_data.get('architecture'))}
-                    
-                    USER CAMPAIGN FOCUS PILLAR: {chosen_pillar}
+                    LOCKED CAMPAIGN BLUEPRINT ARCHITECTURE: {st.session_state.committed_campaign_data.get('architecture')}
                     CORE SYSTEM APPROVED BRAND GUIDE CONTEXT: {soul_guide_context}
                     
                     TEXT TO AUDIT:
-                    {edited_body}
+                    {st.session_state.workspace_text}
                     
                     OUTPUT LAYOUT FORMAT RULES: Your return sequence parameters must match this format structure:
                     Line 1 must contain exactly either 'SCORE: PASS' or 'SCORE: FAIL'.
                     Follow with a markdown heading titled '### 📊 Compliance Diagnostic Summary Notes' and outline structural breakdowns explaining the positioning or character-count violation reasons.
                     """
-                    st.session_state.compliance_report = get_soul_rebel_consultant("Verify Asset Integrity", scan_prompt)
+                    audit_res = get_soul_rebel_consultant("Verify Asset Integrity", scan_prompt)
+                    st.session_state.compliance_report = re.sub(r"\bGodzspeed\b", "[CENSORED]", audit_res, flags=re.IGNORECASE)
                     st.rerun()
 
             if st.session_state.compliance_report:
@@ -460,7 +455,7 @@ def run(user_id):
                 
                 payload = {
                     "user_id": user_id, "title": content_title,
-                    "suggested_body": st.session_state.active_content_suggestion, "current_body": edited_body,
+                    "suggested_body": st.session_state.active_content_suggestion, "current_body": st.session_state.workspace_text,
                     "category": chosen_pillar, "platform": chosen_channel,
                     "publish_date": str(publish_date), "guardian_notes": report_string
                 }
