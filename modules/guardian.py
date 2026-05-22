@@ -4,7 +4,9 @@ import time
 from utils.gemini_ai import get_soul_rebel_consultant
 from utils.supabase_db import supabase
 
-# Hard platform requirements for continuous validation layers
+# =====================================================================
+# HARD PLATFORM API SPECIFICATIONS MATRIX
+# =====================================================================
 PLATFORM_LIMITS = {
     "Facebook": {"char_max": 5000, "ideal_image": "1080 x 1080 px", "aspect_ratio": "1:1"},
     "Instagram": {"char_max": 2200, "ideal_image": "1080 x 1350 px (4:5 Portrait)", "aspect_ratio": "4:5"},
@@ -59,7 +61,7 @@ def run(user_id):
         if not st.session_state.campaign_committed:
             campaign_intent = st.text_area(
                 "Describe your campaign objective or initiative purpose:",
-                placeholder="e.g., We are organizing a charity bicycle ride ride campaign to raise money for municipal mental health programs...",
+                placeholder="e.g., We are organizing a charity bicycle ride campaign to raise money for municipal mental health programs...",
                 help="Type what you want to accomplish. The system will figure out the marketing pillars and optimal distribution mix."
             )
             
@@ -70,26 +72,40 @@ def run(user_id):
                         st.error("Please provide an initialization objective first.")
                     else:
                         with st.spinner("Formulating channel mix matrix strategies..."):
-                            # Grab user context to ground the execution
                             try:
                                 strategy_res = supabase.table("brand_strategy").select("soul_guide").eq("user_id", user_id).single().execute()
                                 context_soul = strategy_res.data.get("soul_guide", "") if strategy_res.data else ""
                             except:
                                 context_soul = ""
 
+                            # HARDENED CAMPAIGN PROMPT: Enforces absolute boundary constraints on user concept
                             prompt = f"""
-                            ROLE: Chief Marketing Officer & Campaign Architect.
-                            TASK: Take the user's campaign objective and build a comprehensive campaign blueprint.
+                            ROLE: Chief Marketing Officer & Strict Campaign Architect.
+                            TASK: Take the user's specific campaign objective and structure it into a clean, execution-ready channel distribution framework.
                             
-                            MANDATE: Completely avoid the word 'Godzspeed'.
+                            =======================================================================
+                            ⚠️ UNYIELDING CORE COMMANDS:
+                            - You must ONLY use, frame, and structure the exact core topic, objective, and campaign idea specified by the user below.
+                            - You are ABSOLUTELY BANNED from introducing outside concepts, tangent industries, extra creative initiatives, or peripheral sub-topics. 
+                            - Do NOT expand, hallucinate, or generalize beyond what the user wrote. Your job is to package their exact idea into strategic channels, not to invent a new one.
+                            - Completely omit and never output the word 'Godzspeed'.
+                            =======================================================================
                             
-                            OBJECTIVE: {campaign_intent}
-                            SOUL PERSONA REBEL CONTEXT: {context_soul}
+                            USER'S EXACT CAMPAIGN OBJECTIVE: 
+                            "{campaign_intent}"
                             
-                            OUTPUT FORMAT: Present a clear strategic direction layout:
-                            1. EXECUTIVE SUMMARY: Clear overview of the narrative approach.
-                            2. BRAND PILLARS: Define exactly which marketing pillars are activated.
-                            3. DISTRIBUTION CHANNELS: List the recommended platforms (Facebook, Instagram, LinkedIn, TikTok, Substack, etc.) and state the purpose for each.
+                            USER'S STRATEGIC BRAND IDENTITY CONTEXT: 
+                            {context_soul}
+                            
+                            OUTPUT FORMAT: Present the structured framework matching these exact headers:
+                            ### 📋 Executive Summary
+                            (A concise strategic distillation focusing purely on the execution of the user's exact stated objective)
+                            
+                            ### 🗂️ Activated Brand Pillars
+                            (Identify which organizational or marketing pillars are directly engaged by this exact campaign idea)
+                            
+                            ### 📱 Recommended Distribution Channels
+                            (Map the user's exact concept into optimal platforms like LinkedIn, Substack, Facebook, etc., detailing exactly how the user's specific text should be configured for each channel)
                             """
                             st.session_state.campaign_suggestion = get_soul_rebel_consultant("Draft Campaign Framework", prompt)
                             st.rerun()
@@ -141,6 +157,11 @@ def run(user_id):
             with g_col2:
                 chosen_channel = st.selectbox("Target Channel / Platform Matrix:", list(PLATFORM_LIMITS.keys()))
             
+            active_specs = PLATFORM_LIMITS[chosen_channel]
+            with st.expander("📱 View Active Platform Layout Constraints", expanded=True):
+                st.markdown(f"- **Hard Character Limit:** `{active_specs['char_max']:,}` characters")
+                st.markdown(f"- **Target Resolution / Layout:** `{active_specs['ideal_image']}` (`{active_specs['aspect_ratio']}` Aspect)")
+
             content_title = st.text_input("Asset Working Title:", placeholder="e.g., The Impact of Collective Movement")
             publish_date = st.date_input("Target Publishing Window Date:", datetime.date.today())
 
@@ -154,20 +175,30 @@ def run(user_id):
                         st.error("Provide a working headline title to fuel the engine parameters context.")
                     else:
                         with st.spinner("Synthesizing copy parameters inside blueprint channels..."):
-                            specs = PLATFORM_LIMITS[chosen_channel]
                             prompt = f"""
                             ROLE: Expert Asset Copywriter.
-                            TASK: Draft high-engagement copy matching the active campaign direction framework.
+                            TASK: Draft high-engagement copy that strictly adheres to the locked campaign framework.
                             
-                            CRITICAL LAWS: Do NOT output the word 'Godzspeed'.
+                            =======================================================================
+                            ⚠️ UNYIELDING BOUNDARY CONTROLS:
+                            - You are ONLY permitted to write about the exact campaign strategy framework and core topic defined below.
+                            - Do NOT invent hooks, stories, variables, or angles outside of this explicit text block. 
+                            - Your output copy must completely focus on the specific initiative details provided by the user.
+                            - Absolutely do NOT include, output, or use the word 'Godzspeed'.
+                            =======================================================================
                             
-                            CAMPAIGN BLUEPRINT DIRECTIVE: {st.session_state.committed_campaign_data.get('architecture')}
+                            LOCKED STRATEGIC CAMPAIGN MATRIX: 
+                            {st.session_state.committed_campaign_data.get('architecture')}
+                            
+                            USER'S STATED INITIAL INTENT: 
+                            "{st.session_state.committed_campaign_data.get('intent')}"
+                            
                             SPECIFIC PILLAR TARGET: {chosen_pillar}
                             TARGET DEPLOYMENT CHANNEL: {chosen_channel}
-                            MAX COPY VOLUME LENGTH: {specs['char_max']} characters.
+                            MAX COPY VOLUME LENGTH: {active_specs['char_max']} characters.
                             WORKING TOPIC HEADLINE: {content_title}
                             
-                            OUTPUT: Return only the fully written ready-to-publish raw copy body blocks. Match the communication format layout of {chosen_channel} perfectly.
+                            OUTPUT: Return only the fully written, ready-to-publish raw copy body blocks. Align the formatting conventions precisely to {chosen_channel}. Do not append introduction remarks or conversational text.
                             """
                             st.session_state.active_content_suggestion = get_soul_rebel_consultant("Draft Content Piece", prompt)
                             st.rerun()
@@ -199,12 +230,11 @@ def run(user_id):
             )
             st.session_state.workspace_text = edited_body
 
-            specs = PLATFORM_LIMITS[chosen_channel]
             c_length = len(edited_body)
-            if c_length > specs['char_max']:
-                st.error(f"⚠️ Platform Overflow: Copy scales to `{c_length}` characters. This breaks the hard `{specs['char_max']}` threshold for {chosen_channel}!")
+            if c_length > active_specs['char_max']:
+                st.error(f"⚠️ Platform Overflow: Copy scales to `{c_length}` characters. This breaks the hard `{active_specs['char_max']}` threshold for {chosen_channel}!")
             else:
-                st.caption(f"Volume Tracker: `{c_length}` / `{specs['char_max']}` maximum characters for {chosen_channel}.")
+                st.caption(f"Volume Tracker: `{c_length}` / `{active_specs['char_max']}` maximum characters for {chosen_channel}.")
 
             # COLLABORATIVE CONVERSATIONAL REFINEMENT REPAINT ENGINE
             if st.session_state.workspace_text:
@@ -213,7 +243,7 @@ def run(user_id):
                     with st.spinner("Recalibrating narrative lines against layout specs..."):
                         refine_prompt = f"""
                         TASK: Revise the copy text based on user directions. Ensure text bounds fit rules for {chosen_channel}.
-                        CRITICAL SAFETY FILTER: Do not print 'Godzspeed'.
+                        CRITICAL CONSTRAINT: Focus strictly on the core theme. Do not invent outside narrative hooks or use the word 'Godzspeed'.
                         EXISTING BODY LAYOUT:\n{edited_body}
                         """
                         st.session_state.workspace_text = get_soul_rebel_consultant(chat_feedback, refine_prompt)
@@ -234,10 +264,9 @@ def run(user_id):
         st.markdown("## 🛡️ Stage 3: Brand Guardian Compliance Gate")
         
         if not st.session_state.content_ready_for_scan:
-            st.caption("🔒 *Complete your workspace compilation steps above and lock down composition to clear the compliance pathways.*")
+            st.caption("🔒 *Complete your workspace composition steps above and lock down composition to clear the compliance pathways.*")
         else:
-            specs = PLATFORM_LIMITS[chosen_channel]
-            st.warning(f"**Target System Rule Check:** Auditing copy against {chosen_channel} rules (Limit: `{specs['char_max']}` chars) under the context of the active campaign profile parameters.")
+            st.warning(f"**Target System Rule Check:** Auditing copy against {chosen_channel} rules (Limit: `{active_specs['char_max']}` chars) under the context of the active campaign profile parameters.")
             
             if st.button("🔍 Execute Brand Soul Alignment Scan", use_container_width=True, type="primary"):
                 with st.spinner("Auditing thematic lines against active playbook rules..."):
@@ -248,16 +277,25 @@ def run(user_id):
                         soul_guide_context = ""
 
                     scan_prompt = f"""
-                    ROLE: Hardened Compliance Auditor.
+                    ROLE: Hardened Compliance Auditor & Channel Integrity Sweeper.
                     TASK: Audit this text copy against absolute architectural limits and user campaign directives.
+                    
+                    CRITICAL COMPLIANCE FILTER: 
+                    Verify that this copy matches the user's committed campaign focus topic perfectly. If the copy drifts into unrelated fields, irrelevant stories, or ignores the committed campaign architecture context, you must trigger a hard FAIL.
+                    
+                    HARD PLATFORM CONSTRAINT MANDATE:
+                    If the total character volume of the provided text (`{c_length}`) exceeds the platform limit threshold of `{active_specs['char_max']}`, you MUST immediately issue a hard FAIL.
                     
                     MANDATE: Completely omit the word 'Godzspeed'.
                     
-                    ACTIVE CAMPAIGN BLUEPRINT CONTEXT DIRECTION:
+                    LOCKED CAMPAIGN BLUEPRINT ARCHITECTURE:
                     {st.session_state.committed_campaign_data.get('architecture')}
                     
+                    USER'S STATED INITIAL INTENT: 
+                    "{st.session_state.committed_campaign_data.get('intent')}"
+                    
                     USER CAMPAIGN FOCUS PILLAR: {chosen_pillar}
-                    TECHNICAL PLATFORM CONSTRAINTS: {chosen_channel} (Max Chars: {specs['char_max']})
+                    TECHNICAL PLATFORM CONSTRAINTS: {chosen_channel} (Max Chars: {active_specs['char_max']})
                     CORE SYSTEM BRAND GUIDE INTEGRITY CONTEXT: {soul_guide_context}
                     
                     TEXT TO AUDIT:
@@ -294,7 +332,6 @@ def run(user_id):
 
                 p_buttons = st.columns(2)
                 with p_buttons[0]:
-                    # Drafts are unlocked regardless of pass/fail grading profiles
                     if st.button("💾 Save Progress as Draft Room Item", use_container_width=True):
                         with st.spinner("Pushing record metrics to database lines..."):
                             payload["status"] = "draft"
@@ -308,7 +345,6 @@ def run(user_id):
                             time.sleep(1)
                             st.rerun()
                 with p_buttons[1]:
-                    # Publishing pipelines remain locked until an absolute passing validation status profile is generated
                     if st.button("🚀 Approve & Lock for Publication Rollout", use_container_width=True, type="primary", disabled=not is_pass):
                         with st.spinner("Locking validated assets down to production lines..."):
                             payload["status"] = "approved_for_publishing"
@@ -318,7 +354,6 @@ def run(user_id):
                             else:
                                 supabase.table("brand_content_items").insert(payload).execute()
                             
-                            # Clean tracking configurations back to default states upon total pipeline commits
                             st.session_state.active_content_suggestion = ""
                             st.session_state.workspace_text = ""
                             st.session_state.compliance_report = None
@@ -355,8 +390,7 @@ def run(user_id):
                         
                         m1, m2 = st.columns(2)
                         with m1:
-                            if st.button("↩️ Re-Edit", key=f"revert_pub_{item['id']}", use_container_width=True, help="Force status down to draft step to unlock editor changes."):
-                                # APPROVED ITEMS RE-EDIT RULES: Return item profile indicators back to active editor spaces, drop status down to draft, and enforce a fresh scan rule requirement
+                            if st.button("↩️ Re-Edit", key=f"revert_pub_{item['id']}", use_container_width=True):
                                 supabase.table("brand_content_items").update({"status": "draft"}).eq("id", item['id']).execute()
                                 st.session_state.campaign_committed = True
                                 st.session_state.override_cat = item['category']
@@ -364,7 +398,7 @@ def run(user_id):
                                 st.session_state.override_title = item['title']
                                 st.session_state.override_date = datetime.datetime.strptime(item['publish_date'], "%Y-%m-%d").date()
                                 st.session_state.workspace_text = item['current_body']
-                                st.session_state.compliance_report = None  # Wipes old compliance records, requiring a fresh audit scan step
+                                st.session_state.compliance_report = None  
                                 st.session_state.content_ready_for_scan = False
                                 st.session_state.guardian_rev += 1
                                 st.rerun()
@@ -383,10 +417,9 @@ def run(user_id):
                     st.markdown(f"**🗂️ {item['title']}**")
                     st.caption(f"📅 **Target Window:** {item['publish_date']} | 🛠️ **Platform:** {item['platform']}")
                     
-                    # DIRECT CRUD SUPPORT ENGINE FOR DRAFT COLUMNS
                     d_actions = st.columns(2)
                     with d_actions[0]:
-                        if st.button("📂 Load & Edit", key=f"load_draft_item_{item['id']}", use_container_width=True, help="Loads this draft item back onto your active workspace terminal steps."):
+                        if st.button("📂 Load & Edit", key=f"load_draft_item_{item['id']}", use_container_width=True):
                             st.session_state.campaign_committed = True
                             st.session_state.override_cat = item['category']
                             st.session_state.override_plat = item['platform']
