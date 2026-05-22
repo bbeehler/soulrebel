@@ -234,7 +234,7 @@ def run(user_id):
         st.write("---")
 
         # =====================================================================
-        # STAGE 02: DYNAMIC BLUEPRINT CONTENT ENGINE
+        # STAGE 02: DYNAMIC BLUEPRINT CONTENT ENGINE (AUTOMATIC CAP TRUNCATION)
         # =====================================================================
         st.markdown("## 📝 Stage 2: Content Generation & Blueprint Tailoring")
         
@@ -297,6 +297,9 @@ def run(user_id):
                             ROLE: Expert Asset Copywriter.
                             TASK: Draft high-engagement copy that strictly bridges the active campaign direction with the specific brand guide blueprint rules.
                             
+                            🚨 HARD AUTOMATIC LIMIT MANDATE:
+                            The target channel is '{chosen_channel}'. You MUST ensure the generated output text block does not exceed {active_specs['char_max']} characters. Be concise, eliminate verbose phrasing, and stay strictly below this layout ceiling.
+                            
                             🚨 HARD CORE MIGRATION COMPLIANCE — FORBIDDEN LABELS:
                             - You are an individual professional voice writing content for your personal digital platform.
                             - You must ABSOLUTELY NOT use, mention, or print the word 'Godzspeed' or refer to any marketing agency entity anywhere within your copy block or layout syntax. 
@@ -315,7 +318,6 @@ def run(user_id):
                             - TARGET LENGTH: {active_blueprint.get('target_length')}
                             - TONAL GUARDRAILS: {active_blueprint.get('tonal_guardrails')}
                             - STRUCTURAL RULES: {active_blueprint.get('structural_rules')}
-                            - CHARACTER VOLUME LIMIT: {active_specs['char_max']} characters (Do NOT cross)
                             """
                             st.session_state.active_content_suggestion = get_soul_rebel_consultant("Draft Content Piece", prompt)
                             st.rerun()
@@ -359,6 +361,10 @@ def run(user_id):
                     with st.spinner("Recalibrating narrative lines against layout specs..."):
                         refine_prompt = f"""
                         TASK: Revise the copy text based on user directions. Ensure text bounds fit rules for {chosen_channel}.
+                        
+                        🚨 AUTOMATIC TRUNCATION COMPLIANCE: 
+                        You MUST enforce that the revised output sits completely under the absolute max character threshold of {active_specs['char_max']} characters. Trim fat, merge concepts, and aggressively keep volume compliant.
+                        
                         CRITICAL CONSTRAINT: Focus strictly on the core theme. Do not invent outside narrative hooks or use the word 'Godzspeed'.
                         EXISTING BODY LAYOUT:\n{edited_body}
                         """
@@ -486,7 +492,7 @@ def run(user_id):
         if not calendar_data:
             st.info("Your tactical rollout timeline pipeline is currently empty.")
         else:
-            st.markdown("#### 🚀 Approved & Scheduled for Release")
+            st.markdown("#### 🚀 Scheduled for Release")
             approved_items = [i for i in calendar_data if i['status'] == 'approved_for_publishing']
             if not approved_items:
                 st.caption("No assets currently locked for field execution deployment loops.")
