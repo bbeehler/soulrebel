@@ -150,7 +150,6 @@ def run(user_id):
         active_blueprint = next((bp for bp in blueprints if bp['category'] == selected_category and bp['platform'] == selected_platform), None)
         plat_specs = PLATFORM_LIMITS.get(selected_platform, {"char_max": 5000, "ideal_image": "1080x1080", "aspect_ratio": "1:1", "safe_zone": "None"})
 
-        # Native Integration of API constraints right inside your expanded blueprint display
         if active_blueprint:
             with st.expander("🔍 View Active Channel Blueprint & Platform Constraints", expanded=True):
                 c_spec1, c_spec2 = st.columns(2)
@@ -197,7 +196,7 @@ def run(user_id):
         st.write("---")
 
         # =====================================================================
-        # STEP 2: HARDENED BLUEPRINT COMPLIANT GENERATION
+        # STEP 2: BLUEPRINT COMPLIANT GENERATION
         # =====================================================================
         st.markdown("### 💡 Step 2: Playbook Synthesis Suggestion")
         
@@ -425,4 +424,163 @@ def run(user_id):
                                     2. Follow with a markdown header titled '### 📊 Audit Breakdown Notes' detailing the override evaluation outcome.
                                     """
                                     override_report = get_soul_rebel_consultant("Override audit text", override_prompt)
-                                    st.session_state.compliance_report = override
+                                    st.session_state.compliance_report = override_report
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Override processing error: {e}")
+
+        st.write("---")
+
+        # PIPELINE ACTIONS AND OPERATIONS
+        st.markdown("### 💾 Step 5: Commit to Pipeline")
+        b_col1, b_col2 = st.columns(2)
+        
+        payload = {
+            "user_id": user_id, "title": content_title,
+            "suggested_body": st.session_state.guardian_suggestion, "current_body": edited_body,
+            "category": selected_category, "platform": selected_platform,
+            "publish_date": str(publish_date), "guardian_notes": st.session_state.compliance_report
+        }
+        
+        with b_col1:
+            if st.button(
+                "💾 Save Progress as Draft", 
+                use_container_width=True,
+                help="Saves the current copy blocks as a draft on the layout board without locking the asset timeline down."
+            ):
+                if not content_title:
+                    st.error("Please provide an Asset Working Title before committing to the calendar data layers.")
+                else:
+                    with st.spinner("Locking draft to schedule line..."):
+                        payload["status"] = "draft"
+                        
+                        check_exist = supabase.table("brand_content_items").select("id")\
+                            .eq("user_id", user_id).eq("title", content_title).eq("platform", selected_platform).eq("publish_date", str(publish_date)).execute()
+                            
+                        if check_exist.data:
+                            supabase.table("brand_content_items").update(payload).eq("id", check_exist.data[0]["id"]).execute()
+                        else:
+                            supabase.table("brand_content_items").insert(payload).execute()
+                            
+                        st.success(f"Asset for {selected_platform} saved successfully as a Draft!")
+                        time.sleep(1)
+                        st.rerun()
+
+        with b_col2:
+            # First line parser logic validates strict pass evaluation parameters to toggle the pipeline lock
+            first_line = st.session_state.compliance_report.split("\n")[0] if st.session_state.compliance_report and "\n" in st.session_state.compliance_report else (st.session_state.compliance_report or "")
+            has_passed = st.session_state.compliance_report is not None and ("SCORE: PASS" in first_line or st.session_state.compliance_report.startswith("SCORE: PASS"))
+            
+            if st.button(
+                "🔥 Approve & Commit to Content Pipeline", 
+                use_container_width=True, 
+                disabled=not has_passed, 
+                type="primary",
+                help="Permanently locks this asset down as approved for scheduling. This button remains locked until the compliance scan returns a passing grade."
+            ):
+                with st.spinner("Locking verified asset into publication calendar..."):
+                    payload["status"] = "approved_for_publishing"
+                    
+                    check_exist = supabase.table("brand_content_items").select("id")\
+                        .eq("user_id", user_id).eq("title", content_title).eq("platform", selected_platform).eq("publish_date", str(publish_date)).execute()
+                        
+                    if check_exist.data:
+                        supabase.table("brand_content_items").update(payload).eq("id", check_exist.data[0]["id"]).execute()
+                    else:
+                        supabase.table("brand_content_items").insert(payload).execute()
+                        
+                    st.success("Asset cleared by Guardian and locked into active Content Calendar!")
+                    
+                    st.session_state.guardian_suggestion = ""
+                    st.session_state.workspace_text = ""
+                    st.session_state.compliance_report = None
+                    st.session_state.last_loaded_key = ""
+                    st.session_state.override_title = ""
+                    st.session_state.override_date = datetime.date.today()
+                    st.session_state.guardian_rev += 1
+                    time.sleep(1)
+                    st.rerun()
+
+    # =====================================================================
+    # RIGHT SIDEBAR COLUMN: THE SCHEDULING & ROLLOUT TIMELINE BAR
+    # =====================================================================
+    with col_sidebar:
+        st.markdown("### 📋 Omni Timeline")
+        st.caption("Active overview of pending and published operational campaign schedules across channels.")
+        st.write("---")
+        
+        calendar_data = load_content_calendar(user_id)
+        
+        if not calendar_data:
+            st.info("No content scheduled in the pipeline matrix yet.")
+        else:
+            st.markdown("#### 🚀 Scheduled for Release")
+            approved_items = [i for i in calendar_data if i['status'] == 'approved_for_publishing']
+            if not approved_items:
+                st.caption("No assets currently cleared for deployment.")
+            for item in approved_items:
+                with st.container(border=True):
+                    st.markdown(f"**🟢 {item['title']}**")
+                    st.caption(f"📅 **Go-Live:** {item['publish_date']}\n\n📱 **Platform:** {item['platform']}")
+                    
+                    with st.expander("View Cleared Text"):
+                        st.code(item['current_body'])
+                        st.write(" ")
+                        
+                        # MANAGEMENT ACTION TRAY FOR COMMITTED ITEMS
+                        m_col1, m_col2 = st.columns(2)
+                        with m_col1:
+                            if st.button("↩️ Edit Asset", key=f"revert_approved_{item['id']}", use_container_width=True, help="Revert status back to draft and load copy back into active editing workspace."):
+                                try:
+                                    supabase.table("brand_content_items").update({"status": "draft"}).eq("id", item['id']).execute()
+                                    
+                                    st.session_state.override_cat = item['category']
+                                    st.session_state.override_plat = item['platform']
+                                    st.session_state.override_title = item['title']
+                                    st.session_state.override_date = datetime.datetime.strptime(item['publish_date'], "%Y-%m-%d").date()
+                                    st.session_state.workspace_text = item['current_body']
+                                    st.session_state.guardian_suggestion = item['suggested_body'] or ""
+                                    st.session_state.compliance_report = item['guardian_notes']
+                                    st.session_state.last_loaded_key = f"{item['platform']}_{item['title']}_{item['publish_date']}"
+                                    
+                                    st.session_state.guardian_rev += 1
+                                    st.success("Reverted to draft!")
+                                    time.sleep(0.5)
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Reversion failed: {e}")
+                                    
+                        with m_col2:
+                            if st.button("🗑️ Delete", key=f"delete_approved_{item['id']}", use_container_width=True, help="Permanently delete this approved item from the cloud calendar database."):
+                                try:
+                                    supabase.table("brand_content_items").delete().eq("id", item['id']).execute()
+                                    st.success("Deleted from pipeline!")
+                                    time.sleep(0.5)
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Deletion failed: {e}")
+            
+            st.write(" ")
+            st.markdown("#### 🔍 Pending & Incomplete Drafts")
+            draft_items = [i for i in calendar_data if i['status'] == 'draft']
+            if not draft_items:
+                st.caption("No dynamic drafts sitting in queue.")
+            for item in draft_items:
+                with st.container(border=True):
+                    is_failed = item['guardian_notes'] and "SCORE: FAIL" in item['guardian_notes']
+                    badge = "🚨 Audit Flagged" if is_failed else "📝 Draft In-Progress"
+                    
+                    st.markdown(f"**{item['title']}**")
+                    st.caption(f"Status: *{badge}*\n\n📅 **Date:** {item['publish_date']} | 🛠️ {item['platform']}")
+                    
+                    if st.button("Load into Editor", key=f"sidebar_load_{item['id']}", use_container_width=True):
+                        st.session_state.override_cat = item['category']
+                        st.session_state.override_plat = item['platform']
+                        st.session_state.override_title = item['title']
+                        st.session_state.override_date = datetime.datetime.strptime(item['publish_date'], "%Y-%m-%d").date()
+                        st.session_state.workspace_text = item['current_body']
+                        st.session_state.guardian_suggestion = item['suggested_body'] or ""
+                        st.session_state.compliance_report = item['guardian_notes']
+                        st.session_state.last_loaded_key = f"{item['platform']}_{item['title']}_{item['publish_date']}"
+                        st.session_state.guardian_rev += 1
+                        st.rerun()
