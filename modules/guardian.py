@@ -48,11 +48,22 @@ def clean_display_text(architecture_text):
     text = re.sub(r"\bGodzspeed\b", "", text, flags=re.IGNORECASE)
     return text
 
-# FIXED: NEW CALLBACK TRIPPERS TO AUTOMATICALLY INVALIDATE COMPLIANCE UPON TEXT EDITS
 def invalidate_previous_compliance_scan():
     """Wipes previous audit reports instantly when user text changes are detected."""
     st.session_state.compliance_report = None
     st.session_state.content_ready_for_scan = False
+
+# FIXED: STREAMLIT MODAL DIALOG CONTAINER FOR ASSET COPY REVIEW
+@st.dialog("📋 Review Confirmed Asset Copy", width="large")
+def show_review_modal(item_title, item_body):
+    """Renders a clean, centered overlay window to safely inspect published copy scripts."""
+    st.markdown(f"### {item_title}")
+    st.caption("This copy block is locked and scheduled for publication deployment loops.")
+    st.write("---")
+    st.code(item_body, language="text")
+    st.write(" ")
+    if st.button("Close Viewer", use_container_width=True):
+        st.rerun()
 
 def run(user_id):
     st.title("🛡️ The Brand Campaign & Guardian Control")
@@ -208,7 +219,7 @@ def run(user_id):
                         "intent": campaign_intent,
                         "architecture": st.session_state.campaign_suggestion
                     }
-                    st.success("Strategic direction locked down and saved!")
+                    st.success("Strategic direction locked down and initialized smoothly!")
                     time.sleep(1.0)
                     st.rerun()
         else:
@@ -350,13 +361,11 @@ def run(user_id):
                     
                     st.session_state.workspace_text = final_text
                     st.session_state.active_content_suggestion = ""
-                    # Wipes old compliance parameters clean during content structural injection updates
                     invalidate_previous_compliance_scan()
                     st.rerun()
 
             # --- EDITING CANVAS ---
             st.write(" ")
-            # FIXED: Added native on_change parameter linking directly back to state dynamic invalidators
             edited_body = st.text_area(
                 "Active Composition Canvas:",
                 value=st.session_state.workspace_text,
@@ -391,7 +400,6 @@ def run(user_id):
                         else:
                             st.session_state.workspace_text = refined_output
                             
-                        # Force old checks off on iterative chat inputs updates as well
                         invalidate_previous_compliance_scan()
                         st.rerun()
 
@@ -497,7 +505,7 @@ def run(user_id):
                             st.rerun()
 
     # =====================================================================
-    # RIGHT SIDEBAR TIMELINE ENGINE
+    # RIGHT SIDEBAR TIMELINE ENGINE (WITH MODAL DIALOG INTERACTIVE LAYER)
     # =====================================================================
     with col_sidebar:
         st.markdown("### 📅 Active Production Timelines")
@@ -518,27 +526,28 @@ def run(user_id):
                     st.markdown(f"**🟢 {item['title']}**")
                     st.caption(f"📅 **Rollout:** {item['publish_date']} | 📱 **Platform:** {item['platform']}")
                     
-                    with st.expander("Review Confirmed Copy"):
-                        st.code(item['current_body'])
-                        st.write(" ")
-                        
-                        m1, m2 = st.columns(2)
-                        with m1:
-                            if st.button("↩️ Re-Edit", key=f"revert_pub_{item['id']}", use_container_width=True):
-                                supabase.table("brand_content_items").update({"status": "draft"}).eq("id", item['id']).execute()
-                                st.session_state.campaign_committed = True
-                                st.session_state.override_cat = item['category']
-                                st.session_state.override_plat = item['platform']
-                                st.session_state.override_title = item['title']
-                                st.session_state.override_date = datetime.datetime.strptime(item['publish_date'], "%Y-%m-%d").date()
-                                st.session_state.workspace_text = item['current_body']
-                                st.session_state.compliance_report = None  
-                                st.session_state.content_ready_for_scan = False
-                                st.rerun()
-                        with m2:
-                            if st.button("🗑️ Delete", key=f"del_pub_{item['id']}", use_container_width=True):
-                                supabase.table("brand_content_items").delete().eq("id", item['id']).execute()
-                                st.rerun()
+                    # FIXED: REPLACED ACCORDION EXPANDER WITH A CLEAN OVERLAY MODAL CALL
+                    if st.button("🔍 Review Confirmed Copy", key=f"rev_modal_trigger_{item['id']}", use_container_width=True):
+                        show_review_modal(item['title'], item['current_body'])
+                    
+                    st.write(" ")
+                    m1, m2 = st.columns(2)
+                    with m1:
+                        if st.button("↩️ Re-Edit", key=f"revert_pub_{item['id']}", use_container_width=True):
+                            supabase.table("brand_content_items").update({"status": "draft"}).eq("id", item['id']).execute()
+                            st.session_state.campaign_committed = True
+                            st.session_state.override_cat = item['category']
+                            st.session_state.override_plat = item['platform']
+                            st.session_state.override_title = item['title']
+                            st.session_state.override_date = datetime.datetime.strptime(item['publish_date'], "%Y-%m-%d").date()
+                            st.session_state.workspace_text = item['current_body']
+                            st.session_state.compliance_report = None  
+                            st.session_state.content_ready_for_scan = False
+                            st.rerun()
+                    with m2:
+                        if st.button("🗑️ Delete", key=f"del_pub_{item['id']}", use_container_width=True):
+                            supabase.table("brand_content_items").delete().eq("id", item['id']).execute()
+                            st.rerun()
 
             st.write(" ")
             st.markdown("#### 📝 Workspace Vault Drafts")
