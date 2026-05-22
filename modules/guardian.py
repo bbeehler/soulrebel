@@ -234,7 +234,7 @@ def run(user_id):
         st.write("---")
 
         # =====================================================================
-        # STAGE 02: DYNAMIC BLUEPRINT CONTENT ENGINE (AUTOMATIC CAP TRUNCATION)
+        # STAGE 02: DYNAMIC BLUEPRINT CONTENT ENGINE (AUTOMATIC HARD LIMIT TRUNCATION)
         # =====================================================================
         st.markdown("## 📝 Stage 2: Content Generation & Blueprint Tailoring")
         
@@ -293,12 +293,14 @@ def run(user_id):
                         st.error("Missing selected blueprint matching key paths.")
                     else:
                         with st.spinner("Synthesizing copy parameters inside blueprint channels..."):
+                            # UNCOMPROMISING AI INSTRUCTIONS ENFORCING THE HARD CAP CEILING
                             prompt = f"""
                             ROLE: Expert Asset Copywriter.
                             TASK: Draft high-engagement copy that strictly bridges the active campaign direction with the specific brand guide blueprint rules.
                             
-                            🚨 HARD AUTOMATIC LIMIT MANDATE:
-                            The target channel is '{chosen_channel}'. You MUST ensure the generated output text block does not exceed {active_specs['char_max']} characters. Be concise, eliminate verbose phrasing, and stay strictly below this layout ceiling.
+                            🚨 CRITICAL GEOMETRIC LIMIT REQUIREMENT:
+                            The selected delivery vehicle is '{chosen_channel}'. Your output block MUST stay completely below {active_specs['char_max']} total characters. 
+                            This is an unyielding technical limit. If your text runs long, you break the platform container. Write tightly, summarize complex elements, and count your output length to remain strictly compliant.
                             
                             🚨 HARD CORE MIGRATION COMPLIANCE — FORBIDDEN LABELS:
                             - You are an individual professional voice writing content for your personal digital platform.
@@ -332,8 +334,17 @@ def run(user_id):
             if st.session_state.active_content_suggestion:
                 st.markdown("### 🤖 Guardian Copy Suggestion Outbox")
                 st.info(st.session_state.active_content_suggestion)
+                
                 if st.button("✅ Transfer Suggestion to Active Workspace", use_container_width=True):
-                    st.session_state.workspace_text = st.session_state.active_content_suggestion
+                    raw_suggestion = st.session_state.active_content_suggestion
+                    
+                    # HARD FAIL-SAFE PROGRAMMATIC TRUNCATION SLICE: Protects canvas from any overflow character leaks
+                    if len(raw_suggestion) > active_specs['char_max']:
+                        st.session_state.workspace_text = raw_suggestion[:active_specs['char_max']]
+                        st.warning(f"✂️ The generated copy ran long and was automatically truncated to fit the absolute {active_specs['char_max']} limit for {chosen_channel}.")
+                    else:
+                        st.session_state.workspace_text = raw_suggestion
+                        
                     st.session_state.active_content_suggestion = ""
                     st.rerun()
 
@@ -362,13 +373,20 @@ def run(user_id):
                         refine_prompt = f"""
                         TASK: Revise the copy text based on user directions. Ensure text bounds fit rules for {chosen_channel}.
                         
-                        🚨 AUTOMATIC TRUNCATION COMPLIANCE: 
-                        You MUST enforce that the revised output sits completely under the absolute max character threshold of {active_specs['char_max']} characters. Trim fat, merge concepts, and aggressively keep volume compliant.
+                        🚨 AUTOMATIC HARD LENGTH CONTROL:
+                        You MUST compress the output to sit completely beneath the maximum threshold of {active_specs['char_max']} characters. Avoid wordiness.
                         
                         CRITICAL CONSTRAINT: Focus strictly on the core theme. Do not invent outside narrative hooks or use the word 'Godzspeed'.
                         EXISTING BODY LAYOUT:\n{edited_body}
                         """
-                        st.session_state.workspace_text = get_soul_rebel_consultant(chat_feedback, refine_prompt)
+                        refined_output = get_soul_rebel_consultant(chat_feedback, refine_prompt)
+                        
+                        # Apply programmatic slice to conversation stream revisions as well
+                        if len(refined_output) > active_specs['char_max']:
+                            st.session_state.workspace_text = refined_output[:active_specs['char_max']]
+                        else:
+                            st.session_state.workspace_text = refined_output
+                            
                         st.session_state.guardian_rev += 1
                         st.rerun()
 
