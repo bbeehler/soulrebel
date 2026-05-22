@@ -402,8 +402,45 @@ def run(user_id):
                 with st.container(border=True):
                     st.markdown(f"**🟢 {item['title']}**")
                     st.caption(f"📅 **Go-Live:** {item['publish_date']}\n\n📱 **Platform:** {item['platform']}")
+                    
                     with st.expander("View Cleared Text"):
                         st.code(item['current_body'])
+                        st.write(" ")
+                        
+                        # MANAGEMENT ACTION TRAY FOR COMMITTED ITEMS
+                        m_col1, m_col2 = st.columns(2)
+                        with m_col1:
+                            if st.button("↩️ Edit Asset", key=f"revert_approved_{item['id']}", use_container_width=True, help="Revert status back to draft and load copy back into active editing workspace."):
+                                try:
+                                    # 1. Downgrade database status back to draft
+                                    supabase.table("brand_content_items").update({"status": "draft"}).eq("id", item['id']).execute()
+                                    
+                                    # 2. Sync workspace states to focus on this item
+                                    st.session_state.override_cat = item['category']
+                                    st.session_state.override_plat = item['platform']
+                                    st.session_state.override_title = item['title']
+                                    st.session_state.override_date = datetime.datetime.strptime(item['publish_date'], "%Y-%m-%d").date()
+                                    st.session_state.workspace_text = item['current_body']
+                                    st.session_state.guardian_suggestion = item['suggested_body'] or ""
+                                    st.session_state.compliance_report = item['guardian_notes']
+                                    st.session_state.last_loaded_key = f"{item['platform']}_{item['title']}_{item['publish_date']}"
+                                    
+                                    st.session_state.guardian_rev += 1
+                                    st.success("Reverted to draft!")
+                                    time.sleep(0.5)
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Reversion failed: {e}")
+                                    
+                        with m_col2:
+                            if st.button("🗑️ Delete", key=f"delete_approved_{item['id']}", use_container_width=True, help="Permanently delete this approved item from the cloud calendar database."):
+                                try:
+                                    supabase.table("brand_content_items").delete().eq("id", item['id']).execute()
+                                    st.success("Deleted from pipeline!")
+                                    time.sleep(0.5)
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Deletion failed: {e}")
             
             st.write(" ")
             st.markdown("#### 🔍 Pending & Incomplete Drafts")
