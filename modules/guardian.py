@@ -249,7 +249,7 @@ def run(user_id):
         st.write("---")
 
         # =====================================================================
-        # STEP 4: HARDENED COMPLIANCE SCAN MECHANISM
+        # STEP 4: HARDENED COMPLIANCE SCAN MECHANISM WITH ADAPTIVE JUSTIFICATION OVERRIDES
         # =====================================================================
         st.markdown("### 🛡️ Step 4: Brand Alignment & Compliance Gate")
         
@@ -305,9 +305,58 @@ def run(user_id):
                 
                 if is_pass:
                     st.success("🎉 BRAND GUARDIAN AUDIT: PASSED")
+                    st.info(report_text)
                 else:
                     st.error("🚨 BRAND GUARDIAN AUDIT: FAILED COMPLIANCE")
-                st.info(report_text)
+                    st.info(report_text)
+                    
+                    # NEW FEATURE: ADAPTIVE JUSTIFICATION OVERRIDE COMPONENT
+                    st.write("---")
+                    st.markdown("#### 🛠️ Campaign Justification Matrix")
+                    st.caption("If this asset covers an off-brand CSR initiative, charity drive, or special project (e.g., a bicycle ride fundraiser), explain the business purpose below to override the core scope block.")
+                    
+                    justification_context = st.text_area(
+                        "Strategic Override Reason / Context:",
+                        placeholder="e.g., This is an annual charity bicycle ride campaign raising funds for municipal service initiatives, serving as our core corporate social responsibility rollout for Q3.",
+                        key="guardian_override_reason_input"
+                    )
+                    
+                    if st.button("🔥 Request Override Evaluation", use_container_width=True):
+                        if not justification_context:
+                            st.warning("Please type a strategic justification context to initiate an override scan.")
+                        else:
+                            with st.spinner("Re-auditing timeline asset with added context parameters..."):
+                                try:
+                                    strategy_res = supabase.table("brand_strategy").select("soul_guide").eq("user_id", user_id).single().execute()
+                                    soul_guide_context = strategy_res.data.get("soul_guide", "") if strategy_res.data else ""
+                                    
+                                    override_prompt = f"""
+                                    ROLE: Adaptive Brand Identity Compliance Auditor.
+                                    TASK: Re-evaluate the previously failed text asset, taking into account the user's explicit business justification or fundraising exception rules.
+                                    
+                                    USER CAMPAIGN JUSTIFICATION/CONTEXT:
+                                    {justification_context}
+                                    
+                                    If the user's justification frames this off-brand topic (like a bicycle ride) as a legitimate, approved corporate initiative, corporate responsibility fundraiser, or strategic community project, you are authorized to grant a 'SCORE: PASS'. You must still ensure the execution style matches the core tonal guide rules.
+                                    
+                                    AUDIT SCOPE:
+                                    - Asset Title Focus: '{content_title}'
+                                    - Tone Guide: {active_blueprint['tonal_guardrails']}
+                                    - Structural Demands: {active_blueprint['structural_rules']}
+                                    - Core Soul Guide: {soul_guide_context}
+                                    
+                                    TEXT TO AUDIT:
+                                    {edited_body}
+                                    
+                                    OUTPUT FORMAT RULES:
+                                    1. Your very first line must read exactly either 'SCORE: PASS' or 'SCORE: FAIL' based on style rules and this contextual justification exception.
+                                    2. Follow with a markdown header titled '### 📊 Audit Breakdown Notes' detailing the override evaluation outcome.
+                                    """
+                                    override_report = get_soul_rebel_consultant("Override audit text", override_prompt)
+                                    st.session_state.compliance_report = override_report
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Override processing error: {e}")
 
         st.write("---")
 
@@ -412,10 +461,8 @@ def run(user_id):
                         with m_col1:
                             if st.button("↩️ Edit Asset", key=f"revert_approved_{item['id']}", use_container_width=True, help="Revert status back to draft and load copy back into active editing workspace."):
                                 try:
-                                    # 1. Downgrade database status back to draft
                                     supabase.table("brand_content_items").update({"status": "draft"}).eq("id", item['id']).execute()
                                     
-                                    # 2. Sync workspace states to focus on this item
                                     st.session_state.override_cat = item['category']
                                     st.session_state.override_plat = item['platform']
                                     st.session_state.override_title = item['title']
