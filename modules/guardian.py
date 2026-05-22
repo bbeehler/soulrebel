@@ -69,8 +69,6 @@ def run(user_id):
         st.session_state.compliance_report = None
     if "content_ready_for_scan" not in st.session_state:
         st.session_state.content_ready_for_scan = False
-    if "guardian_rev" not in st.session_state:
-        st.session_state.guardian_rev = 0
 
     # --- REHYDRATE ACTIVE DATABASE SESSION WORKSPACE ---
     blueprints = load_blueprints()
@@ -128,10 +126,15 @@ def run(user_id):
                     else:
                         with st.spinner("Formulating campaign strategy matrix..."):
                             prompt = f"""
-                            ROLE: Independent Executive Consultant.
+                            ROLE: Independent Executive Consultant & Chief Marketing Architect.
                             TASK: Take the user's specific campaign objective and structure it into a clean distribution framework.
                             
-                            CRITICAL CONSTRAINT: You are ABSOLUTELY FORBIDDEN from using, referencing, or mentioning the name 'Godzspeed'. Write exclusively from the user's personal voice.
+                            🚨 CRITICAL CONSTRAINTS:
+                            - Write purely, directly, and exclusively from the individual user's personal voice.
+                            - You are ABSOLUTELY FORBIDDEN from using, referencing, naming, or mentioning the agency name 'Godzspeed' or any outside marketing agency entity anywhere in your text.
+                            - Ground all insights entirely within the provided Master Soul Guide document.
+                            - You must ONLY use, frame, and structure the exact core topic, objective, and campaign idea specified by the user below.
+                            - Do NOT expand, hallucinate, or generalize beyond what the user wrote.
                             
                             USER'S EXACT CAMPAIGN OBJECTIVE: "{campaign_intent}"
                             USER'S APPROVED SOUL GUIDE INTEL CONTEXT: {soul_guide_context}
@@ -258,7 +261,6 @@ def run(user_id):
             custom_generation_prompt = st.text_area(
                 "Specific Copywriting Instructions for this piece (Optional Guide Rails):",
                 placeholder="e.g., Write a high-urgency email blast asking our contacts to register or donate right now. Keep it direct and emotional...",
-                help="Type exactly what you want this specific piece of content to focus on, and the engine will build the copy based directly on your instructions."
             )
 
             st.write(" ")
@@ -334,28 +336,25 @@ def run(user_id):
                 if st.button("✅ Transfer Suggestion to Active Workspace", use_container_width=True):
                     raw_suggestion = st.session_state.active_content_suggestion
                     
-                    # Apply truncation fail-safe
                     if len(raw_suggestion) > active_specs['char_max']:
                         final_text = raw_suggestion[:active_specs['char_max']]
+                        st.warning(f"✂️ The generated copy was automatically sliced to fit the absolute {active_specs['char_max']} character ceiling.")
                     else:
                         final_text = raw_suggestion
                     
-                    # FIXED: Explicitly seed the active widget state value behind the scenes to avoid refresh drops
-                    w_key = f"workspace_rev_layer_{st.session_state.guardian_rev}"
-                    st.session_state[w_key] = final_text
+                    # FIXED: Decoupled widget state allocation avoids API override exceptions completely
                     st.session_state.workspace_text = final_text
-                    
                     st.session_state.active_content_suggestion = ""
                     st.rerun()
 
             # --- EDITING CANVAS ---
             st.write(" ")
-            w_key = f"workspace_rev_layer_{st.session_state.guardian_rev}"
+            # FIXED: Canvas now tracks static layout states driven strictly by independent state variables
             edited_body = st.text_area(
                 "Active Composition Canvas:",
                 value=st.session_state.workspace_text,
                 height=300,
-                key=w_key,
+                key="guardian_workspace_canvas_field",
                 help="Refine your raw copy body text blocks here."
             )
             st.session_state.workspace_text = re.sub(r"\bGodzspeed\b", "", edited_body, flags=re.IGNORECASE)
@@ -380,15 +379,10 @@ def run(user_id):
                         refined_output = clean_display_text(refined_output)
                         
                         if len(refined_output) > active_specs['char_max']:
-                            final_refined = refined_output[:active_specs['char_max']]
+                            st.session_state.workspace_text = refined_output[:active_specs['char_max']]
                         else:
-                            final_refined = refined_output
-                        
-                        # Increment revision index and preload next canvas state layout parameters
-                        st.session_state.guardian_rev += 1
-                        next_key = f"workspace_rev_layer_{st.session_state.guardian_rev}"
-                        st.session_state[next_key] = final_refined
-                        st.session_state.workspace_text = final_refined
+                            st.session_state.workspace_text = refined_output
+                            
                         st.rerun()
 
                 if st.button("🔒 Lock Workspace & Proceed to Compliance Scan", use_container_width=True):
@@ -527,10 +521,10 @@ def run(user_id):
                                 st.session_state.override_plat = item['platform']
                                 st.session_state.override_title = item['title']
                                 st.session_state.override_date = datetime.datetime.strptime(item['publish_date'], "%Y-%m-%d").date()
+                                # FIXED: Safely seeding standard state elements updates canvas layouts instantly
                                 st.session_state.workspace_text = item['current_body']
                                 st.session_state.compliance_report = None  
                                 st.session_state.content_ready_for_scan = False
-                                st.session_state.guardian_rev += 1
                                 st.rerun()
                         with m2:
                             if st.button("🗑️ Delete", key=f"del_pub_{item['id']}", use_container_width=True):
@@ -556,15 +550,11 @@ def run(user_id):
                             st.session_state.override_title = item['title']
                             st.session_state.override_date = datetime.datetime.strptime(item['publish_date'], "%Y-%m-%d").date()
                             
-                            # Seed the active revision block on manual sidebar draft loading
-                            w_key = f"workspace_rev_layer_{st.session_state.guardian_rev}"
-                            st.session_state[w_key] = item['current_body']
+                            # FIXED: Direct safe state injection eliminates dynamic key mutations entirely
                             st.session_state.workspace_text = item['current_body']
-                            
                             st.session_state.active_content_suggestion = item['suggested_body'] or ""
                             st.session_state.compliance_report = item['guardian_notes']
                             st.session_state.content_ready_for_scan = True if item['guardian_notes'] else False
-                            st.session_state.guardian_rev += 1
                             st.rerun()
                     with d_actions[1]:
                         if st.button("🗑️ Delete Draft", key=f"del_draft_item_{item['id']}", use_container_width=True):
