@@ -294,35 +294,43 @@ def run(user_id):
                         st.error("Missing selected blueprint matching key paths.")
                     else:
                         with st.spinner("Generating raw platform content asset copy..."):
+                            # FIXED PROMPT DRIFT: Force AI out of strategy mode and strictly into ghostwriting mode
                             user_instruction_block = ""
                             if custom_generation_prompt:
                                 user_instruction_block = f"""
-                                🚨 CRITICAL USER OPERATIONAL INSTRUCTIONS:
-                                You MUST directly prioritize and fulfill these copywriting requirements:
+                                =======================================================================
+                                🔥 PRIMARY DIRECTIVE FROM USER 🔥
+                                Focus your writing entirely on executing this specific request:
                                 "{custom_generation_prompt}"
+                                =======================================================================
                                 """
 
                             prompt = f"""
-                            ROLE: Expert Direct-Response Copywriter.
-                            TASK: Write the final, ready-to-publish raw body text for an asset titled: '{content_title}'.
+                            ROLE: You are an expert ghostwriter and direct-response copywriter.
+                            TASK: Write the final, ready-to-publish text for an asset titled: '{content_title}'.
                             
                             🚨 ABSOLUTELY UNYIELDING MASTER CONTENT LAW:
-                            - ONLY return the literal, deployable copy block for '{chosen_channel}'.
-                            - NO outlines, NO preambles, NO notes. Just the raw draft copy.
+                            - You are NOT a strategist. Do NOT outline a strategy. Do NOT review the campaign.
+                            - You must ONLY output the exact, literal words that will be copy-and-pasted into {chosen_channel}.
+                            - NO introductions (e.g., "Here is the copy"). NO structural headers (e.g., "### Body"). NO advice. NO bulleted lists of recommendations.
                             
                             {user_instruction_block}
                             
                             🚨 STRICT LENGTH CAPS:
-                            Output MUST be strictly below {active_specs['char_max']} total characters.
+                            Output MUST be strictly below {active_specs['char_max']} total characters. Keep it tight.
                             
-                            ACTIVE CAMPAIGN FRAMEWORK: {st.session_state.committed_campaign_data.get('architecture')}
-                            USER INTENT: "{st.session_state.committed_campaign_data.get('intent')}"
+                            BACKGROUND CONTEXT (DO NOT COPY THIS FORMAT, USE IT FOR KNOWLEDGE ONLY):
+                            Campaign Architecture: {st.session_state.committed_campaign_data.get('architecture')}
+                            Campaign Intent: "{st.session_state.committed_campaign_data.get('intent')}"
+                            Brand Guide: {soul_guide_context}
                             
-                            BLUEPRINT PARAMETERS:
-                            - PILLAR: {chosen_pillar}
+                            CHANNEL REQUIREMENTS:
                             - PLATFORM: {chosen_channel}
-                            - TONAL/STRUCTURAL LAWS: {active_blueprint.get('tonal_guardrails')} | {active_blueprint.get('structural_rules')}
-                            - BRAND GUIDE: {soul_guide_context}
+                            - FORMAT: {active_blueprint.get('medium_type')}
+                            - TONE: {active_blueprint.get('tonal_guardrails')}
+                            - RULES: {active_blueprint.get('structural_rules')}
+                            
+                            OUTPUT VERBATIM SPECIFICATION: Output ONLY the final draft copy. Start writing the actual text immediately.
                             """
                             raw_out = get_soul_rebel_consultant("Draft Content Piece", prompt)
                             st.session_state.active_content_suggestion = clean_display_text(raw_out)
@@ -331,6 +339,7 @@ def run(user_id):
                 if st.button("❌ Clear & Restart Draft", use_container_width=True):
                     st.session_state.active_content_suggestion = ""
                     st.session_state.workspace_text = ""
+                    st.session_state["guardian_workspace_canvas_field"] = "" # Clear widget state
                     st.session_state.compliance_report = None
                     st.session_state.content_ready_for_scan = False
                     st.rerun()
@@ -347,7 +356,10 @@ def run(user_id):
                     else:
                         final_text = raw_suggestion
                     
+                    # FIXED BUTTON BUG: Must target the exact widget 'key' to update Streamlit UI programmatically
+                    st.session_state["guardian_workspace_canvas_field"] = final_text
                     st.session_state.workspace_text = final_text
+                    
                     st.session_state.active_content_suggestion = ""
                     invalidate_previous_compliance_scan()
                     st.rerun()
@@ -363,6 +375,8 @@ def run(user_id):
                 disabled=is_locked_for_review,
                 help="Refine your raw copy body text blocks here."
             )
+            
+            # Sync our background state with the active widget state
             st.session_state.workspace_text = re.sub(r"\bGodzspeed\b", "", edited_body, flags=re.IGNORECASE)
 
             c_length = len(st.session_state.workspace_text)
@@ -377,12 +391,17 @@ def run(user_id):
                     with st.spinner("Refining asset text body..."):
                         refine_prompt = f"""
                         TASK: Revise the copy. Ensure text bounds fit {chosen_channel} rules.
-                        🚨 COMPRESS to beneath {active_specs['char_max']} characters. Return ONLY raw draft text.
+                        🚨 COMPRESS to beneath {active_specs['char_max']} characters. Return ONLY raw draft text. No summaries. No advice.
                         CRITICAL CONSTRAINT: Do not use the word 'Godzspeed'.
                         EXISTING BODY:\n{st.session_state.workspace_text}
                         """
                         refined_output = get_soul_rebel_consultant(chat_feedback, refine_prompt)
-                        st.session_state.workspace_text = clean_display_text(refined_output)
+                        refined_output = clean_display_text(refined_output)
+                        
+                        # Update the widget state directly
+                        st.session_state["guardian_workspace_canvas_field"] = refined_output
+                        st.session_state.workspace_text = refined_output
+                        
                         invalidate_previous_compliance_scan()
                         st.rerun()
 
@@ -468,10 +487,14 @@ def run(user_id):
                                 supabase.table("brand_content_items").update(payload).eq("id", exist_check.data[0]["id"]).execute()
                             else:
                                 supabase.table("brand_content_items").insert(payload).execute()
+                            
+                            # Clean up states
                             st.session_state.active_content_suggestion = ""
                             st.session_state.workspace_text = ""
+                            st.session_state["guardian_workspace_canvas_field"] = ""
                             st.session_state.compliance_report = None
                             st.session_state.content_ready_for_scan = False
+                            
                             st.success("Asset pushed to timeline!")
                             time.sleep(1)
                             st.rerun()
@@ -490,4 +513,8 @@ def run(user_id):
                     show_review_modal(item['title'], item['current_body'])
                 if st.button("↩️ Re-Edit", key=f"revert_{item['id']}", use_container_width=True):
                     supabase.table("brand_content_items").update({"status": "draft"}).eq("id", item['id']).execute()
+                    
+                    # Target widget directly to populate canvas on re-edit
+                    st.session_state["guardian_workspace_canvas_field"] = item['current_body']
+                    st.session_state.workspace_text = item['current_body']
                     st.rerun()
