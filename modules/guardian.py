@@ -23,7 +23,7 @@ def load_content_calendar(user_id):
         return []
 
 def run(user_id):
-    st.title("🛡️ Phase 04: The Brand Guardian")
+    st.title("The Brand Guardian")
     st.caption("Content Alignment Gatekeeper & Omni-Channel Scheduling Matrix.")
     st.write("---")
 
