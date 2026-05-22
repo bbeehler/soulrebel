@@ -37,11 +37,9 @@ def parse_strategy_elements(architecture_text):
             if clean and len(clean) > 3 and not clean.startswith("#"):
                 pillars.append(clean.split(":")[0].strip())
                 
-    # Fallback if specific bullet parsing yields nothing
     if not pillars:
         pillars = ["Campaign Alignment Core", "Tactical Engagement Narrative", "Distribution Outreach Operational"]
 
-    # Match platform strings explicitly against our system API limit keys
     for plat in PLATFORM_LIMITS.keys():
         if re.search(r"\b" + re.escape(plat) + r"\b", architecture_text, re.IGNORECASE):
             channels.append(plat)
@@ -88,7 +86,7 @@ def run(user_id):
     if "guardian_rev" not in st.session_state:
         st.session_state.guardian_rev = 0
 
-    # --- INITIAL LOAD ENGINE: Rehydrate from existing Content Items table row ---
+    # --- INITIAL LOAD ENGINE ---
     soul_guide_context = ""
     try:
         strategy_res = supabase.table("brand_strategy").select("soul_guide").eq("user_id", user_id).single().execute()
@@ -142,22 +140,29 @@ def run(user_id):
                         st.error("Please provide an initialization objective first.")
                     else:
                         with st.spinner("Formulating channel mix matrix strategies..."):
+                            # HARDENED PROMPT CONSTRAINTS — COMPLETELY SCRUBBING AGENCY MENTIONS
                             prompt = f"""
-                            ROLE: Chief Marketing Officer & Strict Campaign Architect.
+                            ROLE: Independent Executive Consultant & Chief Marketing Architect.
                             TASK: Take the user's specific campaign objective and structure it into a clean, execution-ready channel distribution framework.
+                            
+                            =======================================================================
+                            🚨 CRITICAL NEGATIVE CONSTRAINT — FORBIDDEN REFERENCES:
+                            - You must write purely, directly, and exclusively from the individual user's personal professional voice.
+                            - You are ABSOLUTELY FORBIDDEN from using, referencing, naming, or mentioning the agency name 'Godzspeed' or any outside marketing agency entity anywhere in your thought process, structural headings, or output text. 
+                            - Ground all insights entirely within the provided Master Soul Guide document.
+                            =======================================================================
                             
                             =======================================================================
                             ⚠️ UNYIELDING CORE COMMANDS:
                             - You must ONLY use, frame, and structure the exact core topic, objective, and campaign idea specified by the user below.
                             - You are ABSOLUTELY BANNED from introducing outside concepts, tangent industries, extra creative initiatives, or peripheral sub-topics. 
                             - Do NOT expand, hallucinate, or generalize beyond what the user wrote. Your job is to package their exact idea into strategic channels, not to invent a new one.
-                            - Completely omit and never output the word 'Godzspeed'.
                             =======================================================================
                             
                             USER'S EXACT CAMPAIGN OBJECTIVE: 
                             "{campaign_intent}"
                             
-                            USER'S STRATEGIC BRAND IDENTITY CONTEXT: 
+                            USER'S APPROVED SOUL GUIDE INTEL CONTEXT: 
                             {soul_guide_context}
                             
                             OUTPUT FORMAT: Present the structured framework matching these exact headers:
@@ -260,7 +265,7 @@ def run(user_id):
         st.write("---")
 
         # =====================================================================
-        # STAGE 02: DYNAMIC CONTENT ENGINE (DYNAMIC PILLAR & CHANNEL STREAMING)
+        # STAGE 02: DYNAMIC CONTENT ENGINE
         # =====================================================================
         st.markdown("## 📝 Stage 2: Content Generation & Blueprint Tailoring")
         
@@ -269,7 +274,6 @@ def run(user_id):
         elif not soul_guide_context:
             st.error("🚨 Master Soul Guide context not detected. Please finalize Phase 03: Illumination first.")
         else:
-            # FIXED: Dynamically extract options straight from the Stage 1 output text block
             active_arch = st.session_state.committed_campaign_data.get("architecture", "")
             dynamic_pillars, dynamic_channels = parse_strategy_elements(active_arch)
             
@@ -305,16 +309,23 @@ def run(user_id):
                         st.error("Provide a working headline title to fuel the engine parameters context.")
                     else:
                         with st.spinner("Synthesizing copy parameters inside blueprint channels..."):
+                            # HARDENED GENERATION LAYER — RE-ENFORCING THE STRICT FORBIDDEN ENTITY COMMANDS
                             prompt = f"""
-                            ROLE: Expert Asset Copywriter.
-                            TASK: Draft high-engagement copy that strictly bridges the active campaign direction with the specific brand guide pillar rules.
+                            ROLE: Personal Strategic Content Writer.
+                            TASK: Draft high-engagement copy that strictly bridges the active campaign direction with the individual user's brand identity.
+                            
+                            =======================================================================
+                            🚨 CRITICAL RE-ENFORCEMENT — FORBIDDEN AGENCY LABELS:
+                            - You are an individual professional voice writing content for your personal digital platform.
+                            - You must ABSOLUTELY NOT use, mention, or print the word 'Godzspeed' or refer to any marketing agency entity anywhere within your copy block or layout syntax. 
+                            - Failure to comply breaks brand alignment entirely.
+                            =======================================================================
                             
                             =======================================================================
                             ⚠️ UNYIELDING BOUNDARY CONTROLS:
                             - You are ONLY permitted to write about the exact campaign strategy framework and core topic defined below.
                             - Do NOT invent hooks, stories, variables, or angles outside of this explicit text block. 
                             - Your output copy must completely focus on the specific initiative details provided by the user.
-                            - Absolutely do NOT include, output, or use the word 'Godzspeed'.
                             =======================================================================
                             
                             LOCKED STRATEGIC CAMPAIGN MATRIX: 
@@ -332,7 +343,7 @@ def run(user_id):
                             
                             Braid the structural elements of your campaign intent text to generate an asset tailored specifically for formatting frameworks inside '{chosen_channel}'.
                             
-                            MASTER BRAND INTEL PLAYBOOK SOURCE CONTEXT:
+                            APPROVED INDIVIDUAL PLAYBOOK INTEL CONTEXT:
                             {soul_guide_context}
                             
                             WORKING TOPIC HEADLINE: {content_title}
@@ -408,7 +419,7 @@ def run(user_id):
             if st.button("🔍 Execute Brand Soul Alignment Scan", use_container_width=True, type="primary"):
                 with st.spinner("Auditing thematic lines against active playbook rules..."):
                     scan_prompt = f"""
-                    ROLE: Hardened Compliance Auditor & Channel Integrity Sweeper.
+                    ROLE: Strict Independent Identity & Channel Integrity Sweeper.
                     TASK: Audit this text copy against absolute architectural limits, active pillars, and user campaign directives.
                     
                     CRITICAL COMPLIANCE FILTER: 
@@ -417,7 +428,7 @@ def run(user_id):
                     HARD PLATFORM CONSTRAINT MANDATE:
                     If the total character volume of the provided text (`{c_length}`) exceeds the platform limit threshold of `{active_specs['char_max']}`, you MUST immediately issue a hard FAIL.
                     
-                    MANDATE: Completely omit the word 'Godzspeed'.
+                    🚨 CRITICAL CONSTRAINT: Absolutely do not look for, mention, or print the name 'Godzspeed'. If that agency name appears anywhere in the user text canvas, fail the audit immediately.
                     
                     LOCKED CAMPAIGN BLUEPRINT ARCHITECTURE:
                     {active_arch}
@@ -427,7 +438,7 @@ def run(user_id):
                     
                     USER CAMPAIGN FOCUS PILLAR: {chosen_pillar}
                     TECHNICAL PLATFORM CONSTRAINTS: {chosen_channel} (Max Chars: {active_specs['char_max']})
-                    CORE SYSTEM BRAND GUIDE INTEGRITY CONTEXT: {soul_guide_context}
+                    CORE SYSTEM APPROVED BRAND GUIDE CONTEXT: {soul_guide_context}
                     
                     TEXT TO AUDIT:
                     {edited_body}
@@ -494,7 +505,7 @@ def run(user_id):
                             st.rerun()
 
     # =====================================================================
-    # RIGHT SIDEBAR TIMELINE ENGINE: FULL CRUD LAYER VIA ACTION RE-ROUTING
+    # RIGHT SIDEBAR TIMELINE ENGINE
     # =====================================================================
     with col_sidebar:
         st.markdown("### 📅 Active Production Timelines")
