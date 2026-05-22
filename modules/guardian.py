@@ -88,6 +88,18 @@ def run(user_id):
     if "guardian_rev" not in st.session_state:
         st.session_state.guardian_rev = 0
 
+    # --- FIXED: ADDED METADATA TRACKERS FOR UI HYDRATION & DB SYNC ---
+    if "active_item_id" not in st.session_state:
+        st.session_state.active_item_id = None
+    if "active_title" not in st.session_state:
+        st.session_state.active_title = ""
+    if "active_category" not in st.session_state:
+        st.session_state.active_category = None
+    if "active_platform" not in st.session_state:
+        st.session_state.active_platform = None
+    if "active_date" not in st.session_state:
+        st.session_state.active_date = datetime.date.today()
+
     # --- REHYDRATE ACTIVE DATABASE SESSION WORKSPACE ---
     blueprints = load_blueprints()
     soul_guide_context = ""
@@ -258,13 +270,18 @@ def run(user_id):
             
             is_locked_for_review = st.session_state.content_ready_for_scan
             
+            # FIXED: Synced UI Fields with loaded data state handlers
             g_col1, g_col2 = st.columns(2)
             with g_col1:
-                chosen_pillar = st.selectbox("Active Brand Blueprint Category / Pillar:", available_categories, disabled=is_locked_for_review)
+                cat_index = available_categories.index(st.session_state.active_category) if st.session_state.active_category in available_categories else 0
+                chosen_pillar = st.selectbox("Active Brand Blueprint Category / Pillar:", available_categories, index=cat_index, disabled=is_locked_for_review)
+                st.session_state.active_category = chosen_pillar
             
             filtered_platforms = [bp['platform'] for bp in blueprints if bp['category'] == chosen_pillar]
             with g_col2:
-                chosen_channel = st.selectbox("Target Publishing Platform / Channel:", filtered_platforms if filtered_platforms else list(PLATFORM_LIMITS.keys()), disabled=is_locked_for_review)
+                plat_index = filtered_platforms.index(st.session_state.active_platform) if st.session_state.active_platform in filtered_platforms else 0
+                chosen_channel = st.selectbox("Target Publishing Platform / Channel:", filtered_platforms if filtered_platforms else list(PLATFORM_LIMITS.keys()), index=plat_index, disabled=is_locked_for_review)
+                st.session_state.active_platform = chosen_channel
             
             active_blueprint = next((bp for bp in blueprints if bp['category'] == chosen_pillar and bp['platform'] == chosen_channel), None)
             active_specs = PLATFORM_LIMITS.get(chosen_channel, {"char_max": 3000, "ideal_image": "1080x1080", "aspect_ratio": "1:1"})
@@ -275,8 +292,11 @@ def run(user_id):
                     st.markdown(f"**Tonal Guardrails:** *{active_blueprint.get('tonal_guardrails', 'None')}*")
                     st.markdown(f"**Structural Rules:** *{active_blueprint.get('structural_rules', 'None')}*")
 
-            content_title = st.text_input("Asset Working Title:", placeholder="e.g., Special Announcement: Help Us Make an Impact", disabled=is_locked_for_review)
-            publish_date = st.date_input("Target Publishing Window Date:", datetime.date.today(), disabled=is_locked_for_review)
+            content_title = st.text_input("Asset Working Title:", value=st.session_state.active_title, placeholder="e.g., Special Announcement: Help Us Make an Impact", disabled=is_locked_for_review)
+            st.session_state.active_title = content_title
+            
+            publish_date = st.date_input("Target Publishing Window Date:", value=st.session_state.active_date, disabled=is_locked_for_review)
+            st.session_state.active_date = publish_date
 
             custom_generation_prompt = st.text_area(
                 "Specific Copywriting Instructions for this piece (Optional Guide Rails):",
@@ -296,7 +316,6 @@ def run(user_id):
                         st.error("Missing selected blueprint matching key paths.")
                     else:
                         with st.spinner("Generating raw platform content asset copy..."):
-                            
                             user_instruction_block = ""
                             if custom_generation_prompt:
                                 user_instruction_block = f"""
@@ -341,6 +360,9 @@ def run(user_id):
                             st.rerun()
             with g_buttons[1]:
                 if st.button("❌ Clear & Restart Draft", use_container_width=True):
+                    st.session_state.active_item_id = None
+                    st.session_state.active_title = ""
+                    st.session_state.active_date = datetime.date.today()
                     st.session_state.active_content_suggestion = ""
                     st.session_state.workspace_text = ""
                     st.session_state.guardian_rev += 1
@@ -361,7 +383,7 @@ def run(user_id):
                         final_text = raw_suggestion
                     
                     st.session_state.workspace_text = final_text
-                    st.session_state.guardian_rev += 1
+                    st.session_state["guardian_workspace_canvas_field_" + str(st.session_state.guardian_rev)] = final_text
                     st.session_state.active_content_suggestion = ""
                     invalidate_previous_compliance_scan()
                     st.rerun()
@@ -441,7 +463,6 @@ def run(user_id):
             
             if st.button("🔍 Execute Brand Soul Alignment Scan", use_container_width=True, type="primary"):
                 with st.spinner("Auditing thematic lines against active playbook rules..."):
-                    # FIXED: Instructional compliance breakdown mapping
                     scan_prompt = f"""
                     ROLE: Strict Brand Guardian & Compliance Auditor.
                     TASK: Audit this text copy against architectural limits and directives.
@@ -486,11 +507,17 @@ def run(user_id):
                     if st.button("💾 Save Progress as Draft Room Item", use_container_width=True):
                         with st.spinner("Pushing metrics..."):
                             payload["status"] = "draft"
-                            exist_check = supabase.table("brand_content_items").select("id").eq("user_id", user_id).eq("title", content_title).eq("platform", chosen_channel).eq("publish_date", str(publish_date)).execute()
-                            if exist_check.data:
-                                supabase.table("brand_content_items").update(payload).eq("id", exist_check.data[0]["id"]).execute()
+                            # FIXED: Targeted update via active item ID prevents duplicates when names/dates change
+                            if st.session_state.get("active_item_id"):
+                                supabase.table("brand_content_items").update(payload).eq("id", st.session_state.active_item_id).execute()
                             else:
-                                supabase.table("brand_content_items").insert(payload).execute()
+                                exist_check = supabase.table("brand_content_items").select("id").eq("user_id", user_id).eq("title", content_title).eq("platform", chosen_channel).eq("publish_date", str(publish_date)).execute()
+                                if exist_check.data:
+                                    st.session_state.active_item_id = exist_check.data[0]["id"]
+                                    supabase.table("brand_content_items").update(payload).eq("id", exist_check.data[0]["id"]).execute()
+                                else:
+                                    res = supabase.table("brand_content_items").insert(payload).execute()
+                                    if res.data: st.session_state.active_item_id = res.data[0]["id"]
                             st.success("Draft saved!")
                             time.sleep(1)
                             st.rerun()
@@ -498,12 +525,16 @@ def run(user_id):
                     if st.button("🚀 Approve & Lock for Publication Rollout", use_container_width=True, type="primary", disabled=not is_pass):
                         with st.spinner("Locking validated asset..."):
                             payload["status"] = "approved_for_publishing"
-                            exist_check = supabase.table("brand_content_items").select("id").eq("user_id", user_id).eq("title", content_title).eq("platform", chosen_channel).eq("publish_date", str(publish_date)).execute()
-                            if exist_check.data:
-                                supabase.table("brand_content_items").update(payload).eq("id", exist_check.data[0]["id"]).execute()
+                            if st.session_state.get("active_item_id"):
+                                supabase.table("brand_content_items").update(payload).eq("id", st.session_state.active_item_id).execute()
                             else:
-                                supabase.table("brand_content_items").insert(payload).execute()
+                                exist_check = supabase.table("brand_content_items").select("id").eq("user_id", user_id).eq("title", content_title).eq("platform", chosen_channel).eq("publish_date", str(publish_date)).execute()
+                                if exist_check.data:
+                                    supabase.table("brand_content_items").update(payload).eq("id", exist_check.data[0]["id"]).execute()
+                                else:
+                                    supabase.table("brand_content_items").insert(payload).execute()
                             
+                            st.session_state.active_item_id = None
                             st.session_state.active_content_suggestion = ""
                             st.session_state.workspace_text = ""
                             st.session_state.guardian_rev += 1
@@ -540,6 +571,12 @@ def run(user_id):
                 with m1:
                     if st.button("↩️ Re-Edit", key=f"revert_{item['id']}", use_container_width=True):
                         supabase.table("brand_content_items").update({"status": "draft"}).eq("id", item['id']).execute()
+                        st.session_state.active_item_id = item['id']
+                        st.session_state.active_title = item['title']
+                        st.session_state.active_category = item['category']
+                        st.session_state.active_platform = item['platform']
+                        try: st.session_state.active_date = datetime.datetime.strptime(item['publish_date'], "%Y-%m-%d").date()
+                        except: pass
                         st.session_state.workspace_text = item['current_body']
                         st.session_state.guardian_rev += 1
                         st.rerun()
@@ -548,7 +585,7 @@ def run(user_id):
                         supabase.table("brand_content_items").delete().eq("id", item['id']).execute()
                         st.rerun()
 
-        # FIXED: RESTORED WORKSPACE DRAFTS RENDERER
+        # WORKSPACE DRAFTS RENDERER
         st.write("---")
         st.markdown("#### 📝 Workspace Vault Drafts")
         draft_items = [i for i in calendar_data if i['status'] == 'draft']
@@ -565,6 +602,12 @@ def run(user_id):
                 with d_actions[0]:
                     if st.button("📂 Load & Edit", key=f"load_draft_{item['id']}", use_container_width=True):
                         st.session_state.campaign_committed = True
+                        st.session_state.active_item_id = item['id']
+                        st.session_state.active_title = item['title']
+                        st.session_state.active_category = item['category']
+                        st.session_state.active_platform = item['platform']
+                        try: st.session_state.active_date = datetime.datetime.strptime(item['publish_date'], "%Y-%m-%d").date()
+                        except: pass
                         st.session_state.workspace_text = item['current_body']
                         st.session_state.guardian_rev += 1
                         st.session_state.active_content_suggestion = item['suggested_body'] or ""
