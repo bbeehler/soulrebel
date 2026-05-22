@@ -235,7 +235,7 @@ def run(user_id):
         st.write("---")
 
         # =====================================================================
-        # STAGE 02: BLUEPRINT CONTENT ENGINE (ZERO-STRATEGY CRITICAL FIX)
+        # STAGE 02: BLUEPRINT CONTENT ENGINE (CONTENT-ONLY FORCE LAYER)
         # =====================================================================
         st.markdown("## 📝 Stage 2: Content Generation & Blueprint Tailoring")
         
@@ -294,39 +294,39 @@ def run(user_id):
                         st.error("Missing selected blueprint matching key paths.")
                     else:
                         with st.spinner("Synthesizing copy parameters inside blueprint channels..."):
-                            # UNYIELDING ENGINE RULES DEFINING AN ACCURATE, PILLAR-ALIGNED EXECUTION COPY OUTBOX
+                            # UNCOMPROMISING COPYWRITING COMMAND MATRIX
                             prompt = f"""
-                            ROLE: Expert Copywriter & Asset Producer.
-                            TASK: Write the final, ready-to-publish raw content copy for an asset titled: '{content_title}'.
+                            ROLE: Expert Direct-Response Copywriter and Final Content Producer.
+                            TASK: Write the absolute raw body copy deployment text for an asset titled: '{content_title}'.
                             
-                            🚨 CRITICAL CORE EXECUTION LAW:
-                            - You must ONLY return the actual, finalized content body copy block matching the channel specs below.
-                            - Do NOT output strategy overviews, structural outlines, placeholder suggestions, recommendations, bullet point lists of advice, or preamble explanations. 
-                            - Dive straight into the copy text. If the selected channel is an Email Blast, write the full, cohesive copy body of that email. If it is a social post, write the exact post caption blocks.
+                            🚨 THE UNYIELDING MASTER LAW — DO NOT WRITE A FRAMEWORK:
+                            - Your job is to output ONLY the actual words, sentences, hooks, paragraphs, and text strings that will be sent to an audience.
+                            - You are STRICTLY FORBIDDEN from explaining your strategy, using structural labels, listing formatting tips, providing recommendations, or generating structural markdown components. 
+                            - Do NOT outline a strategy. Dive straight into the copy. If the target platform is an Email Blast, write the subject line and full readable body text of that email. If it is a Facebook post, write the exact caption text and emojis to paste into Facebook.
                             
-                            🚨 HARD GEOMETRIC LIMIT CEILING:
-                            The target distribution vessel is '{chosen_channel}'. Your output copy text MUST stay completely below {active_specs['char_max']} characters. Trim fat, be concise, and fit the frame.
+                            🚨 LIMIT CEILING:
+                            The platform format container is '{chosen_channel}'. Your output copy text block MUST be completely below {active_specs['char_max']} total characters. Keep it under this wall.
                             
                             🚨 FORBIDDEN LABELS:
                             - Write purely from the individual user's specific perspective.
                             - You must ABSOLUTELY NOT use, mention, or print the word 'Godzspeed' or refer to any marketing agency entity anywhere within your output layout.
                             
-                            STRATEGIC CAMPAIGN CAMPAIGN UNDERLAY: 
-                            {st.session_state.committed_campaign_data.get('architecture')}
+                            STRATEGIC CAMPAIGN CONTEXT DIRECTION: 
+                            {clean_display_text(st.session_state.committed_campaign_data.get('architecture'))}
                             
                             USER'S INITIAL CAMPAIGN INTENT: 
                             "{st.session_state.committed_campaign_data.get('intent')}"
                             
-                            🎯 ACTIVE COMPLIANCE MATRIX BLUEPRINT DIRECTIVES:
-                            - CATEGORY PILLAR CONTEXT: {chosen_pillar}
-                            - DISTRIBUTION CHANNEL: {chosen_channel}
-                            - BLUEPRINT FORMAT STRUCTURE: {active_blueprint.get('medium_type')}
-                            - BLUEPRINT TARGET LENGTH: {active_blueprint.get('target_length')}
-                            - BLUEPRINT TONAL LAWS: {active_blueprint.get('tonal_guardrails')}
+                            🎯 COMPLIANCE BLUEPRINT INJECTION MATRICES:
+                            - BLUEPRINT PILLAR CATEGORY: {chosen_pillar}
+                            - BLUEPRINT TARGET CHANNEL: {chosen_channel}
+                            - BLUEPRINT FORMAT VARIANT: {active_blueprint.get('medium_type')}
+                            - BLUEPRINT TARGET VOLUME LENGTH: {active_blueprint.get('target_length')}
+                            - BLUEPRINT TONAL DIRECTIVES: {active_blueprint.get('tonal_guardrails')}
                             - BLUEPRINT STRUCTURAL RULES: {active_blueprint.get('structural_rules')}
-                            - MASTER INTEL BRAND PLAYBOOK: {soul_guide_context}
+                            - APPROVED CORE PERSONAL BRAND REBEL GUIDE: {soul_guide_context}
                             
-                            OUTPUT VERBATIM SPECIFICATION: Provide the direct copy block text now. No introductions, no notes.
+                            OUTPUT VERBATIM SPECIFICATION: Return ONLY the raw deployable copy block now. No intro chit-chat, no notes, no headers.
                             """
                             raw_out = get_soul_rebel_consultant("Draft Content Piece", prompt)
                             st.session_state.active_content_suggestion = clean_display_text(raw_out)
@@ -348,7 +348,7 @@ def run(user_id):
                     
                     if len(raw_suggestion) > active_specs['char_max']:
                         st.session_state.workspace_text = raw_suggestion[:active_specs['char_max']]
-                        st.warning(f"✂ *The copy hit structural thresholds and was automatically truncated to stay compliant.*")
+                        st.warning(f"✂️ The generated copy hit structural thresholds and was automatically truncated to stay compliant.")
                     else:
                         st.session_state.workspace_text = raw_suggestion
                         
@@ -391,7 +391,6 @@ def run(user_id):
                         else:
                             st.session_state.workspace_text = refined_output
                             
-                        st.sidebar.success("Copy refined!")
                         st.session_state.guardian_rev += 1
                         st.rerun()
 
