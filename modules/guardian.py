@@ -49,6 +49,13 @@ def run(user_id):
     if "guardian_rev" not in st.session_state:
         st.session_state.guardian_rev = 0
 
+    # Dynamic Strategy Fetch for Step 2 Handshaking
+    try:
+        strategy_res = supabase.table("brand_strategy").select("soul_guide").eq("user_id", user_id).single().execute()
+        soul_guide_context = strategy_res.data.get("soul_guide", "") if strategy_res.data else ""
+    except:
+        soul_guide_context = ""
+
     # Layout Split: Central Operational Stepper on left vs Live Timeline on right
     col_main, col_sidebar = st.columns([5, 2], gap="large")
 
@@ -61,7 +68,7 @@ def run(user_id):
         if not st.session_state.campaign_committed:
             campaign_intent = st.text_area(
                 "Describe your campaign objective or initiative purpose:",
-                placeholder="e.g., We are organizing a charity bicycle ride campaign to raise money for municipal mental health programs...",
+                placeholder="e.g., We are organizing a charity campaign to raise money for municipal services...",
                 help="Type what you want to accomplish. The system will figure out the marketing pillars and optimal distribution mix."
             )
             
@@ -72,13 +79,6 @@ def run(user_id):
                         st.error("Please provide an initialization objective first.")
                     else:
                         with st.spinner("Formulating channel mix matrix strategies..."):
-                            try:
-                                strategy_res = supabase.table("brand_strategy").select("soul_guide").eq("user_id", user_id).single().execute()
-                                context_soul = strategy_res.data.get("soul_guide", "") if strategy_res.data else ""
-                            except:
-                                context_soul = ""
-
-                            # HARDENED CAMPAIGN PROMPT: Enforces absolute boundary constraints on user concept
                             prompt = f"""
                             ROLE: Chief Marketing Officer & Strict Campaign Architect.
                             TASK: Take the user's specific campaign objective and structure it into a clean, execution-ready channel distribution framework.
@@ -95,7 +95,7 @@ def run(user_id):
                             "{campaign_intent}"
                             
                             USER'S STRATEGIC BRAND IDENTITY CONTEXT: 
-                            {context_soul}
+                            {soul_guide_context}
                             
                             OUTPUT FORMAT: Present the structured framework matching these exact headers:
                             ### 📋 Executive Summary
@@ -150,11 +150,26 @@ def run(user_id):
         
         if not st.session_state.campaign_committed:
             st.caption("🔒 *Commit to a campaign strategy above to unlock the asset generation terminal.*")
+        elif not soul_guide_context:
+            st.error("🚨 Master Soul Guide context not detected. Please finalize Phase 03: Illumination to populate strategic values.")
         else:
+            # PRELOADED PILLARS DIRECTLY FROM MASTER BLUEPRINT ENTRIES
+            preloaded_pillars = [
+                "SECTION 1: BRAND IDENTITY",
+                "SECTION 2: BRAND POSITIONING",
+                "SECTION 3: BRAND EXPRESSION",
+                "SECTION 4: SOUL TIES"
+            ]
+            
             g_col1, g_col2 = st.columns(2)
             with g_col1:
-                chosen_pillar = st.text_input("Active Campaign Pillar Focus:", placeholder="e.g., Civic Action Strategy / Fundraising")
+                chosen_pillar = st.selectbox(
+                    "Preloaded Strategic Persona Pillar Focus:", 
+                    preloaded_pillars,
+                    help="Select which explicit core pillar area from your Phase 03 document to target for this content item."
+                )
             with g_col2:
+                # Dynamic Channel Picker mapping based on active selection filters
                 chosen_channel = st.selectbox("Target Channel / Platform Matrix:", list(PLATFORM_LIMITS.keys()))
             
             active_specs = PLATFORM_LIMITS[chosen_channel]
@@ -175,9 +190,10 @@ def run(user_id):
                         st.error("Provide a working headline title to fuel the engine parameters context.")
                     else:
                         with st.spinner("Synthesizing copy parameters inside blueprint channels..."):
+                            # HARDENED GENERATION PROMPT: Enforces strict topical compliance using structural refraction logic
                             prompt = f"""
                             ROLE: Expert Asset Copywriter.
-                            TASK: Draft high-engagement copy that strictly adheres to the locked campaign framework.
+                            TASK: Draft high-engagement copy that strictly adheres to the locked campaign framework and preloaded brand pillar text context.
                             
                             =======================================================================
                             ⚠️ UNYIELDING BOUNDARY CONTROLS:
@@ -193,7 +209,10 @@ def run(user_id):
                             USER'S STATED INITIAL INTENT: 
                             "{st.session_state.committed_campaign_data.get('intent')}"
                             
-                            SPECIFIC PILLAR TARGET: {chosen_pillar}
+                            ACTIVE BRAND PILLAR CONTEXT SECTION: {chosen_pillar}
+                            MASTER BRAND INTEL PLAYBOOK SOURCE CONTEXT:
+                            {soul_guide_context}
+                            
                             TARGET DEPLOYMENT CHANNEL: {chosen_channel}
                             MAX COPY VOLUME LENGTH: {active_specs['char_max']} characters.
                             WORKING TOPIC HEADLINE: {content_title}
@@ -236,7 +255,6 @@ def run(user_id):
             else:
                 st.caption(f"Volume Tracker: `{c_length}` / `{active_specs['char_max']}` maximum characters for {chosen_channel}.")
 
-            # COLLABORATIVE CONVERSATIONAL REFINEMENT REPAINT ENGINE
             if st.session_state.workspace_text:
                 chat_feedback = st.chat_input("Ask the controller to rewrite, extend, or trim this text...")
                 if chat_feedback:
@@ -250,7 +268,6 @@ def run(user_id):
                         st.session_state.guardian_rev += 1
                         st.rerun()
 
-                # Action lock step configuration to progress workflow forward
                 if st.button("🔒 Lock Workspace & Proceed to Compliance Scan", use_container_width=True):
                     st.session_state.content_ready_for_scan = True
                     st.success("Workspace locked. Step 3 Compliance Gate is now authorized to run.")
@@ -270,12 +287,6 @@ def run(user_id):
             
             if st.button("🔍 Execute Brand Soul Alignment Scan", use_container_width=True, type="primary"):
                 with st.spinner("Auditing thematic lines against active playbook rules..."):
-                    try:
-                        strategy_res = supabase.table("brand_strategy").select("soul_guide").eq("user_id", user_id).single().execute()
-                        soul_guide_context = strategy_res.data.get("soul_guide", "") if strategy_res.data else ""
-                    except:
-                        soul_guide_context = ""
-
                     scan_prompt = f"""
                     ROLE: Hardened Compliance Auditor & Channel Integrity Sweeper.
                     TASK: Audit this text copy against absolute architectural limits and user campaign directives.
