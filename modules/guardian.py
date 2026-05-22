@@ -1,6 +1,7 @@
 import streamlit as st
 import datetime
 import time
+import re
 from utils.gemini_ai import get_soul_rebel_consultant
 from utils.supabase_db import supabase
 
@@ -16,10 +17,43 @@ PLATFORM_LIMITS = {
     "Substack Blog": {"char_max": 99999, "ideal_image": "1200 x 600 px", "aspect_ratio": "2:1"}
 }
 
+def parse_strategy_elements(architecture_text):
+    """
+    Surgically extracts custom campaign pillars and recommended platforms 
+    directly from the Stage 1 generated strategy text block.
+    """
+    pillars = []
+    channels = []
+    
+    if not architecture_text:
+        return ["General Campaign Execution"], list(PLATFORM_LIMITS.keys())
+        
+    # Extract pillars via common markdown patterns or bullet lines under headers
+    pillar_block = re.findall(r"(?:Pillars|PILLARS).*?\n(.*?)(?:\n\n|\n#|$)", architecture_text, re.DOTALL | re.IGNORECASE)
+    if pillar_block:
+        lines = pillar_block[0].split("\n")
+        for line in lines:
+            clean = re.sub(r"^[\s\-\*\d\.]+", "", line).strip()
+            if clean and len(clean) > 3 and not clean.startswith("#"):
+                pillars.append(clean.split(":")[0].strip())
+                
+    # Fallback if specific bullet parsing yields nothing
+    if not pillars:
+        pillars = ["Campaign Alignment Core", "Tactical Engagement Narrative", "Distribution Outreach Operational"]
+
+    # Match platform strings explicitly against our system API limit keys
+    for plat in PLATFORM_LIMITS.keys():
+        if re.search(r"\b" + re.escape(plat) + r"\b", architecture_text, re.IGNORECASE):
+            channels.append(plat)
+            
+    if not channels:
+        channels = list(PLATFORM_LIMITS.keys())
+        
+    return pillars, channels
+
 def load_content_calendar(user_id):
     """Fetches planned, drafted, and fully committed assets from database layers."""
     try:
-        # Exclude our special campaign workspace row from showing up in the user's actual content timelines
         response = supabase.table("brand_content_items")\
             .select("*")\
             .eq("user_id", user_id)\
@@ -54,14 +88,12 @@ def run(user_id):
     if "guardian_rev" not in st.session_state:
         st.session_state.guardian_rev = 0
 
-    # --- INITIAL LOAD ENGINE: Rehydrate from the existing Content Items table ---
+    # --- INITIAL LOAD ENGINE: Rehydrate from existing Content Items table row ---
     soul_guide_context = ""
     try:
-        # Fetch soul guide context from the strategy table
         strategy_res = supabase.table("brand_strategy").select("soul_guide").eq("user_id", user_id).single().execute()
         soul_guide_context = strategy_res.data.get("soul_guide", "") if strategy_res.data else ""
         
-        # Pull or verify step 1 progress using the unified campaign tracker row
         workspace_row = supabase.table("brand_content_items")\
             .select("*")\
             .eq("user_id", user_id)\
@@ -80,7 +112,6 @@ def run(user_id):
                 }
             elif status_flag == "draft" and not st.session_state.campaign_suggestion:
                 st.session_state.campaign_suggestion = record.get("suggested_body", "")
-                # Store text area default fallback target
                 if "init_intent_fallback" not in st.session_state:
                     st.session_state.init_intent_fallback = record.get("current_body", "")
     except Exception as e:
@@ -91,7 +122,7 @@ def run(user_id):
 
     with col_main:
         # =====================================================================
-        # STAGE 01: THE STRATEGIC CAMPAIGN BUILDER (Zero-Migration Table Reuse)
+        # STAGE 01: THE STRATEGIC CAMPAIGN BUILDER
         # =====================================================================
         st.markdown("## 🎯 Stage 1: Campaign Strategic Direction")
         
@@ -134,14 +165,13 @@ def run(user_id):
                             (A concise strategic distillation focusing purely on the execution of the user's exact stated objective)
                             
                             ### 🗂️ Activated Brand Pillars
-                            (Identify which organizational or marketing pillars are directly engaged by this exact campaign idea)
+                            (List exactly 3 or 4 clear, specific campaign pillars activated by this exact project name)
                             
                             ### 📱 Recommended Distribution Channels
-                            (Map the user's exact concept into optimal platforms like LinkedIn, Substack, Facebook, etc., detailing exactly how the user's specific text should be configured for each channel)
+                            (List exactly which core platforms from this selection are required: Facebook, Instagram, LinkedIn, TikTok, Website Blog, Substack Blog)
                             """
                             suggestion_output = get_soul_rebel_consultant("Draft Campaign Framework", prompt)
                             
-                            # REUSING CONTENT ITEMS TABLE: Save raw brainstorm with a 'draft' identifier flag
                             sync_payload = {
                                 "user_id": user_id,
                                 "title": "MASTER_CAMPAIGN_WORKSPACE",
@@ -186,7 +216,7 @@ def run(user_id):
                         "title": "MASTER_CAMPAIGN_WORKSPACE",
                         "current_body": campaign_intent,
                         "suggested_body": st.session_state.campaign_suggestion,
-                        "status": "approved_for_publishing", # Changes status flags to lock Stage 1 down
+                        "status": "approved_for_publishing",
                         "category": "CAMPAIGN_SYSTEM",
                         "platform": "SYSTEM_WORKBENCH",
                         "publish_date": str(datetime.date.today())
@@ -230,33 +260,34 @@ def run(user_id):
         st.write("---")
 
         # =====================================================================
-        # STAGE 02: BLUEPRINT CONTENT ENGINE (PILLAR-TO-CHANNEL DIRECT BRIDGE)
+        # STAGE 02: DYNAMIC CONTENT ENGINE (DYNAMIC PILLAR & CHANNEL STREAMING)
         # =====================================================================
         st.markdown("## 📝 Stage 2: Content Generation & Blueprint Tailoring")
         
         if not st.session_state.campaign_committed:
             st.caption("🔒 *Commit to a campaign strategy above to unlock the asset generation terminal.*")
         elif not soul_guide_context:
-            st.error("🚨 Master Soul Guide context not detected. Please finalize Phase 03: Illumination to populate strategic values.")
+            st.error("🚨 Master Soul Guide context not detected. Please finalize Phase 03: Illumination first.")
         else:
-            preloaded_pillars = [
-                "SECTION 1: BRAND IDENTITY",
-                "SECTION 2: BRAND POSITIONING",
-                "SECTION 3: BRAND EXPRESSION",
-                "SECTION 4: SOUL TIES"
-            ]
+            # FIXED: Dynamically extract options straight from the Stage 1 output text block
+            active_arch = st.session_state.committed_campaign_data.get("architecture", "")
+            dynamic_pillars, dynamic_channels = parse_strategy_elements(active_arch)
             
             g_col1, g_col2 = st.columns(2)
             with g_col1:
                 chosen_pillar = st.selectbox(
-                    "Preloaded Strategic Persona Pillar Focus:", 
-                    preloaded_pillars,
-                    help="Select which explicit core pillar area from your Phase 03 document to target for this content item."
+                    "Select Preloaded Campaign Pillar:", 
+                    dynamic_pillars,
+                    help="These pillars are generated straight from your active Stage 1 strategy block above."
                 )
             with g_col2:
-                chosen_channel = st.selectbox("Target Channel / Platform Matrix:", list(PLATFORM_LIMITS.keys()))
+                chosen_channel = st.selectbox(
+                    "Select Recommended Channel Route:", 
+                    dynamic_channels,
+                    help="This dropdown filters platforms dynamically based on your committed campaign framework."
+                )
             
-            active_specs = PLATFORM_LIMITS[chosen_channel]
+            active_specs = PLATFORM_LIMITS.get(chosen_channel, {"char_max": 3000, "ideal_image": "1080x1080", "aspect_ratio": "1:1"})
             with st.expander("📱 View Active Platform Layout Constraints", expanded=True):
                 st.markdown(f"- **Hard Character Limit:** `{active_specs['char_max']:,}` characters")
                 st.markdown(f"- **Target Resolution / Layout:** `{active_specs['ideal_image']}` (`{active_specs['aspect_ratio']}` Aspect)")
@@ -287,19 +318,19 @@ def run(user_id):
                             =======================================================================
                             
                             LOCKED STRATEGIC CAMPAIGN MATRIX: 
-                            {st.session_state.committed_campaign_data.get('architecture')}
+                            {active_arch}
                             
                             USER'S STATED INITIAL INTENT: 
                             "{st.session_state.committed_campaign_data.get('intent')}"
                             
                             =======================================================================
                             🎯 CRITICAL PILLAR-TO-CHANNEL ALIGNMENT LAWS:
-                            - ACTIVE BRAND PILLAR FOCUS: {chosen_pillar}
+                            - ACTIVE CAMPAIGN PILLAR FOCUS: {chosen_pillar}
                             - TARGET DISTRIBUTION CHANNEL: {chosen_channel}
                             - MAXIMUM ALLOCATED VOLUME CEILING: {active_specs['char_max']} characters (Do NOT cross)
                             =======================================================================
                             
-                            Isolate the elements of '{chosen_pillar}' inside the Master Playbook Text below. Braid those structural elements with your campaign intention text to generate an asset tailored specifically for formatting frameworks inside '{chosen_channel}'.
+                            Braid the structural elements of your campaign intent text to generate an asset tailored specifically for formatting frameworks inside '{chosen_channel}'.
                             
                             MASTER BRAND INTEL PLAYBOOK SOURCE CONTEXT:
                             {soul_guide_context}
@@ -389,7 +420,7 @@ def run(user_id):
                     MANDATE: Completely omit the word 'Godzspeed'.
                     
                     LOCKED CAMPAIGN BLUEPRINT ARCHITECTURE:
-                    {st.session_state.committed_campaign_data.get('architecture')}
+                    {active_arch}
                     
                     USER'S STATED INITIAL INTENT: 
                     "{st.session_state.committed_campaign_data.get('intent')}"
