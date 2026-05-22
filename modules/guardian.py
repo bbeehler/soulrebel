@@ -454,15 +454,10 @@ def run(user_id):
         # =====================================================================
         # STAGE 03: HARD COMPLIANCE AUDIT GATE
         # =====================================================================
-        st.markdown("## 🛡️ Stage 3: Brand Guardian Compliance Gate")
-        
-        if not st.session_state.content_ready_for_scan:
-            st.caption("🔒 *Complete your workspace composition steps above and lock down composition to clear the compliance pathways.*")
-        else:
-            st.warning(f"**Target System Rule Check:** Auditing copy against {chosen_channel} rules.")
-            
-            if st.button("🔍 Execute Brand Soul Alignment Scan", use_container_width=True, type="primary"):
-                with st.spinner("Auditing thematic lines against active playbook rules..."):
+        if st.session_state.content_ready_for_scan:
+            st.markdown("---")
+            if st.button("🔍 Execute Brand Soul Alignment Scan", type="primary"):
+                with st.spinner("Running brand compliance scan..."):
                     scan_prompt = f"""
                     ROLE: Strict Brand Guardian & Compliance Auditor.
                     TASK: Audit this text copy against architectural limits and directives.
@@ -474,76 +469,52 @@ def run(user_id):
                     
                     OUTPUT FORMAT REQUIREMENTS:
                     Line 1 MUST be exactly 'SCORE: PASS' or 'SCORE: FAIL'.
-                    If PASS: Provide a 1-2 sentence positive confirmation.
-                    If FAIL: Provide a section titled '### 🛠️ Required Fixes'. List 1 to 3 highly specific, actionable bullet points explaining exactly WHAT broke the rules and HOW the user needs to edit the text to fix it. Do not be philosophical; give direct instructions.
+                    Provide a detailed, bulleted breakdown explaining EXACTLY what broke the rules and HOW the user needs to edit the copy to fix it. Do not be vague or philosophical.
                     """
                     audit_res = get_soul_rebel_consultant("Verify Asset Integrity", scan_prompt)
                     st.session_state.compliance_report = re.sub(r"\bGodzspeed\b", "[CENSORED]", audit_res, flags=re.IGNORECASE)
                     st.rerun()
 
-            if st.session_state.compliance_report:
-                report_string = st.session_state.compliance_report
-                is_pass = "SCORE: PASS" in report_string
+            if st.session_state.get("compliance_report"):
+                res_report = st.session_state.compliance_report
                 
-                if is_pass:
+                if "SCORE: PASS" in res_report:
                     st.success("🎉 BRAND GUARDIAN GATEKEEPER: POSITIONING MATRIX CLEARED (PASSED)")
-                    st.info(report_string)
+                    st.info(res_report)
+                    
+                    if st.button("🚀 Save/Commit to Production Timeline", use_container_width=True):
+                        payload = {
+                            "user_id": user_id, 
+                            "title": st.session_state.active_title, 
+                            "current_body": st.session_state.workspace_text, 
+                            "category": st.session_state.active_cat, 
+                            "platform": st.session_state.active_plat, 
+                            "status": "approved_for_publishing",
+                            "publish_date": str(datetime.date.today())
+                        }
+                        if st.session_state.active_item_id:
+                            supabase.table("brand_content_items").update(payload).eq("id", st.session_state.active_item_id).execute()
+                        else:
+                            supabase.table("brand_content_items").insert(payload).execute()
+                        
+                        st.success("Asset pushed to timeline production loops!")
+                        time.sleep(0.5)
+                        st.session_state.active_item_id = None
+                        st.session_state.workspace_text = ""
+                        st.session_state.active_title = ""
+                        st.session_state.compliance_report = None
+                        st.session_state.content_ready_for_scan = False
+                        st.session_state.guardian_rev += 1
+                        st.rerun()
                 else:
+                    # FIXED: Forces the application to reveal the exact reasons and instructional bullet points for the failure
                     st.error("🚨 BRAND GUARDIAN GATEKEEPER: COMPLIANCE INTEGRITY THREAT DETECTED (FAILED)")
-                    st.info(report_string)
-
-                st.write(" ")
-                st.markdown("### 💾 Step 4: Pipeline Target Commit Routing")
-                
-                payload = {
-                    "user_id": user_id, "title": content_title,
-                    "suggested_body": st.session_state.active_content_suggestion, "current_body": st.session_state.workspace_text,
-                    "category": chosen_pillar, "platform": chosen_channel,
-                    "publish_date": str(publish_date), "guardian_notes": report_string
-                }
-
-                p_buttons = st.columns(2)
-                with p_buttons[0]:
-                    if st.button("💾 Save Progress as Draft Room Item", use_container_width=True):
-                        with st.spinner("Pushing metrics..."):
-                            payload["status"] = "draft"
-                            # FIXED: Targeted update via active item ID prevents duplicates when names/dates change
-                            if st.session_state.get("active_item_id"):
-                                supabase.table("brand_content_items").update(payload).eq("id", st.session_state.active_item_id).execute()
-                            else:
-                                exist_check = supabase.table("brand_content_items").select("id").eq("user_id", user_id).eq("title", content_title).eq("platform", chosen_channel).eq("publish_date", str(publish_date)).execute()
-                                if exist_check.data:
-                                    st.session_state.active_item_id = exist_check.data[0]["id"]
-                                    supabase.table("brand_content_items").update(payload).eq("id", exist_check.data[0]["id"]).execute()
-                                else:
-                                    res = supabase.table("brand_content_items").insert(payload).execute()
-                                    if res.data: st.session_state.active_item_id = res.data[0]["id"]
-                            st.success("Draft saved!")
-                            time.sleep(1)
-                            st.rerun()
-                with p_buttons[1]:
-                    if st.button("🚀 Approve & Lock for Publication Rollout", use_container_width=True, type="primary", disabled=not is_pass):
-                        with st.spinner("Locking validated asset..."):
-                            payload["status"] = "approved_for_publishing"
-                            if st.session_state.get("active_item_id"):
-                                supabase.table("brand_content_items").update(payload).eq("id", st.session_state.active_item_id).execute()
-                            else:
-                                exist_check = supabase.table("brand_content_items").select("id").eq("user_id", user_id).eq("title", content_title).eq("platform", chosen_channel).eq("publish_date", str(publish_date)).execute()
-                                if exist_check.data:
-                                    supabase.table("brand_content_items").update(payload).eq("id", exist_check.data[0]["id"]).execute()
-                                else:
-                                    supabase.table("brand_content_items").insert(payload).execute()
-                            
-                            st.session_state.active_item_id = None
-                            st.session_state.active_content_suggestion = ""
-                            st.session_state.workspace_text = ""
-                            st.session_state.guardian_rev += 1
-                            st.session_state.compliance_report = None
-                            st.session_state.content_ready_for_scan = False
-                            
-                            st.success("Asset pushed to timeline!")
-                            time.sleep(1)
-                            st.rerun()
+                    st.warning("### 📋 Required Fixes & Breakdown")
+                    st.info(res_report)
+            
+            if st.button("🔓 Unlock to Edit"):
+                st.session_state.content_ready_for_scan = False
+                st.rerun()
 
     # =====================================================================
     # SIDEBAR ENGINE
