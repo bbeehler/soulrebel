@@ -1,6 +1,7 @@
 import streamlit as st
 import datetime
 import time
+import json
 import re
 from utils.gemini_ai import get_soul_rebel_consultant
 from utils.supabase_db import supabase
@@ -17,10 +18,10 @@ PLATFORM_LIMITS = {
     "Substack Blog": {"char_max": 99999, "ideal_image": "1200 x 600 px", "aspect_ratio": "2:1"}
 }
 
-def parse_strategy_elements(architecture_text):
+def parse_strategy_elements_hardened(architecture_text):
     """
     Surgically extracts custom campaign pillars and recommended platforms 
-    directly from the Stage 1 generated strategy text block.
+    using explicit tag parameter limits from the Stage 1 output text block.
     """
     pillars = []
     channels = []
@@ -28,18 +29,29 @@ def parse_strategy_elements(architecture_text):
     if not architecture_text:
         return ["General Campaign Execution"], list(PLATFORM_LIMITS.keys())
         
-    # Extract pillars via common markdown patterns or bullet lines under headers
-    pillar_block = re.findall(r"(?:Pillars|PILLARS).*?\n(.*?)(?:\n\n|\n#|$)", architecture_text, re.DOTALL | re.IGNORECASE)
-    if pillar_block:
-        lines = pillar_block[0].split("\n")
-        for line in lines:
-            clean = re.sub(r"^[\s\-\*\d\.]+", "", line).strip()
-            if clean and len(clean) > 3 and not clean.startswith("#"):
-                pillars.append(clean.split(":")[0].strip())
-                
+    # Attempt to locate and unpack our strict data block first
+    try:
+        data_match = re.search(r"\[PILLARS_DATA_START\](.*?)\[PILLARS_DATA_END\]", architecture_text, re.DOTALL)
+        if data_match:
+            parsed_json = json.loads(data_match.group(1).strip())
+            if isinstance(parsed_json, list) and len(parsed_json) > 0:
+                pillars = [str(p).strip() for p in parsed_json]
+    except Exception:
+        pass
+
+    # Safe Fallback System: If json parsing is skipped, scrape via secondary clean string filters
+    if not pillars:
+        pillar_block = re.findall(r"### 🗂️ Activated Brand Pillars\n(.*?)(?:\n\n|\n###|$)", architecture_text, re.DOTALL | re.IGNORECASE)
+        if pillar_block:
+            for line in pillar_block[0].split("\n"):
+                clean = re.sub(r"^[\s\-\*\d\.]+", "", line).strip()
+                if clean and len(clean) > 3 and not clean.startswith("#"):
+                    pillars.append(clean.split(":")[0].strip())
+                    
     if not pillars:
         pillars = ["Campaign Alignment Core", "Tactical Engagement Narrative", "Distribution Outreach Operational"]
 
+    # Match platform strings explicitly against system API keys
     for plat in PLATFORM_LIMITS.keys():
         if re.search(r"\b" + re.escape(plat) + r"\b", architecture_text, re.IGNORECASE):
             channels.append(plat)
@@ -48,6 +60,12 @@ def parse_strategy_elements(architecture_text):
         channels = list(PLATFORM_LIMITS.keys())
         
     return pillars, channels
+
+def clean_display_text(architecture_text):
+    """Removes the ugly backend data payload block from showing up in the user display field."""
+    if not architecture_text:
+        return ""
+    return re.sub(r"\[PILLARS_DATA_START\].*?\[PILLARS_DATA_END\]", "", architecture_text, flags=re.DOTALL).strip()
 
 def load_content_calendar(user_id):
     """Fetches planned, drafted, and fully committed assets from database layers."""
@@ -140,15 +158,14 @@ def run(user_id):
                         st.error("Please provide an initialization objective first.")
                     else:
                         with st.spinner("Formulating channel mix matrix strategies..."):
-                            # HARDENED PROMPT CONSTRAINTS — COMPLETELY SCRUBBING AGENCY MENTIONS
                             prompt = f"""
                             ROLE: Independent Executive Consultant & Chief Marketing Architect.
                             TASK: Take the user's specific campaign objective and structure it into a clean, execution-ready channel distribution framework.
                             
                             =======================================================================
                             🚨 CRITICAL NEGATIVE CONSTRAINT — FORBIDDEN REFERENCES:
-                            - You must write purely, directly, and exclusively from the individual user's personal professional voice.
-                            - You are ABSOLUTELY FORBIDDEN from using, referencing, naming, or mentioning the agency name 'Godzspeed' or any outside marketing agency entity anywhere in your thought process, structural headings, or output text. 
+                            - You must write purely, directly, and exclusively from the individual user's personal voice.
+                            - You are ABSOLUTELY FORBIDDEN from using, referencing, naming, or mentioning the agency name 'Godzspeed' or any outside marketing agency entity anywhere in your text.
                             - Ground all insights entirely within the provided Master Soul Guide document.
                             =======================================================================
                             
@@ -170,10 +187,17 @@ def run(user_id):
                             (A concise strategic distillation focusing purely on the execution of the user's exact stated objective)
                             
                             ### 🗂️ Activated Brand Pillars
-                            (List exactly 3 or 4 clear, specific campaign pillars activated by this exact project name)
+                            (List exactly 3 or 4 clear, specific campaign pillars activated by this project, written as concise short phrases on individual bullet lines)
                             
                             ### 📱 Recommended Distribution Channels
                             (List exactly which core platforms from this selection are required: Facebook, Instagram, LinkedIn, TikTok, Website Blog, Substack Blog)
+                            
+                            =======================================================================
+                            ⚠️ CRITICAL TECHNICAL RULE: At the very end of your output, you MUST output a valid JSON string containing array list items of just the short text names of the Activated Brand Pillars you defined above. Enclose this string strictly inside [PILLARS_DATA_START] and [PILLARS_DATA_END] tags. Example:
+                            [PILLARS_DATA_START]
+                            ["Pillar Name One", "Pillar Name Two", "Pillar Name Three"]
+                            [PILLARS_DATA_END]
+                            =======================================================================
                             """
                             suggestion_output = get_soul_rebel_consultant("Draft Campaign Framework", prompt)
                             
@@ -213,7 +237,8 @@ def run(user_id):
 
             if st.session_state.campaign_suggestion:
                 st.info("### 📋 Recommended Campaign Architecture Matrix")
-                st.write(st.session_state.campaign_suggestion)
+                # Strip out raw background data tags from displaying on frontend viewport layout
+                st.write(clean_display_text(st.session_state.campaign_suggestion))
                 
                 if st.button("🔥 Commit Strategy & Unlock Content Creation", use_container_width=True, type="primary"):
                     commit_payload = {
@@ -246,7 +271,7 @@ def run(user_id):
         else:
             st.success("✅ Campaign Strategy Committed & Locked Into Memory.")
             with st.expander("View Active Campaign Strategic Parameters"):
-                st.write(st.session_state.committed_campaign_data.get("architecture", ""))
+                st.write(clean_display_text(st.session_state.committed_campaign_data.get("architecture", "")))
             if st.button("🗑️ Scrap Strategy & Restart Campaign", type="secondary"):
                 try:
                     supabase.table("brand_content_items").delete().eq("user_id", user_id).eq("title", "MASTER_CAMPAIGN_WORKSPACE").execute()
@@ -265,7 +290,7 @@ def run(user_id):
         st.write("---")
 
         # =====================================================================
-        # STAGE 02: DYNAMIC CONTENT ENGINE
+        # STAGE 02: DYNAMIC CONTENT ENGINE (HARDENED STRUCTURAL PARSING)
         # =====================================================================
         st.markdown("## 📝 Stage 2: Content Generation & Blueprint Tailoring")
         
@@ -275,14 +300,15 @@ def run(user_id):
             st.error("🚨 Master Soul Guide context not detected. Please finalize Phase 03: Illumination first.")
         else:
             active_arch = st.session_state.committed_campaign_data.get("architecture", "")
-            dynamic_pillars, dynamic_channels = parse_strategy_elements(active_arch)
+            # Reads data blocks directly
+            dynamic_pillars, dynamic_channels = parse_strategy_elements_hardened(active_arch)
             
             g_col1, g_col2 = st.columns(2)
             with g_col1:
                 chosen_pillar = st.selectbox(
                     "Select Preloaded Campaign Pillar:", 
                     dynamic_pillars,
-                    help="These pillars are generated straight from your active Stage 1 strategy block above."
+                    help="These pillars are generated straight from your active Stage 1 strategy block data arrays."
                 )
             with g_col2:
                 chosen_channel = st.selectbox(
@@ -309,9 +335,8 @@ def run(user_id):
                         st.error("Provide a working headline title to fuel the engine parameters context.")
                     else:
                         with st.spinner("Synthesizing copy parameters inside blueprint channels..."):
-                            # HARDENED GENERATION LAYER — RE-ENFORCING THE STRICT FORBIDDEN ENTITY COMMANDS
                             prompt = f"""
-                            ROLE: Personal Strategic Content Writer.
+                            ROLE: Expert Asset Copywriter.
                             TASK: Draft high-engagement copy that strictly bridges the active campaign direction with the individual user's brand identity.
                             
                             =======================================================================
@@ -329,7 +354,7 @@ def run(user_id):
                             =======================================================================
                             
                             LOCKED STRATEGIC CAMPAIGN MATRIX: 
-                            {active_arch}
+                            {clean_display_text(active_arch)}
                             
                             USER'S STATED INITIAL INTENT: 
                             "{st.session_state.committed_campaign_data.get('intent')}"
@@ -431,7 +456,7 @@ def run(user_id):
                     🚨 CRITICAL CONSTRAINT: Absolutely do not look for, mention, or print the name 'Godzspeed'. If that agency name appears anywhere in the user text canvas, fail the audit immediately.
                     
                     LOCKED CAMPAIGN BLUEPRINT ARCHITECTURE:
-                    {active_arch}
+                    {clean_display_text(active_arch)}
                     
                     USER'S STATED INITIAL INTENT: 
                     "{st.session_state.committed_campaign_data.get('intent')}"
