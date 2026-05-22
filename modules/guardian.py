@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit st
 import datetime
 import time
 import json
@@ -53,7 +53,6 @@ def invalidate_previous_compliance_scan():
     st.session_state.compliance_report = None
     st.session_state.content_ready_for_scan = False
 
-# FIXED: STREAMLIT MODAL DIALOG CONTAINER FOR ASSET COPY REVIEW
 @st.dialog("📋 Review Confirmed Asset Copy", width="large")
 def show_review_modal(item_title, item_body):
     """Renders a clean, centered overlay window to safely inspect published copy scripts."""
@@ -255,13 +254,16 @@ def run(user_id):
         else:
             available_categories = list(set([bp['category'] for bp in blueprints]))
             
+            # FIXED: Lock down selectors when the canvas workspace is verified or scanned
+            is_locked_for_review = st.session_state.content_ready_for_scan
+            
             g_col1, g_col2 = st.columns(2)
             with g_col1:
-                chosen_pillar = st.selectbox("Active Brand Blueprint Category / Pillar:", available_categories)
+                chosen_pillar = st.selectbox("Active Brand Blueprint Category / Pillar:", available_categories, disabled=is_locked_for_review)
             
             filtered_platforms = [bp['platform'] for bp in blueprints if bp['category'] == chosen_pillar]
             with g_col2:
-                chosen_channel = st.selectbox("Target Publishing Platform / Channel:", filtered_platforms if filtered_platforms else list(PLATFORM_LIMITS.keys()))
+                chosen_channel = st.selectbox("Target Publishing Platform / Channel:", filtered_platforms if filtered_platforms else list(PLATFORM_LIMITS.keys()), disabled=is_locked_for_review)
             
             active_blueprint = next((bp for bp in blueprints if bp['category'] == chosen_pillar and bp['platform'] == chosen_channel), None)
             active_specs = PLATFORM_LIMITS.get(chosen_channel, {"char_max": 3000, "ideal_image": "1080x1080", "aspect_ratio": "1:1"})
@@ -272,12 +274,13 @@ def run(user_id):
                     st.markdown(f"**Tonal Guardrails:** *{active_blueprint.get('tonal_guardrails', 'None')}*")
                     st.markdown(f"**Structural Rules:** *{active_blueprint.get('structural_rules', 'None')}*")
 
-            content_title = st.text_input("Asset Working Title:", placeholder="e.g., Special Announcement: Help Us Make an Impact")
-            publish_date = st.date_input("Target Publishing Window Date:", datetime.date.today())
+            content_title = st.text_input("Asset Working Title:", placeholder="e.g., Special Announcement: Help Us Make an Impact", disabled=is_locked_for_review)
+            publish_date = st.date_input("Target Publishing Window Date:", datetime.date.today(), disabled=is_locked_for_review)
 
             custom_generation_prompt = st.text_area(
                 "Specific Copywriting Instructions for this piece (Optional Guide Rails):",
                 placeholder="e.g., Write a high-urgency email blast asking our contacts to register or donate right now. Keep it direct and emotional...",
+                disabled=is_locked_for_review
             )
 
             st.write(" ")
@@ -285,7 +288,7 @@ def run(user_id):
             # --- GENERATION WORKFLOW ACTIONS ---
             g_buttons = st.columns(2)
             with g_buttons[0]:
-                if st.button("✨ Draft Custom Copy Suggestion", use_container_width=True, type="primary"):
+                if st.button("✨ Draft Custom Copy Suggestion", use_container_width=True, type="primary", disabled=is_locked_for_review):
                     if not content_title:
                         st.error("Provide a working title headline to fuel the generation parameters.")
                     elif not active_blueprint:
@@ -366,15 +369,19 @@ def run(user_id):
 
             # --- EDITING CANVAS ---
             st.write(" ")
+            # FIXED: Canvas now reads disabled=is_locked_for_review. No editing allowed until unlocked or reset!
             edited_body = st.text_area(
                 "Active Composition Canvas:",
                 value=st.session_state.workspace_text,
                 height=300,
                 key="guardian_workspace_canvas_field",
                 on_change=invalidate_previous_compliance_scan,
+                disabled=is_locked_for_review,
                 help="Refine your raw copy body text blocks here. Modifying text will automatically require a fresh compliance scan."
             )
-            st.session_state.workspace_text = re.sub(r"\bGodzspeed\b", "", edited_body, flags=re.IGNORECASE)
+            
+            if not is_locked_for_review:
+                st.session_state.workspace_text = re.sub(r"\bGodzspeed\b", "", edited_body, flags=re.IGNORECASE)
 
             c_length = len(st.session_state.workspace_text)
             if c_length > active_specs['char_max']:
@@ -382,7 +389,7 @@ def run(user_id):
             else:
                 st.caption(f"Volume Tracker: `{c_length}` / `{active_specs['char_max']}` maximum characters for {chosen_channel}.")
 
-            if st.session_state.workspace_text:
+            if st.session_state.workspace_text and not is_locked_for_review:
                 chat_feedback = st.chat_input("Ask the controller to rewrite, extend, or trim this text...")
                 if chat_feedback:
                     with st.spinner("Refining asset text body..."):
@@ -403,9 +410,15 @@ def run(user_id):
                         invalidate_previous_compliance_scan()
                         st.rerun()
 
-                if st.button("🔒 Lock Workspace & Proceed to Compliance Scan", use_container_width=True):
+            if not is_locked_for_review:
+                if st.button("🔒 Lock Workspace & Proceed to Compliance Scan", use_container_width=True, disabled=(c_length == 0 or c_length > active_specs['char_max'])):
                     st.session_state.content_ready_for_scan = True
                     st.success("Workspace locked. Stage 3 Compliance Gate is now authorized to run.")
+                    st.rerun()
+            else:
+                if st.button("🔓 Unlock Workspace to Make Adjustments", use_container_width=True):
+                    st.session_state.content_ready_for_scan = False
+                    st.session_state.compliance_report = None
                     st.rerun()
 
         st.write("---")
@@ -505,7 +518,7 @@ def run(user_id):
                             st.rerun()
 
     # =====================================================================
-    # RIGHT SIDEBAR TIMELINE ENGINE (WITH MODAL DIALOG INTERACTIVE LAYER)
+    # RIGHT SIDEBAR TIMELINE ENGINE
     # =====================================================================
     with col_sidebar:
         st.markdown("### 📅 Active Production Timelines")
@@ -526,7 +539,6 @@ def run(user_id):
                     st.markdown(f"**🟢 {item['title']}**")
                     st.caption(f"📅 **Rollout:** {item['publish_date']} | 📱 **Platform:** {item['platform']}")
                     
-                    # FIXED: REPLACED ACCORDION EXPANDER WITH A CLEAN OVERLAY MODAL CALL
                     if st.button("🔍 Review Confirmed Copy", key=f"rev_modal_trigger_{item['id']}", use_container_width=True):
                         show_review_modal(item['title'], item['current_body'])
                     
