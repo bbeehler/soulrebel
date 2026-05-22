@@ -294,43 +294,35 @@ def run(user_id):
                         st.error("Missing selected blueprint matching key paths.")
                     else:
                         with st.spinner("Generating raw platform content asset copy..."):
-                            # FIXED PROMPT DRIFT: Force AI out of strategy mode and strictly into ghostwriting mode
-                            user_instruction_block = ""
-                            if custom_generation_prompt:
-                                user_instruction_block = f"""
-                                =======================================================================
-                                🔥 PRIMARY DIRECTIVE FROM USER 🔥
-                                Focus your writing entirely on executing this specific request:
-                                "{custom_generation_prompt}"
-                                =======================================================================
-                                """
-
+                            
+                            # RE-STRUCTURED PROMPT: Context First, Instructions Last (The Sandwich Method)
                             prompt = f"""
-                            ROLE: You are an expert ghostwriter and direct-response copywriter.
-                            TASK: Write the final, ready-to-publish text for an asset titled: '{content_title}'.
+                            You are an elite, direct-response copywriter. Your ONLY job is to write final, ready-to-publish raw copy for a '{chosen_channel}' asset titled '{content_title}'.
+
+                            --- STEP 1: BACKGROUND CONTEXT ---
+                            (Read and absorb this to understand the goal and tone, but DO NOT mimic its structure. Do not output strategy headers or bullet points).
+                            Campaign Intent: {st.session_state.committed_campaign_data.get('intent')}
+                            Campaign Strategy Context: {st.session_state.committed_campaign_data.get('architecture')}
+                            Brand Identity Guide: {soul_guide_context}
                             
-                            🚨 ABSOLUTELY UNYIELDING MASTER CONTENT LAW:
-                            - You are NOT a strategist. Do NOT outline a strategy. Do NOT review the campaign.
-                            - You must ONLY output the exact, literal words that will be copy-and-pasted into {chosen_channel}.
-                            - NO introductions (e.g., "Here is the copy"). NO structural headers (e.g., "### Body"). NO advice. NO bulleted lists of recommendations.
+                            --- STEP 2: CHANNEL RULES ---
+                            Platform: {chosen_channel}
+                            Format Requirement: {active_blueprint.get('medium_type')}
+                            Tonal Directives: {active_blueprint.get('tonal_guardrails')}
+                            Structural Rules: {active_blueprint.get('structural_rules')}
+                            Maximum Length: {active_specs['char_max']} characters.
+
+                            --- STEP 3: YOUR SPECIFIC INSTRUCTIONS FOR THIS ASSET ---
+                            {custom_generation_prompt if custom_generation_prompt else "Write highly engaging, conversion-focused copy for this channel based on the campaign intent."}
+
+                            --- STRICT OUTPUT RULES ---
+                            1. Output ONLY the raw copy text. Start writing immediately.
+                            2. NO introductory phrases (e.g., "Here is the copy:").
+                            3. NO strategic summaries, outlines, notes, or commentary.
+                            4. If this is an email, write the subject line and then the body. If it is a social post, write the exact caption.
+                            5. NEVER output or reference the word 'Godzspeed'.
                             
-                            {user_instruction_block}
-                            
-                            🚨 STRICT LENGTH CAPS:
-                            Output MUST be strictly below {active_specs['char_max']} total characters. Keep it tight.
-                            
-                            BACKGROUND CONTEXT (DO NOT COPY THIS FORMAT, USE IT FOR KNOWLEDGE ONLY):
-                            Campaign Architecture: {st.session_state.committed_campaign_data.get('architecture')}
-                            Campaign Intent: "{st.session_state.committed_campaign_data.get('intent')}"
-                            Brand Guide: {soul_guide_context}
-                            
-                            CHANNEL REQUIREMENTS:
-                            - PLATFORM: {chosen_channel}
-                            - FORMAT: {active_blueprint.get('medium_type')}
-                            - TONE: {active_blueprint.get('tonal_guardrails')}
-                            - RULES: {active_blueprint.get('structural_rules')}
-                            
-                            OUTPUT VERBATIM SPECIFICATION: Output ONLY the final draft copy. Start writing the actual text immediately.
+                            START DRAFT COPY NOW:
                             """
                             raw_out = get_soul_rebel_consultant("Draft Content Piece", prompt)
                             st.session_state.active_content_suggestion = clean_display_text(raw_out)
@@ -339,7 +331,7 @@ def run(user_id):
                 if st.button("❌ Clear & Restart Draft", use_container_width=True):
                     st.session_state.active_content_suggestion = ""
                     st.session_state.workspace_text = ""
-                    st.session_state["guardian_workspace_canvas_field"] = "" # Clear widget state
+                    st.session_state["guardian_workspace_canvas_field"] = ""
                     st.session_state.compliance_report = None
                     st.session_state.content_ready_for_scan = False
                     st.rerun()
@@ -356,10 +348,8 @@ def run(user_id):
                     else:
                         final_text = raw_suggestion
                     
-                    # FIXED BUTTON BUG: Must target the exact widget 'key' to update Streamlit UI programmatically
-                    st.session_state["guardian_workspace_canvas_field"] = final_text
                     st.session_state.workspace_text = final_text
-                    
+                    st.session_state["guardian_workspace_canvas_field"] = final_text
                     st.session_state.active_content_suggestion = ""
                     invalidate_previous_compliance_scan()
                     st.rerun()
@@ -375,8 +365,6 @@ def run(user_id):
                 disabled=is_locked_for_review,
                 help="Refine your raw copy body text blocks here."
             )
-            
-            # Sync our background state with the active widget state
             st.session_state.workspace_text = re.sub(r"\bGodzspeed\b", "", edited_body, flags=re.IGNORECASE)
 
             c_length = len(st.session_state.workspace_text)
@@ -389,19 +377,29 @@ def run(user_id):
                 chat_feedback = st.chat_input("Ask the controller to rewrite, extend, or trim this text...")
                 if chat_feedback:
                     with st.spinner("Refining asset text body..."):
+                        # Refined chat prompt to also stop strategy drift
                         refine_prompt = f"""
-                        TASK: Revise the copy. Ensure text bounds fit {chosen_channel} rules.
-                        🚨 COMPRESS to beneath {active_specs['char_max']} characters. Return ONLY raw draft text. No summaries. No advice.
-                        CRITICAL CONSTRAINT: Do not use the word 'Godzspeed'.
-                        EXISTING BODY:\n{st.session_state.workspace_text}
+                        You are a copywriter making direct revisions to a draft.
+                        
+                        USER'S REVISION INSTRUCTION: "{chat_feedback}"
+                        
+                        CURRENT DRAFT TO REVISE:
+                        {st.session_state.workspace_text}
+                        
+                        RULES:
+                        1. Apply the user's feedback to the text.
+                        2. Output ONLY the new, revised raw text. NO explanations. NO "Here is the updated version".
+                        3. MUST be under {active_specs['char_max']} characters.
+                        4. NEVER output the word 'Godzspeed'.
                         """
                         refined_output = get_soul_rebel_consultant(chat_feedback, refine_prompt)
                         refined_output = clean_display_text(refined_output)
                         
-                        # Update the widget state directly
-                        st.session_state["guardian_workspace_canvas_field"] = refined_output
+                        if len(refined_output) > active_specs['char_max']:
+                            refined_output = refined_output[:active_specs['char_max']]
+                            
                         st.session_state.workspace_text = refined_output
-                        
+                        st.session_state["guardian_workspace_canvas_field"] = refined_output
                         invalidate_previous_compliance_scan()
                         st.rerun()
 
@@ -488,7 +486,6 @@ def run(user_id):
                             else:
                                 supabase.table("brand_content_items").insert(payload).execute()
                             
-                            # Clean up states
                             st.session_state.active_content_suggestion = ""
                             st.session_state.workspace_text = ""
                             st.session_state["guardian_workspace_canvas_field"] = ""
@@ -514,7 +511,6 @@ def run(user_id):
                 if st.button("↩️ Re-Edit", key=f"revert_{item['id']}", use_container_width=True):
                     supabase.table("brand_content_items").update({"status": "draft"}).eq("id", item['id']).execute()
                     
-                    # Target widget directly to populate canvas on re-edit
                     st.session_state["guardian_workspace_canvas_field"] = item['current_body']
                     st.session_state.workspace_text = item['current_body']
                     st.rerun()
