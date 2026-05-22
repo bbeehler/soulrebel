@@ -79,7 +79,7 @@ def run(user_id):
                 "Select Content Category Pillar:", 
                 categories, 
                 index=cat_idx,
-                help="Choose the foundational marketing pillar this piece of content addresses."
+                help="Choose the foundational strategic pillar this piece of content addresses."
             )
             st.session_state.override_cat = selected_category
             
@@ -159,7 +159,7 @@ def run(user_id):
         if st.button(
             "✨ Generate Strategic Suggestion from Playbook", 
             use_container_width=True,
-            help="Click to prompt Gemini to draft a high-fidelity copy outline rooted completely in your Phase 03 Soul Guide."
+            help="Click to prompt Gemini to draft a high-fidelity copy outline rooted completely in your unique strategic persona."
         ):
             if not content_title:
                 st.error("Please fill in an Asset Working Title to provide contextual fuel for generation.")
@@ -174,8 +174,10 @@ def run(user_id):
                             return
 
                         prompt = f"""
-                        ROLE: Godzspeed Soul Rebel Brand Guardian.
+                        ROLE: Professional Brand Guardian & Master Strategic Copywriter.
                         TASK: Generate ready-to-publish raw copy for the asset title: '{content_title}'.
+                        
+                        CRITICAL FILTER: You must write purely from the user's specific perspective. Do NOT use, reference, or include the agency name 'Godzspeed' anywhere in your thought process, structural notes, or generated output copy.
                         
                         STRICT COMPLIANCE MATRIX PARAMETERS:
                         - Category: {selected_category} | Platform: {selected_platform}
@@ -186,7 +188,7 @@ def run(user_id):
                         MASTER TONAL PLAYBOOK CONTEXT:
                         {soul_guide_context}
                         
-                        OUTPUT: Provide only the fully-written copy block matching these parameters. Speak with poetic, commanding, elite 'hella smart' authority.
+                        OUTPUT: Provide only the fully-written copy block matching these parameters. Speak with poetic, commanding, elite 'hella smart' authority, focusing natively on strategic organizational communication, digital analytics frameworks, and marketing mix allocation model narratives.
                         """
                         suggestion = get_soul_rebel_consultant(f"Generate content for {content_title}", prompt)
                         st.session_state.guardian_suggestion = suggestion
@@ -234,8 +236,9 @@ def run(user_id):
             if user_feedback:
                 with st.spinner("Recalibrating asset against the corporate blueprint..."):
                     refine_prompt = f"""
-                    ROLE: Godzspeed Soul Rebel Brand Guardian.
+                    ROLE: Professional Brand Guardian.
                     TASK: Revise the EXISTING TEXT based on the USER FEEDBACK. Keep tone strict: {active_blueprint['tonal_guardrails']}.
+                    CRITICAL CONSTRAINT: Absolutely do not use or output the word 'Godzspeed'.
                     EXISTING TEXT:\n{edited_body}
                     """
                     revised_text = get_soul_rebel_consultant(user_feedback, refine_prompt)
@@ -246,7 +249,7 @@ def run(user_id):
         st.write("---")
 
         # =====================================================================
-        # STEP 4: COMPLIANCE SCAN MECHANISM
+        # STEP 4: HARDENED COMPLIANCE SCAN MECHANISM
         # =====================================================================
         st.markdown("### 🛡️ Step 4: Brand Alignment & Compliance Gate")
         
@@ -264,17 +267,27 @@ def run(user_id):
                         soul_guide_context = strategy_res.data.get("soul_guide", "") if strategy_res.data else ""
                         
                         scan_prompt = f"""
-                        TASK: Audit the copy against the strict brand guidelines.
+                        ROLE: Strict Brand Identity Compliance Auditor.
+                        TASK: Audit the copy block against absolute tactical positioning metrics and blueprint bounds.
+                        
+                        THEMATIC ALIGNMENT ENFORCEMENT FILTER: 
+                        The primary focus of this asset must remain tightly linked to corporate strategy, digital distribution pipelines, strategic media analysis, marketing execution metrics, or executive communication frameworks. 
+                        If the asset working title or narrative text covers random consumer commodities, lifestyle hobbies, bicycles, or unaligned market sectors, you MUST immediately issue a hard fail standard on line 1. Do not bend rules or rationalize compliance for irrelevant topics.
+                        
+                        CRITICAL CONSTRAINT: Do not look for, reference, or mention the name 'Godzspeed'.
+                        
+                        AUDIT SCOPE:
+                        - Asset Title Focus: '{content_title}'
                         - Tone Guide: {active_blueprint['tonal_guardrails']}
                         - Structural Demands: {active_blueprint['structural_rules']}
-                        - Core Soul: {soul_guide_context}
+                        - Core Soul Guide: {soul_guide_context}
                         
                         TEXT TO AUDIT:
                         {edited_body}
                         
-                        OUTPUT FORMAT: Return a structured text score report. 
-                        1. Start with exactly 'SCORE: PASS' or 'SCORE: FAIL' based on tonal integrity.
-                        2. Follow with bulleted analytical notes explaining why it matches or breaks the brand standard.
+                        OUTPUT FORMAT RULES: You must return your analytical report matching this structure verbatim:
+                        1. Your very first line must read exactly either 'SCORE: PASS' or 'SCORE: FAIL' based on thematic cohesion and stylistic adherence.
+                        2. Follow with a markdown header titled '### 📊 Audit Breakdown Notes' and document bulleted structural parameters detailing any brand violations or pass justifications.
                         """
                         report = get_soul_rebel_consultant("Audit text", scan_prompt)
                         st.session_state.compliance_report = report
@@ -285,7 +298,10 @@ def run(user_id):
         with c_col2:
             if st.session_state.compliance_report:
                 report_text = st.session_state.compliance_report
-                is_pass = "SCORE: PASS" in report_text
+                
+                # Evaluate the strict first line formatting constraint
+                first_line = report_text.split("\n")[0] if "\n" in report_text else report_text
+                is_pass = "SCORE: PASS" in first_line or report_text.startswith("SCORE: PASS")
                 
                 if is_pass:
                     st.success("🎉 BRAND GUARDIAN AUDIT: PASSED")
@@ -331,7 +347,9 @@ def run(user_id):
                         st.rerun()
 
         with b_col2:
-            has_passed = st.session_state.compliance_report is not None and "SCORE: PASS" in st.session_state.compliance_report
+            # First line parser logic validates strict pass evaluation parameters to toggle the pipeline lock
+            first_line = st.session_state.compliance_report.split("\n")[0] if st.session_state.compliance_report and "\n" in st.session_state.compliance_report else (st.session_state.compliance_report or "")
+            has_passed = st.session_state.compliance_report is not None and ("SCORE: PASS" in first_line or st.session_state.compliance_report.startswith("SCORE: PASS"))
             
             if st.button(
                 "🔥 Approve & Commit to Content Pipeline", 
@@ -376,7 +394,6 @@ def run(user_id):
         if not calendar_data:
             st.info("No content scheduled in the pipeline matrix yet.")
         else:
-            # Grouping item iterations into logical timeline states
             st.markdown("#### 🚀 Scheduled for Release")
             approved_items = [i for i in calendar_data if i['status'] == 'approved_for_publishing']
             if not approved_items:
