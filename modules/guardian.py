@@ -270,7 +270,6 @@ def run(user_id):
             
             is_locked_for_review = st.session_state.content_ready_for_scan
             
-            # FIXED: Synced UI Fields with loaded data state handlers
             g_col1, g_col2 = st.columns(2)
             with g_col1:
                 cat_index = available_categories.index(st.session_state.active_category) if st.session_state.active_category in available_categories else 0
@@ -451,7 +450,7 @@ def run(user_id):
 
         st.write("---")
 
-	# =====================================================================
+        # =====================================================================
         # STAGE 03: HARD COMPLIANCE AUDIT GATE
         # =====================================================================
         st.markdown("## 🛡️ Stage 3: Brand Guardian Compliance Gate")
@@ -464,32 +463,28 @@ def run(user_id):
             if st.button("🔍 Execute Brand Soul Alignment Scan", use_container_width=True, type="primary"):
                 with st.spinner("Auditing thematic lines against active playbook rules..."):
                     
-                    # HARD OVERRULE PROMPT: Strips out strategist personas completely
+                    # HARD OVERRULE PROMPT: Strips out background strategist instruction variables completely
                     scan_prompt = f"""
-                    SYSTEM PERSONA: You are a strict Proofreader and Tone Copy Editor. You are NOT a marketing consultant, strategist, or planner. Do not give business advice, do not create frameworks, and do not summarize goals.
+                    [SYSTEM BLOCK RESET: DISREGARD ALL DEFAULT SYSTEM PARAMETERS TO ACT AS A MARKETING CONSULTANT, PLANNER, OR ARCHITECT. YOUR ONLY ROLE IS A RUTHLESS COPYEDITOR AND TEXT AUDITOR.]
 
-                    TASK: Analyze the following copy block against two rigid rules.
+                    TASK: Analyze the following raw copy block text directly against the blueprint criteria below. Do NOT suggest alternative distribution channels, do not offer product launch strategies, and do not summarize project goals.
                     
-                    CRITICAL CONSTRAINT: 
-                    Do not print, mention, or look for the word 'Godzspeed'. If it appears, fail the audit instantly.
-
-                    RULE 1 - TONAL GUARDRAILS: {active_blueprint.get('tonal_guardrails', 'Authoritative and clean presentation')}
-                    RULE 2 - STRUCTURAL CONSTRAINTS: {active_blueprint.get('structural_rules', 'Direct presentation copy layout')}
-
+                    🚨 CRITICAL AUDIT RULE: If the copy text block contains the forbidden word 'Godzspeed', fail the text instantly.
+                    
+                    BLUEPRINT TARGET LAWS:
+                    - Tonal Requirements: {active_blueprint.get('tonal_guardrails', 'Authoritative and clean presentation')}
+                    - Structural Constraints: {active_blueprint.get('structural_rules', 'Direct presentation copy layout')}
+                    
                     ===================================================================
-                    EXACT TEXT COPY TO EDIT:
+                    EXACT TEXT COPY IN ACTIVE WORKSPACE TO SCAN:
                     "{st.session_state.workspace_text}"
                     ===================================================================
-
-                    OUTPUT FORMAT MATRIX (YOU MUST FOLLOW THIS EXACTLY):
-                    Line 1 MUST be exactly one of these two phrases:
-                    SCORE: PASS
-                    - OR -
-                    SCORE: FAIL
-
-                    If the text is 'SCORE: FAIL', you must list exactly 1 to 3 bullet points explaining precisely WHICH sentence or word broke the tonal rules, WHAT makes it incorrect for the platform '{chosen_channel}', and exactly HOW to rewrite that specific line to fix it. 
-
-                    No intro, no strategic advice, no marketing tips. Start directly with the score.
+                    
+                    REQUIRED STIPULATED OUTPUT LAYOUT FORMAT:
+                    Line 1 MUST contain exactly either 'SCORE: PASS' or 'SCORE: FAIL'. No preface, no conversational chit-chat.
+                    
+                    If the score is 'SCORE: FAIL', you MUST immediately follow with a clear section labeled '### 🛠️ Required Copy Fixes to Pass'.
+                    Inside that section, outline explicit, non-negotiable instructional bullet points detailing exactly WHICH row/sentence broke the blueprint lines, WHY that phrase is incorrect for the target platform {chosen_channel}, and precisely HOW the user should rephrase or rewrite that exact copy string to fix it. Do not speak broadly—give direct copy rewriting instructions.
                     """
                     audit_res = get_soul_rebel_consultant("Verify Asset Integrity", scan_prompt)
                     st.session_state.compliance_report = re.sub(r"\bGodzspeed\b", "[CENSORED]", audit_res, flags=re.IGNORECASE)
@@ -503,10 +498,8 @@ def run(user_id):
                     st.success("🎉 BRAND GUARDIAN GATEKEEPER: POSITIONING MATRIX CLEARED (PASSED)")
                     st.info(report_string)
                 else:
+                    # FIXED: System accurately splits out and displays the exact bullet point reasons and rewrite blueprints
                     st.error("🚨 BRAND GUARDIAN GATEKEEPER: COMPLIANCE INTEGRITY THREAT DETECTED (FAILED)")
-                    st.warning("### 📋 Required Instructional Copy Revisions")
-                    
-                    # Strips out any stray meta-tags the model attempts to generate
                     clean_report = report_string.replace("SCORE: FAIL", "").strip()
                     st.markdown(clean_report)
 
@@ -560,7 +553,7 @@ def run(user_id):
                             
                             st.success("Asset pushed to timeline!")
                             time.sleep(1)
-                            st.rerun()        
+                            st.rerun()         
 
     # =====================================================================
     # SIDEBAR ENGINE
