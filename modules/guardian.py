@@ -451,7 +451,7 @@ def run(user_id):
 
         st.write("---")
 
-        # =====================================================================
+	# =====================================================================
         # STAGE 03: HARD COMPLIANCE AUDIT GATE
         # =====================================================================
         st.markdown("## 🛡️ Stage 3: Brand Guardian Compliance Gate")
@@ -465,17 +465,18 @@ def run(user_id):
                 with st.spinner("Auditing thematic lines against active playbook rules..."):
                     scan_prompt = f"""
                     ROLE: Strict Brand Guardian & Compliance Auditor.
-                    TASK: Audit this text copy against architectural limits and directives.
+                    TASK: Audit this text copy against blueprint rules, channel constraints, and brand tone.
                     
-                    🚨 CRITICAL: Do not look for, mention, or print 'Godzspeed'. If it appears, fail the audit.
+                    🚨 CRITICAL CONSTRAINT: Do not look for, mention, or print 'Godzspeed'. If it appears, fail the audit immediately.
                     
                     LAWS: {active_blueprint.get('tonal_guardrails')} | {active_blueprint.get('structural_rules')}
                     TEXT: {st.session_state.workspace_text}
                     
-                    OUTPUT FORMAT REQUIREMENTS:
-                    Line 1 MUST be exactly 'SCORE: PASS' or 'SCORE: FAIL'.
-                    If PASS: Provide a 1-2 sentence positive confirmation.
-                    If FAIL: Provide a section titled '### 🛠️ Required Fixes'. List 1 to 3 highly specific, actionable bullet points explaining exactly WHAT broke the rules and HOW the user needs to edit the text to fix it. Do not be philosophical; give direct instructions.
+                    OUTPUT LAYOUT FORMAT RULES:
+                    Line 1 MUST contain exactly either 'SCORE: PASS' or 'SCORE: FAIL'.
+                    
+                    If the score is 'SCORE: FAIL', you MUST immediately output a clear, actionable list under the header '### 🛠️ Required Fixes to Pass'.
+                    List distinct, instructional bullet points detailing exactly WHAT is wrong with the copy text, WHY it failed alignment rules, and precisely HOW the user should rewrite the lines to pass the scan. Do not be vague or philosophical.
                     """
                     audit_res = get_soul_rebel_consultant("Verify Asset Integrity", scan_prompt)
                     st.session_state.compliance_report = re.sub(r"\bGodzspeed\b", "[CENSORED]", audit_res, flags=re.IGNORECASE)
@@ -483,14 +484,16 @@ def run(user_id):
 
             if st.session_state.compliance_report:
                 report_string = st.session_state.compliance_report
-                is_pass = "SCORE: PASS" in report_string
+                is_pass = report_string.startswith("SCORE: PASS") or "SCORE: PASS" in report_string.split('\n')[0]
                 
                 if is_pass:
                     st.success("🎉 BRAND GUARDIAN GATEKEEPER: POSITIONING MATRIX CLEARED (PASSED)")
                     st.info(report_string)
                 else:
                     st.error("🚨 BRAND GUARDIAN GATEKEEPER: COMPLIANCE INTEGRITY THREAT DETECTED (FAILED)")
-                    st.info(report_string)
+                    # Strips the raw error string formatting if it repeats the score on lines below
+                    clean_report = report_string.replace("SCORE: FAIL", "").strip()
+                    st.markdown(clean_report)
 
                 st.write(" ")
                 st.markdown("### 💾 Step 4: Pipeline Target Commit Routing")
@@ -507,7 +510,6 @@ def run(user_id):
                     if st.button("💾 Save Progress as Draft Room Item", use_container_width=True):
                         with st.spinner("Pushing metrics..."):
                             payload["status"] = "draft"
-                            # FIXED: Targeted update via active item ID prevents duplicates when names/dates change
                             if st.session_state.get("active_item_id"):
                                 supabase.table("brand_content_items").update(payload).eq("id", st.session_state.active_item_id).execute()
                             else:
@@ -543,7 +545,7 @@ def run(user_id):
                             
                             st.success("Asset pushed to timeline!")
                             time.sleep(1)
-                            st.rerun()
+                            st.rerun()        
 
     # =====================================================================
     # SIDEBAR ENGINE
