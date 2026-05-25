@@ -88,7 +88,7 @@ def run(user_id):
     if "guardian_rev" not in st.session_state:
         st.session_state.guardian_rev = 0
 
-    # --- FIXED: ADDED METADATA TRACKERS FOR UI HYDRATION & DB SYNC ---
+    # --- METADATA TRACKERS FOR UI HYDRATION & DB SYNC ---
     if "active_item_id" not in st.session_state:
         st.session_state.active_item_id = None
     if "active_title" not in st.session_state:
@@ -108,11 +108,7 @@ def run(user_id):
         soul_guide_context = strategy_res.data.get("soul_guide", "") if strategy_res.data else ""
         soul_guide_context = re.sub(r"\bGodzspeed\b", "", soul_guide_context, flags=re.IGNORECASE)
         
-        workspace_row = supabase.table("brand_content_items")\
-            .select("*")\
-            .eq("user_id", user_id)\
-            .eq("title", "MASTER_CAMPAIGN_WORKSPACE")\
-            .execute()
+        workspace_row = supabase.table("brand_content_items").select("*").eq("user_id", user_id).eq("title", "MASTER_CAMPAIGN_WORKSPACE").execute()
             
         if workspace_row.data:
             record = workspace_row.data[0]
@@ -158,50 +154,17 @@ def run(user_id):
                             prompt = f"""
                             ROLE: Independent Executive Consultant & Chief Marketing Architect.
                             TASK: Take the user's specific campaign objective and structure it into a clean distribution framework.
-                            
-                            🚨 CRITICAL CONSTRAINTS:
-                            - Write purely, directly, and exclusively from the individual user's personal voice.
-                            - You are ABSOLUTELY FORBIDDEN from using, referencing, naming, or mentioning the agency name 'Godzspeed' or any outside marketing agency entity anywhere in your text.
-                            - Ground all insights entirely within the provided Master Soul Guide document.
-                            - You must ONLY use, frame, and structure the exact core topic, objective, and campaign idea specified by the user below.
-                            - Do NOT expand, hallucinate, or generalize beyond what the user wrote.
-                            
+                            CRITICAL CONSTRAINTS: Forbidden to mention 'Godzspeed'. Ground insights entirely within Soul Guide.
                             USER'S EXACT CAMPAIGN OBJECTIVE: "{campaign_intent}"
                             USER'S APPROVED SOUL GUIDE INTEL CONTEXT: {soul_guide_context}
-                            
-                            OUTPUT FORMAT: Present the structured framework matching these headers:
-                            ### 📋 Executive Summary
-                            ### 🗂️ Activated Brand Pillars
-                            ### 📱 Recommended Distribution Channels
                             """
                             suggestion_output = get_soul_rebel_consultant("Draft Campaign Framework", prompt)
-                            suggestion_output = clean_display_text(suggestion_output)
-                            
-                            sync_payload = {
-                                "user_id": user_id, "title": "MASTER_CAMPAIGN_WORKSPACE",
-                                "current_body": campaign_intent, "suggested_body": suggestion_output,
-                                "status": "draft", "category": "CAMPAIGN_SYSTEM",
-                                "platform": "SYSTEM_WORKBENCH", "publish_date": str(datetime.date.today())
-                            }
-                            try:
-                                check_row = supabase.table("brand_content_items").select("id").eq("user_id", user_id).eq("title", "MASTER_CAMPAIGN_WORKSPACE").execute()
-                                if check_row.data:
-                                    supabase.table("brand_content_items").update(sync_payload).eq("id", check_row.data[0]["id"]).execute()
-                                else:
-                                    supabase.table("brand_content_items").insert(sync_payload).execute()
-                            except Exception:
-                                pass
-
-                            st.session_state.campaign_suggestion = suggestion_output
+                            st.session_state.campaign_suggestion = clean_display_text(suggestion_output)
                             st.session_state.init_intent_fallback = campaign_intent
                             st.rerun()
             
             with c_actions[1]:
                 if st.button("🔄 Reset Campaign", use_container_width=True):
-                    try:
-                        supabase.table("brand_content_items").delete().eq("user_id", user_id).eq("title", "MASTER_CAMPAIGN_WORKSPACE").execute()
-                    except Exception:
-                        pass
                     st.session_state.campaign_suggestion = ""
                     if "init_intent_fallback" in st.session_state:
                         del st.session_state.init_intent_fallback
@@ -212,46 +175,24 @@ def run(user_id):
                 st.write(st.session_state.campaign_suggestion)
                 
                 if st.button("🔥 Commit Strategy & Unlock Content Creation", use_container_width=True, type="primary"):
-                    commit_payload = {
-                        "user_id": user_id, "title": "MASTER_CAMPAIGN_WORKSPACE",
-                        "current_body": campaign_intent, "suggested_body": st.session_state.campaign_suggestion,
-                        "status": "approved_for_publishing", "category": "CAMPAIGN_SYSTEM",
-                        "platform": "SYSTEM_WORKBENCH", "publish_date": str(datetime.date.today())
-                    }
-                    try:
-                        check_row = supabase.table("brand_content_items").select("id").eq("user_id", user_id).eq("title", "MASTER_CAMPAIGN_WORKSPACE").execute()
-                        if check_row.data:
-                            supabase.table("brand_content_items").update(commit_payload).eq("id", check_row.data[0]["id"]).execute()
-                        else:
-                            supabase.table("brand_content_items").insert(commit_payload).execute()
-                    except Exception:
-                        pass
-                        
                     st.session_state.campaign_committed = True
                     st.session_state.committed_campaign_data = {
                         "intent": campaign_intent,
                         "architecture": st.session_state.campaign_suggestion
                     }
-                    st.success("Strategic direction locked down and initialized smoothly!")
-                    time.sleep(1.0)
+                    st.success("Strategic direction locked down!")
                     st.rerun()
         else:
             st.success("✅ Campaign Strategy Committed & Locked Into Memory.")
             with st.expander("View Active Campaign Strategic Parameters"):
                 st.write(st.session_state.committed_campaign_data.get("architecture", ""))
             if st.button("🗑️ Scrap Strategy & Restart Campaign", type="secondary"):
-                try:
-                    supabase.table("brand_content_items").delete().eq("user_id", user_id).eq("title", "MASTER_CAMPAIGN_WORKSPACE").execute()
-                except Exception:
-                    pass
                 st.session_state.campaign_committed = False
                 st.session_state.campaign_suggestion = ""
                 st.session_state.committed_campaign_data = {}
                 st.session_state.workspace_text = ""
                 st.session_state.active_content_suggestion = ""
                 st.session_state.compliance_report = None
-                if "init_intent_fallback" in st.session_state:
-                    del st.session_state.init_intent_fallback
                 st.rerun()
 
         st.write("---")
@@ -267,7 +208,6 @@ def run(user_id):
             st.error("⚠️ No blueprints found in table 'brand_content_blueprints'.")
         else:
             available_categories = list(set([bp['category'] for bp in blueprints]))
-            
             is_locked_for_review = st.session_state.content_ready_for_scan
             
             g_col1, g_col2 = st.columns(2)
@@ -283,80 +223,31 @@ def run(user_id):
                 st.session_state.active_platform = chosen_channel
             
             active_blueprint = next((bp for bp in blueprints if bp['category'] == chosen_pillar and bp['platform'] == chosen_channel), None)
-            active_specs = PLATFORM_LIMITS.get(chosen_channel, {"char_max": 3000, "ideal_image": "1080x1080", "aspect_ratio": "1:1"})
+            active_specs = PLATFORM_LIMITS.get(chosen_channel, {"char_max": 3000})
             
-            if active_blueprint:
-                with st.expander("🔍 Active Blueprint Guardrails (Live from Database)", expanded=True):
-                    st.markdown(f"**Format:** `{active_blueprint.get('medium_type', 'Standard')}` | **Target Length:** `{active_blueprint.get('target_length', 'Variable')}` | **Max Limit:** `{active_specs['char_max']:,}` chars")
-                    st.markdown(f"**Tonal Guardrails:** *{active_blueprint.get('tonal_guardrails', 'None')}*")
-                    st.markdown(f"**Structural Rules:** *{active_blueprint.get('structural_rules', 'None')}*")
-
-            content_title = st.text_input("Asset Working Title:", value=st.session_state.active_title, placeholder="e.g., Special Announcement: Help Us Make an Impact", disabled=is_locked_for_review)
+            content_title = st.text_input("Asset Working Title:", value=st.session_state.active_title, placeholder="e.g., Special Announcement", disabled=is_locked_for_review)
             st.session_state.active_title = content_title
             
             publish_date = st.date_input("Target Publishing Window Date:", value=st.session_state.active_date, disabled=is_locked_for_review)
             st.session_state.active_date = publish_date
 
-            custom_generation_prompt = st.text_area(
-                "Specific Copywriting Instructions for this piece (Optional Guide Rails):",
-                placeholder="e.g., Write a high-urgency email blast asking our contacts to register or donate right now...",
-                disabled=is_locked_for_review
-            )
+            custom_generation_prompt = st.text_area("Specific Copywriting Instructions for this piece:", disabled=is_locked_for_review)
 
-            st.write(" ")
-            
-            # --- GENERATION WORKFLOW ACTIONS ---
             g_buttons = st.columns(2)
             with g_buttons[0]:
                 if st.button("✨ Draft Custom Copy Suggestion", use_container_width=True, type="primary", disabled=is_locked_for_review):
-                    if not content_title:
-                        st.error("Provide a working title headline to fuel the generation parameters.")
-                    elif not active_blueprint:
-                        st.error("Missing selected blueprint matching key paths.")
-                    else:
-                        with st.spinner("Generating raw platform content asset copy..."):
-                            user_instruction_block = ""
-                            if custom_generation_prompt:
-                                user_instruction_block = f"""
-                                =======================================================================
-                                🔥 PRIMARY DIRECTIVE FROM USER 🔥
-                                Focus your writing entirely on executing this specific request:
-                                "{custom_generation_prompt}"
-                                =======================================================================
-                                """
-
-                            prompt = f"""
-                            ROLE: You are an expert Ghostwriter and Direct-Response Copywriter.
-                            TASK: Write the final, ready-to-publish raw copy for a '{chosen_channel}' asset titled '{content_title}'.
-
-                            --- STEP 1: BACKGROUND CONTEXT ---
-                            (Read and absorb this to understand the goal and tone, but DO NOT mimic its structure. Do not output strategy headers or bullet points).
-                            Campaign Intent: {st.session_state.committed_campaign_data.get('intent')}
-                            Campaign Strategy Context: {st.session_state.committed_campaign_data.get('architecture')}
-                            Brand Identity Guide: {soul_guide_context}
-                            
-                            --- STEP 2: CHANNEL RULES ---
-                            Platform: {chosen_channel}
-                            Format Requirement: {active_blueprint.get('medium_type')}
-                            Tonal Directives: {active_blueprint.get('tonal_guardrails')}
-                            Structural Rules: {active_blueprint.get('structural_rules')}
-                            Maximum Length: {active_specs['char_max']} characters.
-
-                            --- STEP 3: YOUR SPECIFIC INSTRUCTIONS FOR THIS ASSET ---
-                            {user_instruction_block if custom_generation_prompt else "Write highly engaging, conversion-focused copy for this channel based on the campaign intent."}
-
-                            --- STRICT OUTPUT RULES ---
-                            1. Output ONLY the raw copy text. Start writing immediately.
-                            2. NO introductory phrases (e.g., "Here is the copy:").
-                            3. NO strategic summaries, outlines, notes, or commentary.
-                            4. If this is an email, write the subject line and then the body. If it is a social post, write the exact caption.
-                            5. NEVER output or reference the word 'Godzspeed'.
-                            
-                            START DRAFT COPY NOW:
-                            """
-                            raw_out = get_soul_rebel_consultant("Draft Content Piece", prompt)
-                            st.session_state.active_content_suggestion = clean_display_text(raw_out)
-                            st.rerun()
+                    with st.spinner("Generating raw platform content asset copy..."):
+                        prompt = f"""
+                        You are a Ghostwriter. Output ONLY the raw final copy for: '{content_title}'.
+                        USER INSTRUCTIONS: {custom_generation_prompt}
+                        PLATFORM: {chosen_channel} | Max Length: {active_specs['char_max']} chars.
+                        RULES: Return ONLY raw copy text. No intros, no strategy commentary, no notes.
+                        NEVER use the word 'Godzspeed'.
+                        """
+                        raw_out = get_soul_rebel_consultant("Draft Content Piece", prompt)
+                        st.session_state.active_content_suggestion = clean_display_text(raw_out)
+                        st.rerun()
+                        
             with g_buttons[1]:
                 if st.button("❌ Clear & Restart Draft", use_container_width=True):
                     st.session_state.active_item_id = None
@@ -370,79 +261,23 @@ def run(user_id):
                     st.rerun()
 
             if st.session_state.active_content_suggestion:
-                st.markdown("### 🤖 Guardian Copy Suggestion Outbox")
                 st.info(st.session_state.active_content_suggestion)
-                
                 if st.button("✅ Transfer Suggestion to Active Workspace", use_container_width=True):
-                    raw_suggestion = st.session_state.active_content_suggestion
-                    if len(raw_suggestion) > active_specs['char_max']:
-                        final_text = raw_suggestion[:active_specs['char_max']]
-                        st.warning(f"✂️ The copy was automatically sliced to fit the {active_specs['char_max']} limit.")
-                    else:
-                        final_text = raw_suggestion
-                    
-                    st.session_state.workspace_text = final_text
-                    st.session_state["guardian_workspace_canvas_field_" + str(st.session_state.guardian_rev)] = final_text
+                    st.session_state.workspace_text = st.session_state.active_content_suggestion
+                    st.session_state["guardian_workspace_canvas_field_" + str(st.session_state.guardian_rev)] = st.session_state.active_content_suggestion
                     st.session_state.active_content_suggestion = ""
                     invalidate_previous_compliance_scan()
                     st.rerun()
 
-            # --- EDITING CANVAS ---
-            st.write(" ")
             w_key = f"guardian_workspace_canvas_field_{st.session_state.guardian_rev}"
-            
-            edited_body = st.text_area(
-                "Active Composition Canvas:",
-                value=st.session_state.workspace_text,
-                height=300,
-                key=w_key,
-                on_change=invalidate_previous_compliance_scan,
-                disabled=is_locked_for_review,
-                help="Refine your raw copy body text blocks here."
-            )
-            
-            st.session_state.workspace_text = re.sub(r"\bGodzspeed\b", "", edited_body, flags=re.IGNORECASE)
+            edited_body = st.text_area("Active Composition Canvas:", value=st.session_state.workspace_text, height=300, key=w_key, on_change=invalidate_previous_compliance_scan, disabled=is_locked_for_review)
+            st.session_state.workspace_text = clean_display_text(edited_body)
 
-            c_length = len(st.session_state.workspace_text)
-            if c_length > active_specs['char_max']:
-                st.error(f"⚠️ Platform Overflow: `{c_length}` / `{active_specs['char_max']}` chars!")
-            else:
-                st.caption(f"Volume Tracker: `{c_length}` / `{active_specs['char_max']}` characters.")
-
-            if st.session_state.workspace_text and not is_locked_for_review:
-                chat_feedback = st.chat_input("Ask the controller to rewrite, extend, or trim this text...")
-                if chat_feedback:
-                    with st.spinner("Refining asset text body..."):
-                        refine_prompt = f"""
-                        You are a copywriter making direct revisions to a draft.
-                        
-                        USER'S REVISION INSTRUCTION: "{chat_feedback}"
-                        
-                        CURRENT DRAFT TO REVISE:
-                        {st.session_state.workspace_text}
-                        
-                        RULES:
-                        1. Apply the user's feedback to the text.
-                        2. Output ONLY the new, revised raw text. NO explanations. NO "Here is the updated version".
-                        3. MUST be under {active_specs['char_max']} characters.
-                        4. NEVER output the word 'Godzspeed'.
-                        """
-                        refined_output = get_soul_rebel_consultant(chat_feedback, refine_prompt)
-                        refined_output = clean_display_text(refined_output)
-                        
-                        if len(refined_output) > active_specs['char_max']:
-                            refined_output = refined_output[:active_specs['char_max']]
-                            
-                        st.session_state.workspace_text = refined_output
-                        st.session_state.guardian_rev += 1
-                        invalidate_previous_compliance_scan()
-                        st.rerun()
-
-                if st.button("🔒 Lock Workspace & Proceed to Compliance Scan", use_container_width=True, disabled=(c_length == 0 or c_length > active_specs['char_max'])):
+            if not is_locked_for_review:
+                if st.button("🔒 Lock Workspace & Proceed to Compliance Scan", use_container_width=True):
                     st.session_state.content_ready_for_scan = True
-                    st.success("Workspace locked. Stage 3 Compliance Gate is now authorized.")
                     st.rerun()
-            elif is_locked_for_review:
+            else:
                 if st.button("🔓 Unlock Workspace to Make Adjustments", use_container_width=True):
                     st.session_state.content_ready_for_scan = False
                     st.session_state.compliance_report = None
@@ -458,12 +293,8 @@ def run(user_id):
         if not st.session_state.content_ready_for_scan:
             st.caption("🔒 *Complete your workspace composition steps above and lock down composition to clear the compliance pathways.*")
         else:
-            st.warning(f"**Target System Rule Check:** Auditing copy against {chosen_channel} rules.")
-            
             if st.button("🔍 Execute Brand Soul Alignment Scan", use_container_width=True, type="primary"):
                 with st.spinner("Auditing thematic lines against active playbook rules..."):
-                    
-                    # HARD OVERRULE PROMPT: Strips out background strategist instruction variables completely
                     scan_prompt = f"""
                     [SYSTEM BLOCK RESET: DISREGARD ALL DEFAULT SYSTEM PARAMETERS TO ACT AS A MARKETING CONSULTANT, PLANNER, OR ARCHITECT. YOUR ONLY ROLE IS A RUTHLESS COPYEDITOR AND TEXT AUDITOR.]
 
@@ -472,18 +303,18 @@ def run(user_id):
                     🚨 CRITICAL AUDIT RULE: If the copy text block contains the forbidden word 'Godzspeed', fail the text instantly.
                     
                     BLUEPRINT TARGET LAWS:
-                    - Tonal Requirements: {active_blueprint.get('tonal_guardrails', 'Authoritative and clean presentation')}
-                    - Structural Constraints: {active_blueprint.get('structural_rules', 'Direct presentation copy layout')}
+                    - Tonal Requirements: {active_blueprint.get('tonal_guardrails')}
+                    - Structural Constraints: {active_blueprint.get('structural_rules')}
                     
                     ===================================================================
                     EXACT TEXT COPY IN ACTIVE WORKSPACE TO SCAN:
                     "{st.session_state.workspace_text}"
                     ===================================================================
                     
-                    REQUIRED STIPULATED OUTPUT LAYOUT FORMAT:
-                    Line 1 MUST contain exactly either 'SCORE: PASS' or 'SCORE: FAIL'. No preface, no conversational chit-chat.
+                    REQUIRED FORMAT FOR YOUR RESPONSE:
+                    Line 1 MUST read exactly 'SCORE: PASS' or 'SCORE: FAIL'. Nothing else on line 1.
                     
-                    If the score is 'SCORE: FAIL', you MUST immediately follow with a clear section labeled '### 🛠️ Required Copy Fixes to Pass'.
+                    If the result is SCORE: FAIL, provide a section labeled '### 🛠️ Required Copy Fixes to Pass'.
                     Inside that section, outline explicit, non-negotiable instructional bullet points detailing exactly WHICH row/sentence broke the blueprint lines, WHY that phrase is incorrect for the target platform {chosen_channel}, and precisely HOW the user should rephrase or rewrite that exact copy string to fix it. Do not speak broadly—give direct copy rewriting instructions.
                     """
                     audit_res = get_soul_rebel_consultant("Verify Asset Integrity", scan_prompt)
@@ -497,78 +328,71 @@ def run(user_id):
                 if is_pass:
                     st.success("🎉 BRAND GUARDIAN GATEKEEPER: POSITIONING MATRIX CLEARED (PASSED)")
                     st.info(report_string)
+                    
+                    if st.button("🚀 Approve & Lock for Publication Rollout", use_container_width=True, type="primary"):
+                        payload = {
+                            "user_id": user_id, "title": content_title,
+                            "current_body": st.session_state.workspace_text, "category": chosen_pillar,
+                            "platform": chosen_channel, "publish_date": str(publish_date), "status": "approved_for_publishing"
+                        }
+                        if st.session_state.get("active_item_id"):
+                            supabase.table("brand_content_items").update(payload).eq("id", st.session_state.active_item_id).execute()
+                        else:
+                            supabase.table("brand_content_items").insert(payload).execute()
+                        st.success("Asset pushed to timeline!")
+                        time.sleep(0.5)
+                        st.session_state.active_item_id = None
+                        st.session_state.workspace_text = ""
+                        st.session_state.compliance_report = None
+                        st.session_state.content_ready_for_scan = False
+                        st.session_state.guardian_rev += 1
+                        st.rerun()
                 else:
-                    # FIXED: System accurately splits out and displays the exact bullet point reasons and rewrite blueprints
                     st.error("🚨 BRAND GUARDIAN GATEKEEPER: COMPLIANCE INTEGRITY THREAT DETECTED (FAILED)")
                     clean_report = report_string.replace("SCORE: FAIL", "").strip()
                     st.markdown(clean_report)
-
-                st.write(" ")
-                st.markdown("### 💾 Step 4: Pipeline Target Commit Routing")
-                
-                payload = {
-                    "user_id": user_id, "title": content_title,
-                    "suggested_body": st.session_state.active_content_suggestion, "current_body": st.session_state.workspace_text,
-                    "category": chosen_pillar, "platform": chosen_channel,
-                    "publish_date": str(publish_date), "guardian_notes": report_string
-                }
-
-                p_buttons = st.columns(2)
-                with p_buttons[0]:
+                    
                     if st.button("💾 Save Progress as Draft Room Item", use_container_width=True):
-                        with st.spinner("Pushing metrics..."):
-                            payload["status"] = "draft"
-                            if st.session_state.get("active_item_id"):
-                                supabase.table("brand_content_items").update(payload).eq("id", st.session_state.active_item_id).execute()
-                            else:
-                                exist_check = supabase.table("brand_content_items").select("id").eq("user_id", user_id).eq("title", content_title).eq("platform", chosen_channel).eq("publish_date", str(publish_date)).execute()
-                                if exist_check.data:
-                                    st.session_state.active_item_id = exist_check.data[0]["id"]
-                                    supabase.table("brand_content_items").update(payload).eq("id", exist_check.data[0]["id"]).execute()
-                                else:
-                                    res = supabase.table("brand_content_items").insert(payload).execute()
-                                    if res.data: st.session_state.active_item_id = res.data[0]["id"]
-                            st.success("Draft saved!")
-                            time.sleep(1)
-                            st.rerun()
-                with p_buttons[1]:
-                    if st.button("🚀 Approve & Lock for Publication Rollout", use_container_width=True, type="primary", disabled=not is_pass):
-                        with st.spinner("Locking validated asset..."):
-                            payload["status"] = "approved_for_publishing"
-                            if st.session_state.get("active_item_id"):
-                                supabase.table("brand_content_items").update(payload).eq("id", st.session_state.active_item_id).execute()
-                            else:
-                                exist_check = supabase.table("brand_content_items").select("id").eq("user_id", user_id).eq("title", content_title).eq("platform", chosen_channel).eq("publish_date", str(publish_date)).execute()
-                                if exist_check.data:
-                                    supabase.table("brand_content_items").update(payload).eq("id", exist_check.data[0]["id"]).execute()
-                                else:
-                                    supabase.table("brand_content_items").insert(payload).execute()
-                            
-                            st.session_state.active_item_id = None
-                            st.session_state.active_content_suggestion = ""
-                            st.session_state.workspace_text = ""
-                            st.session_state.guardian_rev += 1
-                            st.session_state.compliance_report = None
-                            st.session_state.content_ready_for_scan = False
-                            
-                            st.success("Asset pushed to timeline!")
-                            time.sleep(1)
-                            st.rerun()         
+                        payload = {
+                            "user_id": user_id, "title": content_title, "current_body": st.session_state.workspace_text,
+                            "category": chosen_pillar, "platform": chosen_channel, "publish_date": str(publish_date),
+                            "status": "draft", "guardian_notes": report_string
+                        }
+                        if st.session_state.get("active_item_id"):
+                            supabase.table("brand_content_items").update(payload).eq("id", st.session_state.active_item_id).execute()
+                        else:
+                            supabase.table("brand_content_items").insert(payload).execute()
+                        st.success("Draft updated inside tracking room arrays.")
+                        st.rerun()
 
-    # =====================================================================
-    # SIDEBAR ENGINE
-    # =====================================================================
     with col_sidebar:
         st.markdown("### 📅 Active Production Timelines")
         calendar_data = load_content_calendar(user_id)
+        today_date = datetime.date.today()
         
-        # SCHEDULED ITEMS
-        st.markdown("#### 🚀 Scheduled for Release")
+        # --- COMPARTMENTALIZED ENGINE FOR TIMELINE vs ARCHIVE ---
         approved_items = [i for i in calendar_data if i['status'] == 'approved_for_publishing']
-        if not approved_items:
-            st.caption("No assets currently locked for deployment loops.")
-            
+        
+        # Split items into Active Scheduled vs Expired Historical items based on current system date
+        active_scheduled_items = []
+        archived_expired_items = []
+        
         for item in approved_items:
+            try:
+                item_date = datetime.datetime.strptime(item['publish_date'], "%Y-%m-%d").date()
+                if item_date < today_date:
+                    archived_expired_items.append(item)
+                else:
+                    active_scheduled_items.append(item)
+            except:
+                active_scheduled_items.append(item) # Fallback to active if date parses poorly
+
+        # 1. SCHEDULED ACTIVE ITEMS DISPLAY
+        st.markdown("#### 🚀 Scheduled for Release")
+        if not active_scheduled_items:
+            st.caption("No active assets currently locked for rollout loops.")
+            
+        for item in active_scheduled_items:
             with st.container(border=True):
                 st.markdown(f"**🟢 {item['title']}**")
                 st.caption(f"📅 **Rollout:** {item['publish_date']} | 📱 **Platform:** {item['platform']}")
@@ -595,7 +419,7 @@ def run(user_id):
                         supabase.table("brand_content_items").delete().eq("id", item['id']).execute()
                         st.rerun()
 
-        # WORKSPACE DRAFTS RENDERER
+        # 2. WORKSPACE DRAFTS RENDERER
         st.write("---")
         st.markdown("#### 📝 Workspace Vault Drafts")
         draft_items = [i for i in calendar_data if i['status'] == 'draft']
@@ -628,3 +452,37 @@ def run(user_id):
                     if st.button("🗑️ Delete", key=f"del_draft_{item['id']}", use_container_width=True):
                         supabase.table("brand_content_items").delete().eq("id", item['id']).execute()
                         st.rerun()
+
+        # 3. EXPIRED ARCHIVE TIMELINE (COLLAPSIBLE WINDOW SECTORS)
+        st.write("---")
+        with st.expander("📦 Historical Publication Archive", expanded=False):
+            if not archived_expired_items:
+                st.caption("Historical archive logs are empty.")
+            for item in archived_expired_items:
+                with st.container(border=True):
+                    st.markdown(f"**📦 {item['title']}**")
+                    st.caption(f"📅 **Published:** {item['publish_date']} | 📱 **Platform:** {item['platform']}")
+                    
+                    if st.button("🔍 Inspect Expired Copy", key=f"arch_rev_{item['id']}", use_container_width=True):
+                        show_review_modal(item['title'], item['current_body'])
+                    
+                    st.write(" ")
+                    a1, a2 = st.columns(2)
+                    with a1:
+                        # Allows user to load historical copy out of the archive seamlessly back into workspace
+                        if st.button("📋 Clone/Edit", key=f"arch_load_{item['id']}", use_container_width=True):
+                            st.session_state.campaign_committed = True
+                            st.session_state.active_item_id = item['id']
+                            st.session_state.active_title = f"Copy of {item['title']}"
+                            st.session_state.active_category = item['category']
+                            st.session_state.active_platform = item['platform']
+                            st.session_state.active_date = datetime.date.today() # Reset to today for modern rollout loops
+                            st.session_state.workspace_text = item['current_body']
+                            st.session_state.guardian_rev += 1
+                            st.session_state.compliance_report = None
+                            st.session_state.content_ready_for_scan = False
+                            st.rerun()
+                    with a2:
+                        if st.button("🗑️ Delete Record", key=f"arch_del_{item['id']}", use_container_width=True):
+                            supabase.table("brand_content_items").delete().eq("id", item['id']).execute()
+                            st.rerun()
