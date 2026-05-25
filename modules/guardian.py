@@ -463,20 +463,33 @@ def run(user_id):
             
             if st.button("🔍 Execute Brand Soul Alignment Scan", use_container_width=True, type="primary"):
                 with st.spinner("Auditing thematic lines against active playbook rules..."):
+                    
+                    # HARD OVERRULE PROMPT: Strips out strategist personas completely
                     scan_prompt = f"""
-                    ROLE: Strict Brand Guardian & Compliance Auditor.
-                    TASK: Audit this text copy against blueprint rules, channel constraints, and brand tone.
+                    SYSTEM PERSONA: You are a strict Proofreader and Tone Copy Editor. You are NOT a marketing consultant, strategist, or planner. Do not give business advice, do not create frameworks, and do not summarize goals.
+
+                    TASK: Analyze the following copy block against two rigid rules.
                     
-                    🚨 CRITICAL CONSTRAINT: Do not look for, mention, or print 'Godzspeed'. If it appears, fail the audit immediately.
-                    
-                    LAWS: {active_blueprint.get('tonal_guardrails')} | {active_blueprint.get('structural_rules')}
-                    TEXT: {st.session_state.workspace_text}
-                    
-                    OUTPUT LAYOUT FORMAT RULES:
-                    Line 1 MUST contain exactly either 'SCORE: PASS' or 'SCORE: FAIL'.
-                    
-                    If the score is 'SCORE: FAIL', you MUST immediately output a clear, actionable list under the header '### 🛠️ Required Fixes to Pass'.
-                    List distinct, instructional bullet points detailing exactly WHAT is wrong with the copy text, WHY it failed alignment rules, and precisely HOW the user should rewrite the lines to pass the scan. Do not be vague or philosophical.
+                    CRITICAL CONSTRAINT: 
+                    Do not print, mention, or look for the word 'Godzspeed'. If it appears, fail the audit instantly.
+
+                    RULE 1 - TONAL GUARDRAILS: {active_blueprint.get('tonal_guardrails', 'Authoritative and clean presentation')}
+                    RULE 2 - STRUCTURAL CONSTRAINTS: {active_blueprint.get('structural_rules', 'Direct presentation copy layout')}
+
+                    ===================================================================
+                    EXACT TEXT COPY TO EDIT:
+                    "{st.session_state.workspace_text}"
+                    ===================================================================
+
+                    OUTPUT FORMAT MATRIX (YOU MUST FOLLOW THIS EXACTLY):
+                    Line 1 MUST be exactly one of these two phrases:
+                    SCORE: PASS
+                    - OR -
+                    SCORE: FAIL
+
+                    If the text is 'SCORE: FAIL', you must list exactly 1 to 3 bullet points explaining precisely WHICH sentence or word broke the tonal rules, WHAT makes it incorrect for the platform '{chosen_channel}', and exactly HOW to rewrite that specific line to fix it. 
+
+                    No intro, no strategic advice, no marketing tips. Start directly with the score.
                     """
                     audit_res = get_soul_rebel_consultant("Verify Asset Integrity", scan_prompt)
                     st.session_state.compliance_report = re.sub(r"\bGodzspeed\b", "[CENSORED]", audit_res, flags=re.IGNORECASE)
@@ -491,7 +504,9 @@ def run(user_id):
                     st.info(report_string)
                 else:
                     st.error("🚨 BRAND GUARDIAN GATEKEEPER: COMPLIANCE INTEGRITY THREAT DETECTED (FAILED)")
-                    # Strips the raw error string formatting if it repeats the score on lines below
+                    st.warning("### 📋 Required Instructional Copy Revisions")
+                    
+                    # Strips out any stray meta-tags the model attempts to generate
                     clean_report = report_string.replace("SCORE: FAIL", "").strip()
                     st.markdown(clean_report)
 
