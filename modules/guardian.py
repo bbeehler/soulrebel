@@ -269,12 +269,44 @@ def run(user_id):
                     invalidate_previous_compliance_scan()
                     st.rerun()
 
+            # --- ACTIVE COMPOSITION CANVAS ---
             w_key = f"guardian_workspace_canvas_field_{st.session_state.guardian_rev}"
             edited_body = st.text_area("Active Composition Canvas:", value=st.session_state.workspace_text, height=300, key=w_key, on_change=invalidate_previous_compliance_scan, disabled=is_locked_for_review)
             st.session_state.workspace_text = clean_display_text(edited_body)
 
+            # --- ADDED: INLINE CANVAS REVISION ENGINE ---
+            if st.session_state.workspace_text and not is_locked_for_review:
+                canvas_feedback = st.chat_input("Suggest immediate layout changes or edits directly to this canvas copy...")
+                if canvas_feedback:
+                    with st.spinner("Refining copy block directly on canvas..."):
+                        refine_prompt = f"""
+                        ROLE: You are an elite direct-response editor making direct precision adjustments to a working text box.
+                        
+                        USER REVISION DIRECTIVE: "{canvas_feedback}"
+                        
+                        CURRENT TEXT BLOCKS TO REVISE:
+                        {st.session_state.workspace_text}
+                        
+                        CRITICAL PRESENTATION RULES:
+                        1. Apply the user's direction perfectly to the text.
+                        2. Output ONLY the adjusted raw draft text. NO explanatory introductions, NO structural advice, NO notes.
+                        3. Restrict text strictly to under {active_specs['char_max']} characters.
+                        4. DO NOT mention or introduce 'Godzspeed'.
+                        """
+                        refined_output = get_soul_rebel_consultant(canvas_feedback, refine_prompt)
+                        st.session_state.workspace_text = clean_display_text(refined_output)
+                        st.session_state.guardian_rev += 1
+                        invalidate_previous_compliance_scan()
+                        st.rerun()
+
+            c_length = len(st.session_state.workspace_text)
+            if c_length > active_specs['char_max']:
+                st.error(f"⚠️ Platform Overflow: `{c_length}` / `{active_specs['char_max']}` chars!")
+            else:
+                st.caption(f"Volume Tracker: `{c_length}` / `{active_specs['char_max']}` characters.")
+
             if not is_locked_for_review:
-                if st.button("🔒 Lock Workspace & Proceed to Compliance Scan", use_container_width=True):
+                if st.button("🔒 Lock Workspace & Proceed to Compliance Scan", use_container_width=True, disabled=(c_length == 0 or c_length > active_specs['char_max'])):
                     st.session_state.content_ready_for_scan = True
                     st.rerun()
             else:
@@ -293,6 +325,8 @@ def run(user_id):
         if not st.session_state.content_ready_for_scan:
             st.caption("🔒 *Complete your workspace composition steps above and lock down composition to clear the compliance pathways.*")
         else:
+            st.warning(f"**Target System Rule Check:** Auditing copy against {chosen_channel} rules.")
+            
             if st.button("🔍 Execute Brand Soul Alignment Scan", use_container_width=True, type="primary"):
                 with st.spinner("Auditing thematic lines against active playbook rules..."):
                     scan_prompt = f"""
@@ -373,7 +407,6 @@ def run(user_id):
         # --- COMPARTMENTALIZED ENGINE FOR TIMELINE vs ARCHIVE ---
         approved_items = [i for i in calendar_data if i['status'] == 'approved_for_publishing']
         
-        # Split items into Active Scheduled vs Expired Historical items based on current system date
         active_scheduled_items = []
         archived_expired_items = []
         
@@ -385,7 +418,7 @@ def run(user_id):
                 else:
                     active_scheduled_items.append(item)
             except:
-                active_scheduled_items.append(item) # Fallback to active if date parses poorly
+                active_scheduled_items.append(item)
 
         # 1. SCHEDULED ACTIVE ITEMS DISPLAY
         st.markdown("#### 🚀 Scheduled for Release")
@@ -453,7 +486,7 @@ def run(user_id):
                         supabase.table("brand_content_items").delete().eq("id", item['id']).execute()
                         st.rerun()
 
-        # 3. EXPIRED ARCHIVE TIMELINE (COLLAPSIBLE WINDOW SECTORS)
+        # 3. EXPIRED ARCHIVE TIMELINE
         st.write("---")
         with st.expander("📦 Historical Publication Archive", expanded=False):
             if not archived_expired_items:
@@ -469,14 +502,13 @@ def run(user_id):
                     st.write(" ")
                     a1, a2 = st.columns(2)
                     with a1:
-                        # Allows user to load historical copy out of the archive seamlessly back into workspace
                         if st.button("📋 Clone/Edit", key=f"arch_load_{item['id']}", use_container_width=True):
                             st.session_state.campaign_committed = True
                             st.session_state.active_item_id = item['id']
                             st.session_state.active_title = f"Copy of {item['title']}"
                             st.session_state.active_category = item['category']
                             st.session_state.active_platform = item['platform']
-                            st.session_state.active_date = datetime.date.today() # Reset to today for modern rollout loops
+                            st.session_state.active_date = datetime.date.today()
                             st.session_state.workspace_text = item['current_body']
                             st.session_state.guardian_rev += 1
                             st.session_state.compliance_report = None
