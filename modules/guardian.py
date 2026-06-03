@@ -274,7 +274,7 @@ def run(user_id):
             edited_body = st.text_area("Active Composition Canvas:", value=st.session_state.workspace_text, height=300, key=w_key, on_change=invalidate_previous_compliance_scan, disabled=is_locked_for_review)
             st.session_state.workspace_text = clean_display_text(edited_body)
 
-            # --- INLINE CANVAS REVISION ENGINE (DECOUPLED FROM OVERFLOW LOCK) ---
+            # --- INLINE CANVAS REVISION ENGINE ---
             if st.session_state.workspace_text and not is_locked_for_review:
                 canvas_feedback = st.chat_input("Suggest immediate layout changes or edits directly to this canvas copy...")
                 if canvas_feedback:
@@ -290,7 +290,7 @@ def run(user_id):
                         CRITICAL PRESENTATION RULES:
                         1. Apply the user's direction perfectly to the text.
                         2. Output ONLY the adjusted raw draft text. NO explanatory introductions, NO structural advice, NO notes.
-                        3. Restrict text strictly to under {active_specs['char_max']} characters.
+                        3. Restrict text strictly to under {active_specs['char_max']} characters if requested to shorten, otherwise preserve natural narrative bounds.
                         4. DO NOT mention or introduce 'Godzspeed'.
                         """
                         refined_output = get_soul_rebel_consultant(canvas_feedback, refine_prompt)
@@ -300,14 +300,12 @@ def run(user_id):
                         st.rerun()
 
             c_length = len(st.session_state.workspace_text)
-            if c_length > active_specs['char_max']:
-                st.error(f"⚠️ Platform Overflow: `{c_length}` / `{active_specs['char_max']}` chars!")
-            else:
-                st.caption(f"Volume Tracker: `{c_length}` / `{active_specs['char_max']}` characters.")
+            # FIXED: Removed the error block layout freeze condition completely. Tracker remains strictly informational.
+            st.caption(f"Volume Tracker: `{c_length}` / `{active_specs['char_max']}` total platform characters used.")
 
             if not is_locked_for_review:
-                # The workflow lock action explicitly disables on limit faults, but the chat revision matrix above stays functional
-                if st.button("🔒 Lock Workspace & Proceed to Compliance Scan", use_container_width=True, disabled=(c_length == 0 or c_length > active_specs['char_max'])):
+                # FIXED: The lock operation step bypasses structural size caps to maintain endless accessibility loops
+                if st.button("🔒 Lock Workspace & Proceed to Compliance Scan", use_container_width=True, disabled=(c_length == 0)):
                     st.session_state.content_ready_for_scan = True
                     st.rerun()
             else:
