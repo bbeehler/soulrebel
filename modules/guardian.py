@@ -274,7 +274,7 @@ def run(user_id):
             edited_body = st.text_area("Active Composition Canvas:", value=st.session_state.workspace_text, height=300, key=w_key, on_change=invalidate_previous_compliance_scan, disabled=is_locked_for_review)
             st.session_state.workspace_text = clean_display_text(edited_body)
 
-            # --- ADDED: INLINE CANVAS REVISION ENGINE ---
+            # --- INLINE CANVAS REVISION ENGINE (DECOUPLED FROM OVERFLOW LOCK) ---
             if st.session_state.workspace_text and not is_locked_for_review:
                 canvas_feedback = st.chat_input("Suggest immediate layout changes or edits directly to this canvas copy...")
                 if canvas_feedback:
@@ -306,6 +306,7 @@ def run(user_id):
                 st.caption(f"Volume Tracker: `{c_length}` / `{active_specs['char_max']}` characters.")
 
             if not is_locked_for_review:
+                # The workflow lock action explicitly disables on limit faults, but the chat revision matrix above stays functional
                 if st.button("🔒 Lock Workspace & Proceed to Compliance Scan", use_container_width=True, disabled=(c_length == 0 or c_length > active_specs['char_max'])):
                     st.session_state.content_ready_for_scan = True
                     st.rerun()
