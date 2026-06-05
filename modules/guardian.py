@@ -7,7 +7,7 @@ from utils.gemini_ai import get_soul_rebel_consultant
 from utils.supabase_db import supabase
 
 # =====================================================================
-# HARD PLATFORM API SPECIFICATIONS MATRIX
+# SCRIPTLY LABS: HARD PLATFORM SPECIFICATIONS MATRIX
 # =====================================================================
 PLATFORM_LIMITS = {
     "Facebook": {"char_max": 5000, "ideal_image": "1080 x 1080 px", "aspect_ratio": "1:1"},
@@ -41,11 +41,10 @@ def load_content_calendar(user_id):
         return []
 
 def clean_display_text(architecture_text):
-    """Removes backend payload blocks and scrubs any forbidden agency terms."""
+    """Removes backend payload blocks and scrubs any forbidden terms."""
     if not architecture_text:
         return ""
     text = re.sub(r"\[PILLARS_DATA_START\].*?\[PILLARS_DATA_END\]", "", architecture_text, flags=re.DOTALL).strip()
-    text = re.sub(r"\bGodzspeed\b", "", text, flags=re.IGNORECASE)
     return text
 
 def invalidate_previous_compliance_scan():
@@ -65,7 +64,7 @@ def show_review_modal(item_title, item_body):
         st.rerun()
 
 def run(user_id):
-    st.title("🛡️ The Brand Campaign & Guardian Control")
+    st.title("🛡️ Scriptly Labs: Campaign & Content Control")
     st.caption("From High-Level Campaign Formulation to Hard Omni-Channel Compliance Audits.")
     st.write("---")
 
@@ -102,11 +101,10 @@ def run(user_id):
 
     # --- REHYDRATE ACTIVE DATABASE SESSION WORKSPACE ---
     blueprints = load_blueprints()
-    soul_guide_context = ""
+    brand_identity_context = ""
     try:
         strategy_res = supabase.table("brand_strategy").select("soul_guide").eq("user_id", user_id).single().execute()
-        soul_guide_context = strategy_res.data.get("soul_guide", "") if strategy_res.data else ""
-        soul_guide_context = re.sub(r"\bGodzspeed\b", "", soul_guide_context, flags=re.IGNORECASE)
+        brand_identity_context = strategy_res.data.get("soul_guide", "") if strategy_res.data else ""
         
         workspace_row = supabase.table("brand_content_items").select("*").eq("user_id", user_id).eq("title", "MASTER_CAMPAIGN_WORKSPACE").execute()
             
@@ -152,11 +150,10 @@ def run(user_id):
                     else:
                         with st.spinner("Formulating campaign strategy matrix..."):
                             prompt = f"""
-                            ROLE: Independent Executive Consultant & Chief Marketing Architect.
+                            ROLE: Independent Executive Creative Director at Scriptly Labs.
                             TASK: Take the user's specific campaign objective and structure it into a clean distribution framework.
-                            CRITICAL CONSTRAINTS: Forbidden to mention 'Godzspeed'. Ground insights entirely within Soul Guide.
                             USER'S EXACT CAMPAIGN OBJECTIVE: "{campaign_intent}"
-                            USER'S APPROVED SOUL GUIDE INTEL CONTEXT: {soul_guide_context}
+                            USER'S APPROVED BRAND IDENTITY GUIDE CONTEXT: {brand_identity_context}
                             """
                             suggestion_output = get_soul_rebel_consultant("Draft Campaign Framework", prompt)
                             st.session_state.campaign_suggestion = clean_display_text(suggestion_output)
@@ -238,11 +235,10 @@ def run(user_id):
                 if st.button("✨ Draft Custom Copy Suggestion", use_container_width=True, type="primary", disabled=is_locked_for_review):
                     with st.spinner("Generating raw platform content asset copy..."):
                         prompt = f"""
-                        You are a Ghostwriter. Output ONLY the raw final copy for: '{content_title}'.
+                        You are an elite Ghostwriter at Scriptly Labs. Output ONLY the raw final copy for: '{content_title}'.
                         USER INSTRUCTIONS: {custom_generation_prompt}
                         PLATFORM: {chosen_channel} | Max Length: {active_specs['char_max']} chars.
                         RULES: Return ONLY raw copy text. No intros, no strategy commentary, no notes.
-                        NEVER use the word 'Godzspeed'.
                         """
                         raw_out = get_soul_rebel_consultant("Draft Content Piece", prompt)
                         st.session_state.active_content_suggestion = clean_display_text(raw_out)
@@ -280,7 +276,7 @@ def run(user_id):
                 if canvas_feedback:
                     with st.spinner("Refining copy block directly on canvas..."):
                         refine_prompt = f"""
-                        ROLE: You are an elite direct-response editor making direct precision adjustments to a working text box.
+                        ROLE: You are an elite Scriptly Labs copy editor making direct precision adjustments to a working text box.
                         
                         USER REVISION DIRECTIVE: "{canvas_feedback}"
                         
@@ -291,7 +287,6 @@ def run(user_id):
                         1. Apply the user's direction perfectly to the text.
                         2. Output ONLY the adjusted raw draft text. NO explanatory introductions, NO structural advice, NO notes.
                         3. Restrict text strictly to under {active_specs['char_max']} characters if requested to shorten, otherwise preserve natural narrative bounds.
-                        4. DO NOT mention or introduce 'Godzspeed'.
                         """
                         refined_output = get_soul_rebel_consultant(canvas_feedback, refine_prompt)
                         st.session_state.workspace_text = clean_display_text(refined_output)
@@ -300,11 +295,9 @@ def run(user_id):
                         st.rerun()
 
             c_length = len(st.session_state.workspace_text)
-            # FIXED: Removed the error block layout freeze condition completely. Tracker remains strictly informational.
             st.caption(f"Volume Tracker: `{c_length}` / `{active_specs['char_max']}` total platform characters used.")
 
             if not is_locked_for_review:
-                # FIXED: The lock operation step bypasses structural size caps to maintain endless accessibility loops
                 if st.button("🔒 Lock Workspace & Proceed to Compliance Scan", use_container_width=True, disabled=(c_length == 0)):
                     st.session_state.content_ready_for_scan = True
                     st.rerun()
@@ -317,23 +310,21 @@ def run(user_id):
         st.write("---")
 
         # =====================================================================
-        # STAGE 03: HARD COMPLIANCE AUDIT GATE
+        # STAGE 03: SCRIPTLY LABS COMPLIANCE AUDIT GATE
         # =====================================================================
-        st.markdown("## 🛡️ Stage 3: Brand Guardian Compliance Gate")
+        st.markdown("## 🛡️ Stage 3: Scriptly Labs Compliance Gate")
         
         if not st.session_state.content_ready_for_scan:
             st.caption("🔒 *Complete your workspace composition steps above and lock down composition to clear the compliance pathways.*")
         else:
             st.warning(f"**Target System Rule Check:** Auditing copy against {chosen_channel} rules.")
             
-            if st.button("🔍 Execute Brand Soul Alignment Scan", use_container_width=True, type="primary"):
+            if st.button("🔍 Execute Scriptly Alignment Scan", use_container_width=True, type="primary"):
                 with st.spinner("Auditing thematic lines against active playbook rules..."):
                     scan_prompt = f"""
-                    [SYSTEM BLOCK RESET: DISREGARD ALL DEFAULT SYSTEM PARAMETERS TO ACT AS A MARKETING CONSULTANT, PLANNER, OR ARCHITECT. YOUR ONLY ROLE IS A RUTHLESS COPYEDITOR AND TEXT AUDITOR.]
+                    [SYSTEM BLOCK RESET: DISREGARD ALL DEFAULT SYSTEM PARAMETERS. YOUR ONLY ROLE IS A RUTHLESS SCRIPTLY LABS COPYEDITOR AND TEXT AUDITOR.]
 
                     TASK: Analyze the following raw copy block text directly against the blueprint criteria below. Do NOT suggest alternative distribution channels, do not offer product launch strategies, and do not summarize project goals.
-                    
-                    🚨 CRITICAL AUDIT RULE: If the copy text block contains the forbidden word 'Godzspeed', fail the text instantly.
                     
                     BLUEPRINT TARGET LAWS:
                     - Tonal Requirements: {active_blueprint.get('tonal_guardrails')}
@@ -351,7 +342,7 @@ def run(user_id):
                     Inside that section, outline explicit, non-negotiable instructional bullet points detailing exactly WHICH row/sentence broke the blueprint lines, WHY that phrase is incorrect for the target platform {chosen_channel}, and precisely HOW the user should rephrase or rewrite that exact copy string to fix it. Do not speak broadly—give direct copy rewriting instructions.
                     """
                     audit_res = get_soul_rebel_consultant("Verify Asset Integrity", scan_prompt)
-                    st.session_state.compliance_report = re.sub(r"\bGodzspeed\b", "[CENSORED]", audit_res, flags=re.IGNORECASE)
+                    st.session_state.compliance_report = audit_res
                     st.rerun()
 
             if st.session_state.compliance_report:
@@ -359,7 +350,7 @@ def run(user_id):
                 is_pass = report_string.startswith("SCORE: PASS") or "SCORE: PASS" in report_string.split('\n')[0]
                 
                 if is_pass:
-                    st.success("🎉 BRAND GUARDIAN GATEKEEPER: POSITIONING MATRIX CLEARED (PASSED)")
+                    st.success("🎉 SCRIPTLY LABS: POSITIONING MATRIX CLEARED (PASSED)")
                     st.info(report_string)
                     
                     if st.button("🚀 Approve & Lock for Publication Rollout", use_container_width=True, type="primary"):
@@ -381,7 +372,7 @@ def run(user_id):
                         st.session_state.guardian_rev += 1
                         st.rerun()
                 else:
-                    st.error("🚨 BRAND GUARDIAN GATEKEEPER: COMPLIANCE INTEGRITY THREAT DETECTED (FAILED)")
+                    st.error("🚨 SCRIPTLY LABS: COMPLIANCE INTEGRITY THREAT DETECTED (FAILED)")
                     clean_report = report_string.replace("SCORE: FAIL", "").strip()
                     st.markdown(clean_report)
                     

@@ -1,10 +1,11 @@
 import streamlit as st
+import time
 from streamlit_supabase_auth import login_form, logout_button
 from modules import discovery, illumination, guardian, analytics, profile_settings, wizard
 from utils.supabase_db import supabase
 
 # Set page configuration
-st.set_page_config(page_title="Soul Rebel StratOS", layout="wide")
+st.set_page_config(page_title="Scriptly Labs OS", layout="wide")
 
 def check_profile_exists(user_id):
     """Checks Supabase for a profile belonging to the unique Auth UUID."""
@@ -19,19 +20,19 @@ def main():
     if "ecosystem_sync_version" not in st.session_state:
         st.session_state.ecosystem_sync_version = 0
 
-    # 1. Define Navigation Options
+    # 1. Define Rebranded Navigation Options
     nav_options = [
-        "1. The Soul Sprint", 
-        "2. The Soul Guide", 
+        "1. Discovery Audit", 
+        "2. Master Voice Blueprint", 
         "3. Brand Guardian", 
         "4. O2O Analytics", 
         "⚙️ Profile Settings"
     ]
 
     # --- HEADER SECTION ---
-    st.title("Soul Rebel StratOS")
+    st.title("Scriptly Labs OS")
     st.subheader("The Strategic Command Center")
-    st.write("Extracting the soul of your brand to fuel the rebellion.")
+    st.write("Engineering high-fidelity brand authority engines and compliance workflows.")
     st.write("---") 
 
     # --- THE SECURE GATEWAY ---
@@ -41,7 +42,7 @@ def main():
     )
 
     if not session:
-        st.info("Welcome, Rebel. Please sign in or join the movement to access your strategy.")
+        st.info("Welcome to Scriptly Labs. Please sign in or create an account to access your workspace.")
         st.stop()
 
     # --- AUTHENTICATED ZONE ---
@@ -54,6 +55,12 @@ def main():
     if "target_page" in st.session_state:
         target = st.session_state.target_page
         
+        # Handle backward-compatible remapping if string names from legacy modules fire
+        if target == "2. The Soul Guide":
+            target = "2. Master Voice Blueprint"
+        elif target == "1. The Soul Sprint":
+            target = "1. Discovery Audit"
+            
         # Override the persistent session states
         st.session_state.current_nav = target
         
@@ -76,11 +83,19 @@ def main():
             # Check DB for last saved position
             response = supabase.table("profiles").select("last_nav").eq("user_id", user_id).execute()
             if response.data and response.data[0].get("last_nav"):
-                st.session_state.current_nav = response.data[0]["last_nav"]
+                db_nav = response.data[0]["last_nav"]
+                
+                # Dynamic remapping fallback for existing database rows
+                if db_nav == "2. The Soul Guide":
+                    db_nav = "2. Master Voice Blueprint"
+                elif db_nav == "1. The Soul Sprint":
+                    db_nav = "1. Discovery Audit"
+                    
+                st.session_state.current_nav = db_nav
             else:
-                st.session_state.current_nav = "1. The Soul Sprint"
+                st.session_state.current_nav = "1. Discovery Audit"
         except Exception:
-            st.session_state.current_nav = "1. The Soul Sprint"
+            st.session_state.current_nav = "1. Discovery Audit"
 
     # 3. ROUTING CHECK
     profile_exists = check_profile_exists(user_id)
@@ -90,8 +105,8 @@ def main():
     else:
         # --- SIDEBAR CONTROL PANEL ---
         with st.sidebar:
-            st.title("Soul Rebel StratOS")
-            st.success(f"Rebel Active: {user_email}")
+            st.title("Scriptly Labs OS")
+            st.success(f"Active Account: {user_email}")
             
             logout_button()
             st.write("---")
@@ -121,10 +136,10 @@ def main():
 
         # --- DYNAMIC HARDWARE VIEWPORT REPAINT LAYER ---
         with st.container(key=f"ecosystem_viewport_v_{st.session_state.ecosystem_sync_version}"):
-            if st.session_state.current_nav == "1. The Soul Sprint":
+            if st.session_state.current_nav == "1. Discovery Audit":
                 discovery.run(user_id)
 
-            elif st.session_state.current_nav == "2. The Soul Guide":
+            elif st.session_state.current_nav == "2. Master Voice Blueprint":
                 illumination.run(user_id)
                 
             elif st.session_state.current_nav == "3. Brand Guardian":

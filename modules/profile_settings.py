@@ -4,7 +4,7 @@ from utils.supabase_db import supabase, load_brand_data, update_chamber_data
 
 def run(user_id):
     st.title("👤 Profile & Strategy Management")
-    st.caption("Refine your tactical strategy chambers or manage your StratOS ecosystem controls.")
+    st.caption("Refine your tactical strategy chambers or manage your Scriptly Labs OS ecosystem controls.")
     st.write("---")
     
     # --- SECTION 1: EDIT BRAND CHAMBERS ---
@@ -13,35 +13,35 @@ def run(user_id):
     brand_data = load_brand_data(user_id)
     
     if brand_data:
-        with st.expander("Edit Chamber 1: PurpUS", expanded=False):
-            new_purpus = st.text_area("Refine your PurpUS summary:", value=brand_data.get('purpus_summary', ""))
-            if st.button("Save PurpUS Changes"):
+        with st.expander("Edit Chamber 1: Core Strategy Summary", expanded=False):
+            new_purpus = st.text_area("Refine your Core Strategy summary:", value=brand_data.get('purpus_summary', ""))
+            if st.button("Save Strategy Summary Changes"):
                 update_chamber_data(user_id, "purpus_summary", new_purpus)
                 st.success("Chamber 1 updated.")
                 st.rerun()
 
-        with st.expander("Edit Chamber 2: Brand Identity", expanded=False):
+        with st.expander("Edit Chamber 2: Brand Identity Blueprint", expanded=False):
             new_identity = st.text_area("Refine your Brand Identity:", value=brand_data.get('brand_identity', ""))
             if st.button("Save Identity Changes"):
                 update_chamber_data(user_id, "brand_identity", new_identity)
                 st.success("Chamber 2 updated.")
                 st.rerun()
 
-        with st.expander("Edit Chamber 3: Brand Experience", expanded=False):
+        with st.expander("Edit Chamber 3: Brand Experience Dynamics", expanded=False):
             new_experience = st.text_area("Refine your Brand Experience:", value=brand_data.get('brand_experience', ""))
             if st.button("Save Experience Changes"):
                 update_chamber_data(user_id, "brand_experience", new_experience)
                 st.success("Chamber 3 updated.")
                 st.rerun()
 
-        with st.expander("Edit Chamber 4: Brand Impact", expanded=False):
+        with st.expander("Edit Chamber 4: Brand Impact Metrics", expanded=False):
             new_impact = st.text_area("Refine your Brand Impact strategy:", value=brand_data.get('brand_impact', ""))
             if st.button("Save Impact Changes"):
                 update_chamber_data(user_id, "brand_impact", new_impact)
                 st.success("Chamber 4 updated.")
                 st.rerun()
     else:
-        st.info("No brand strategy data found to edit yet. Start a Soul Sprint to generate insights.")
+        st.info("No brand strategy data found to edit yet. Start a Discovery Audit to generate insights.")
 
     st.write("---")
 
@@ -51,7 +51,7 @@ def run(user_id):
     
     with st.expander("🪓 Open Targeted Reset Panel", expanded=False):
         purge_manifesto = st.checkbox("Phase 01 & 02: Clear Discovery Manifestos & Brand Chambers", value=False, key="p_wipe_manifesto")
-        purge_soul_guide = st.checkbox("Phase 03: Clear Master Soul Guide Content Engine Context", value=False, key="p_wipe_soul")
+        purge_soul_guide = st.checkbox("Phase 03: Clear Master Voice Blueprint Context", value=False, key="p_wipe_soul")
         purge_calendar = st.checkbox("Phase 04: Flush Content Calendar Assets & Guardian Scans", value=False, key="p_wipe_cal")
         purge_analytics = st.checkbox("Phase 05: Clear O2O Analytics Logs (Inputs & Outcomes)", value=False, key="p_wipe_an")
 
@@ -72,7 +72,7 @@ def run(user_id):
                             supabase.table("brand_digital_inputs").delete().eq("user_id", user_id).execute()
                             supabase.table("brand_offline_outcomes").delete().eq("user_id", user_id).execute()
 
-                        # --- UPGRADE: FORCE THE DYNAMIC REFRESH AND WIPE STATE ---
+                        # --- FORCE DYNAMIC REFRESH AND WIPE STATE ---
                         if "ecosystem_sync_version" in st.session_state:
                             st.session_state.ecosystem_sync_version += 1
                         
@@ -93,7 +93,7 @@ def run(user_id):
             <div style="background-color:#2a1b1b; padding:15px; border-radius:8px; border-left: 5px solid #e74c3c; margin-bottom:15px;">
                 <p style="color:#ff9999; margin:0; font-weight:bold;">CRITICAL INFRASTRUCTURE ZONE</p>
                 <p style="color:#fff; font-size:14px; margin:5px 0 0 0;">
-                    This action is permanent. It will wipe your complete system profile and strategy data.
+                    This action is permanent. It will completely wipe your system profile and strategy data.
                 </p>
             </div>
             """, 
@@ -109,8 +109,8 @@ def run(user_id):
         st.write(" ")
         is_disabled = (confirm_wipe != "RESET ALL MY PHASES")
         
-        if st.button("🔥 Factory Reset Entire StratOS Profile", type="primary", use_container_width=True, disabled=is_disabled):
-            with st.spinner("Dropping tables relational records across the entire grid..."):
+        if st.button("🔥 Factory Reset Entire Scriptly Labs OS Profile", type="primary", use_container_width=True, disabled=is_disabled):
+            with st.spinner("Dropping database relational records across the entire grid..."):
                 try:
                     supabase.table("brand_content_items").delete().eq("user_id", user_id).execute()
                     supabase.table("brand_digital_inputs").delete().eq("user_id", user_id).execute()
@@ -118,10 +118,10 @@ def run(user_id):
                     supabase.table("profiles").delete().eq("user_id", user_id).execute()
                     supabase.table("brand_strategy").delete().eq("user_id", user_id).execute()
                     
-                    st.success("System framework wiped clean. Restarting StratOS application runtime...")
+                    st.success("System framework wiped clean. Restarting Scriptly Labs application runtime...")
                     time.sleep(1.5)
                     
-                    # --- UPGRADE: COMPREHENSIVE FLUSH ON FACTORY WIPE ---
+                    # --- COMPREHENSIVE FLUSH ON FACTORY WIPE ---
                     st.session_state.clear() 
                     st.session_state.ecosystem_sync_version = 0
                     st.session_state.current_nav = "Wizard"

@@ -15,12 +15,12 @@ def load_o2o_data(user_id):
         st.error(f"Error executing data handshake: {e}")
         return [], []
 
-def calculate_soul_guide_grade(user_id):
+def calculate_scriptly_compliance_grade(user_id):
     """Computes an execution grade based on the ratio of compliant passed assets."""
     try:
         content_items = supabase.table("brand_content_items").select("status", "guardian_notes").eq("user_id", user_id).execute()
         if not content_items.data:
-            return "N/A", "No assets have been passed through the Brand Guardian gate yet.", "#808080"
+            return "N/A", "No assets have been evaluated through the Scriptly Labs Guardian gate yet.", "#808080"
             
         total_assets = len(content_items.data)
         passed_assets = sum(1 for item in content_items.data if item['status'] == 'approved_for_publishing' or (item['guardian_notes'] and "SCORE: PASS" in item['guardian_notes']))
@@ -28,31 +28,31 @@ def calculate_soul_guide_grade(user_id):
         compliance_ratio = (passed_assets / total_assets) * 100
         
         if compliance_ratio >= 90:
-            return "A", f"Exceptional Soul Alignment ({compliance_ratio:.1f}%).", "#2ecc71"
+            return "A", f"Exceptional Blueprint Compliance ({compliance_ratio:.1f}%).", "#2ecc71"
         elif compliance_ratio >= 80:
-            return "B", f"Strong Soul Alignment ({compliance_ratio:.1f}%).", "#3498db"
+            return "B", f"Strong Blueprint Compliance ({compliance_ratio:.1f}%).", "#3498db"
         elif compliance_ratio >= 70:
-            return "C", f"Compromised Soul Alignment ({compliance_ratio:.1f}%).", "#f1c40f"
+            return "C", f"Compromised Blueprint Compliance ({compliance_ratio:.1f}%).", "#f1c40f"
         elif compliance_ratio >= 60:
             return "D", f"Critical Shift Flagged ({compliance_ratio:.1f}%).", "#e67e22"
         else:
-            return "F", f"Systemic Shadowing Violation ({compliance_ratio:.1f}%).", "#e74c3c"
+            return "F", f"Systemic Playbook Infraction ({compliance_ratio:.1f}%).", "#e74c3c"
     except Exception:
         return "N/A", "Enforcement logging tracking unavailable.", "#808080"
 
 def run(user_id):
-    st.title("📊 Phase 05: O2O Attribution Analytics")
+    st.title("📊 Scriptly Labs: Attribution & Analytics")
     st.caption("The Strategic Verification Center: Linking Digital Engagement to Physical Spatial Conversions.")
     st.write("---")
 
-    # 1. LIVE BRAND GUARDIAN ENFORCEMENT AUDIT
+    # 1. LIVE SCRIPTLY GUARDIAN ENFORCEMENT AUDIT
     st.subheader("🛡️ The Playbook Enforcement Score")
-    grade, explanation, color = calculate_soul_guide_grade(user_id)
+    grade, explanation, color = calculate_scriptly_compliance_grade(user_id)
     
     st.markdown(
         f"""
         <div style="background-color:#1e1e1e; padding:20px; border-radius:10px; border-left: 8px solid {color}; margin-bottom:25px;">
-            <span style="font-size:14px; text-transform:uppercase; color:#888; letter-spacing:1px; font-weight:bold;">Soul Guide Alignment Grade</span>
+            <span style="font-size:14px; text-transform:uppercase; color:#888; letter-spacing:1px; font-weight:bold;">Scriptly Compliance Grade</span>
             <h1 style="color:{color}; font-size:64px; margin:5px 0px;">{grade}</h1>
             <p style="color:#fff; font-size:16px; margin:0; font-style:italic;">{explanation}</p>
         </div>
@@ -160,7 +160,6 @@ def run(user_id):
                 yaxis="y2"
             ))
             
-            # FIXED: Migrated raw 'titlefont' properties to unified title nested font dictionaries
             fig_timeline.update_layout(
                 title="Digital Marketing Capital Surge vs Spatial Foot Traffic Correlation",
                 template="plotly_dark",
@@ -207,7 +206,7 @@ def run(user_id):
             st.write("---")
             
             # --- VISUAL PILLAR 3: CROSS-CHANNEL ATTRITION FUNNEL ---
-            st.markdown("### 🌪️ StratOS Stratified Conversion Funnel")
+            st.markdown("### 🌪️ Conversion Funnel Performance")
             
             total_impressions = df_digital["impressions"].sum()
             total_engagements = df_digital["clicks_or_engagements"].sum()
@@ -220,7 +219,7 @@ def run(user_id):
             
             fig_funnel = px.bar(
                 funnel_data, x="number", y="stage", orientation="h",
-                title="Universal StratOS Cross-Channel Conversion Pipeline Volume",
+                title="Universal Cross-Channel Conversion Pipeline Volume",
                 labels={"number": "Aggregate Volume Count", "stage": "Funnel Phase"},
                 template="plotly_dark",
                 color="stage", color_discrete_sequence=["#9b59b6", "#34495e", "#2ecc71"]

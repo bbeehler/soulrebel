@@ -4,8 +4,8 @@ from utils.gemini_ai import get_soul_rebel_consultant
 from utils.supabase_db import save_brand_data, load_brand_data
 
 def run(user_id):
-    st.title("✨ Phase 03: Illumination")
-    st.caption("Forging the Strategic Individual: Subsection by Subsection.")
+    st.title("✨ Scriptly Labs: Master Voice Blueprint")
+    st.caption("Forging your high-fidelity brand authority engine: Subsection by Subsection.")
     st.write("---")
     
     # 1. INITIALIZE MASTER DATA & UI STATE
@@ -35,20 +35,20 @@ def run(user_id):
         {
             "id": "anchors_culture_values",
             "label": "SECTION 1: BRAND IDENTITY",
-            "sub": "Soul Anchors: Culture & Values",
+            "sub": "Core Anchors: Culture & Values",
             "blueprint": "- Structural Target: 1 introductory narrative paragraph followed by 7 distinct, highly detailed value pillars (e.g., Humility, Diversity, Curiosity).\n- Tone: Humble yet fiercely confident, deeply relational, and 'hella smart'."
         },
         {
             "id": "anchors_beliefs_behaviours",
             "label": "SECTION 1: BRAND IDENTITY",
-            "sub": "Soul Anchors: Beliefs & Behaviours",
+            "sub": "Core Anchors: Beliefs & Behaviours",
             "blueprint": "- Structural Target: 2 comprehensive, bulleted manifestos. 'Beliefs' section strictly begins with 'We believe...' (10-12 items). 'Behaviours' section strictly uses 'We always...' statements (6-8 items).\n- Tone: Unwavering, non-negotiable, and programmatic."
         },
         {
             "id": "positioning_1soul",
             "label": "SECTION 2: BRAND POSITIONING",
-            "sub": "1Soul Statement & Meaning",
-            "blueprint": "- Structural Target: A singular, definitive 1Soul corporate anchor sentence followed by a powerful 5-6 paragraph 'What it Means' narrative.\n- Tone: Masterful, elite, authoritative, and uncompromising."
+            "sub": "Primary Anchor Statement & Meaning",
+            "blueprint": "- Structural Target: A singular, definitive corporate anchor sentence followed by a powerful 5-6 paragraph 'What it Means' narrative.\n- Tone: Masterful, elite, authoritative, and uncompromising."
         },
         {
             "id": "positioning_offerings",
@@ -72,18 +72,18 @@ def run(user_id):
             "id": "expression_voice_personality",
             "label": "SECTION 3: BRAND EXPRESSION",
             "sub": "Brand Voice & Personality Archetype",
-            "blueprint": "- Structural Target: 2 comprehensive segments detailing the verbal identity guidelines ('Human, compelling, and hella smart') and the core character archetype ('The Caring Catalyst').\n- Tone: Highly articulate, commanding, and profoundly loving."
+            "blueprint": "- Structural Target: 2 comprehensive segments detailing the verbal identity guidelines ('Human, compelling, and hella smart') and the core character archetype.\n- Tone: Highly articulate, commanding, and profoundly loving."
         },
         {
             "id": "ties_legacy",
-            "label": "SECTION 4: SOUL TIES",
+            "label": "SECTION 4: CORE LEVERAGE TIES",
             "sub": "Brand Legacy",
             "blueprint": "- Structural Target: 1 high-level 'living legacy' statement paragraph, followed by 6 distinct, structured 'We want to be known for...' declarations.\n- Tone: Historic, monumental, ancestral, and enduring."
         },
         {
             "id": "ties_markers",
-            "label": "SECTION 4: SOUL TIES",
-            "sub": "Key Soul Markers (KPIs)",
+            "label": "SECTION 4: CORE LEVERAGE TIES",
+            "sub": "Key Voice Performance Indicators (KPIs)",
             "blueprint": "- Structural Target: An exclusive framework consisting of 6-8 razor-sharp metrics written strictly from the perspective of the practitioner as a 'Do I...' or 'Am I...' self-audit question.\n- Tone: Introspective, challenging, deeply accountable, and uncompromising."
         }
     ]
@@ -103,7 +103,7 @@ def run(user_id):
                 st.session_state.guide_content[item['id']] = brand_data[col_name]
                 highest_completed_idx = i
         
-        # FIXED: Only enforce resume index loops if the workspace navigation isn't processing an outbound redirect
+        # Guard loop navigation fallback redirects to sync state safely
         if st.session_state.get("current_nav", "2. The Soul Guide") == "2. The Soul Guide":
             st.session_state.guide_idx = highest_completed_idx + 1
                 
@@ -114,41 +114,39 @@ def run(user_id):
 
     # --- FINAL MASTER COMPILATION (WITH DB SAVE & ADVANCE) ---
     if curr_idx >= len(guide_structure):
-        st.success("🎉 All sections meticulously forged! Your Master Soul Guide is complete.")
+        st.success("🎉 All blueprint sectors meticulously forged! Your Master Voice Guide is complete.")
         
         # Stitch the entire narrative together for the screen view
         full_text = "\n\n".join([st.session_state.guide_content.get(item['id'], '') for item in guide_structure])
-        st.text_area("The Strategic Individual Master Document", value=full_text, height=450)
+        st.text_area("Scriptly Labs: Master Blueprint Final Asset", value=full_text, height=450)
         
         # Action Column Layout for the Final Gate
         c1, c2 = st.columns(2)
         
         with c1:
-            # 1. DATABASE SAVE & ADVANCE TO BRAND GUARDIAN
             if st.button("💾 Save Final Strategy & Advance", use_container_width=True, type="primary"):
-                with st.spinner("Locking Master Soul Guide into the database..."):
-                    # Save the complete stitched document to the main soul_guide column
+                with st.spinner("Locking Master Voice Blueprint into the database..."):
                     save_brand_data(user_id, full_text, chamber="soul_guide")
                     
                     try:
                         from utils.supabase_db import get_supabase_client
                         supabase = get_supabase_client()
                         
-                        # 1. Update the database record so it persists across logins
+                        # 1. Update navigation state in profile layers
                         supabase.table("profiles").update({"last_nav": "3. Brand Guardian"}).eq("user_id", user_id).execute()
                         
-                        # 2. Set the redirect trigger flag for main.py
+                        # 2. Assign routing key parameters back to central controller matrix
                         st.session_state.target_page = "3. Brand Guardian"
                         
                     except Exception as e:
-                        st.warning("Strategy saved locally, but navigation auto-advance encountered an issue.")
+                        st.warning("Strategy saved locally, but navigation routing advance encountered an obstacle.")
                     
-                    st.success("Strategy locked! Moving to Brand Guardian...")
+                    st.success("Strategy locked! Routing to Brand Guardian Control...")
                     time.sleep(1.0)
                     st.rerun()
                     
         with c2:
-            # 2. WORD DOCUMENT EXPORT ENGINE
+            # Word Document Export
             try:
                 from docx import Document
                 from io import BytesIO
@@ -156,15 +154,15 @@ def run(user_id):
                 docx_buffer = BytesIO()
                 doc = Document()
                 
-                doc.add_heading("STRATEGIC INDIVIDUAL: MASTER SOUL GUIDE", level=0)
-                doc.add_paragraph("Generated via Gemini StratOS • High-Fidelity Strategic Architecture")
+                doc.add_heading("SCRIPTLY LABS: MASTER VOICE BLUEPRINT GUIDE", level=0)
+                doc.add_paragraph("Generated via Scriptly Labs Engine • High-Fidelity Content Architecture")
                 doc.add_page_break()
                 
                 for item in guide_structure:
                     section_text = st.session_state.guide_content.get(item['id'], '').strip()
                     if section_text:
-                        if "🚨 FACILITATOR INQUIRY" in section_text:
-                            section_text = section_text.split("🚨 FACILITATOR INQUIRY")[0].strip()
+                        if "🚨 BLUEPRINT MATRIX INQUIRY" in section_text:
+                            section_text = section_text.split("🚨 BLUEPRINT MATRIX INQUIRY")[0].strip()
                             
                         doc.add_heading(item['label'], level=1)
                         doc.add_heading(item['sub'], level=2)
@@ -185,12 +183,12 @@ def run(user_id):
                 st.download_button(
                     label="📄 Export to Word Document (.docx)",
                     data=docx_buffer,
-                    file_name="Master_Soul_Guide_Final.docx",
+                    file_name="Master_Voice_Blueprint_Final.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     use_container_width=True
                 )
             except ImportError:
-                st.error("Please ensure python-docx is added to requirements.txt for Word export features.")
+                st.error("Please add python-docx to your software environments to enable Word export functionality.")
 
         st.write("---")
         if st.button("⬅️ Go Back to Edit Sections", use_container_width=True):
@@ -210,30 +208,30 @@ def run(user_id):
         
         # A. INTUITIVE GENERATION (Using the deep blueprint + Soul Audit data)
         if sub_key not in st.session_state.guide_content:
-            with st.spinner(f"Facilitator unearthing and drafting {curr_sub['sub']}..."):
+            with st.spinner(f"Scriptly Engine analyzing and drafting {curr_sub['sub']}..."):
                 methodology = f"""
-                ROLE: Godzspeed Soul Rebel Master Facilitator.
-                TASK: Synthesize the Soul Audit discovery data into the specific subsection: '{curr_sub['sub']}'.
+                ROLE: Expert Creative Director & Brand Architect at Scriptly Labs.
+                TASK: Synthesize the raw discovery audit inputs perfectly into the designated layout module: '{curr_sub['sub']}'.
                 
                 STRICT STRUCTURAL AND TONAL BLUEPRINT:
                 {curr_sub['blueprint']}
                 
-                VOICE STANDARD: You are a premium, highly sophisticated corporate strategist who speaks with a deeply human, compelling, and 'hella smart' rhythm.
+                VOICE STANDARD: You are an elite professional corporate copywriter and voice strategist who outputs deeply compelling, human, authoritative, and 'hella smart' layout blocks.
                 
-                GAP DETECTION: If audit info is missing, draft a strategic baseline framework, and immediately append a section titled '🚨 FACILITATOR INQUIRY' at the very bottom containing 3 highly targeted, thought-provoking strategic questions.
+                GAP CAPTURE: If vital source components are absent, draft a robust strategic baseline baseline framework matching the blueprint criteria, then append a clean section titled '🚨 BLUEPRINT MATRIX INQUIRY' at the absolute bottom containing 3 precise, targeted refinement questions.
                 """
-                draft = get_soul_rebel_consultant(f"Draft {curr_sub['sub']}", methodology + "\n\nSOUL AUDIT DATA:\n" + str(brand_data))
+                draft = get_soul_rebel_consultant(f"Draft {curr_sub['sub']}", methodology + "\n\nDISCOVERY SOURCE FILE DATA:\n" + str(brand_data))
                 st.session_state.guide_content[sub_key] = draft
 
         # B. ANTI-SHADOWING WORKSPACE CONTAINER
         workspace_key = f"area_{sub_key}_v{st.session_state.rev}"
         current_text = st.session_state.guide_content[sub_key]
         
-        if "🚨 FACILITATOR INQUIRY" in current_text:
-            st.warning("The Facilitator requires more raw fuel to reach the required length and depth standard.")
+        if "🚨 BLUEPRINT MATRIX INQUIRY" in current_text:
+            st.warning("The Scriptly Architect requires missing layout details to satisfy the target framework depth.")
 
         edited_text = st.text_area(
-            "Refine Strategic Individual Narrative:", 
+            "Refine Strategic Voice Narrative Content:", 
             value=current_text, 
             height=450, 
             key=workspace_key
@@ -242,17 +240,18 @@ def run(user_id):
 
         # C. ADAPTIVE COLLABORATIVE SYNTHESIS ENGINE
         st.write("---")
-        user_input = st.chat_input(f"Feed more raw details or answer inquiries for {curr_sub['sub']}...")
+        user_input = st.chat_input(f"Feed raw operational details or reply to matrix inquiries for {curr_sub['sub']}...")
         
         if user_input:
-            with st.spinner("Braiding and synthesizing your responses into the master blueprint..."):
+            with st.spinner("Braiding and synthesizing inputs into master blueprint layers..."):
                 update_prompt = f"""
-                ROLE: Godzspeed Soul Rebel Master Facilitator.
-                TASK: Take the user's raw input, elevate it to our 'hella smart' brand voice, and surgically braid it into the EXISTING TEXT. Expand it, don't shorten it. Maintain blueprint rules: {curr_sub['blueprint']}
-                If input answers a question from '🚨 FACILITATOR INQUIRY', remove that inquiry completely.
-                Output ONLY the complete, newly expanded narrative text block.
+                ROLE: Expert Creative Director & Brand Architect at Scriptly Labs.
+                TASK: Elevate the user's raw real-world insights into our premium corporate voice, and surgically braid the updates into the existing layout draft. Expand the section blocks—do not compress or truncate. Maintain absolute adherence to blueprint constraints: {curr_sub['blueprint']}
                 
-                EXISTING TEXT TO MODIFY:
+                If the user insight resolves a query block inside '🚨 BLUEPRINT MATRIX INQUIRY', remove that query chunk entirely from the output.
+                Return ONLY the complete, newly generated and expanded modular text layout block.
+                
+                EXISTING DRAFT TO REVISE:
                 {edited_text}
                 """
                 new_narrative = get_soul_rebel_consultant(user_input, update_prompt)
@@ -271,8 +270,8 @@ def run(user_id):
                     st.session_state.rev = 0
                     st.rerun()
         with b_col2:
-            is_light = "🚨 FACILITATOR INQUIRY" in edited_text
-            if st.button("🔥 Commit & Advance", use_container_width=True, disabled=is_light):
+            is_light = "🚨 BLUEPRINT MATRIX INQUIRY" in edited_text
+            if st.button("🔥 Commit & Advance Section", use_container_width=True, disabled=is_light):
                 save_brand_data(user_id, edited_text, chamber=f"guide_part_{sub_key}")
                 
                 # If we are finishing up the last index step, compile the master copy block to the DB
@@ -286,22 +285,22 @@ def run(user_id):
 
     # 3. ROADMAP & INTERACTIVE JUMP PANEL (RIGHT COLUMN)
     with col2:
-        st.subheader("📋 Soul Guide Architecture")
-        st.caption("Click any unlocked section to revisit or edit.")
+        st.subheader("📋 Blueprint Roadmap Track")
+        st.caption("Select any cleared index element to audit or adapt previous copies.")
         st.write("---")
         
         for i, item in enumerate(guide_structure):
             if i < curr_idx:
-                if st.button(f"✅ {item['sub']}", key=f"jump_{item['id']}", use_container_width=True, help="Jump back to this section"):
+                if st.button(f"✅ {item['sub']}", key=f"jump_{item['id']}", use_container_width=True, help="Revisit this cleared sector"):
                     save_brand_data(user_id, edited_text, chamber=f"guide_part_{sub_key}")
                     st.session_state.guide_idx = i
                     st.session_state.rev = 0
                     st.rerun()
             elif i == curr_idx:
-                st.markdown(f"**👉 {item['sub']}** (Editing)")
+                st.markdown(f"**👉 {item['sub']}** (Active Composition)")
             else:
                 st.caption(f"⚪ {item['sub']}")
         
         st.write("---")
         if is_light:
-            st.error("Gatekeeper Alert: This section cannot be committed until all '🚨 FACILITATOR INQUIRY' questions have been answered and removed.")
+            st.error("Compliance Alert: This sector cannot be committed until all questions inside '🚨 BLUEPRINT MATRIX INQUIRY' are systematically answered and removed.")
