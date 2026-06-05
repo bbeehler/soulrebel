@@ -19,7 +19,7 @@ def run(user_id): # Fix 1: Accept user_id from main.py
 
     # STEP 1: INDIVIDUAL
     if step == 1:
-        st.subheader("Step 1: The Soul Behind the Movement")
+        st.subheader("Step 1: For Are you?")
         full_name = st.text_input("What is your full name?", value="Brian")
         email = st.text_input("Professional Email")
         if st.button("Continue to Venture"):
