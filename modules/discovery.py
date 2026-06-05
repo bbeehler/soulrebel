@@ -19,10 +19,10 @@ def run(user_id):
         st.session_state.widget_seeds = {k: 0 for k in ["purpus_summary", "brand_identity", "brand_experience", "brand_impact"]}
 
     chamber_map = {
-        "✨ Soul (PurpUS)": "purpus_summary",
-        "🎭 Mind (Identity)": "brand_identity",
-        "🌟 Body (Experience)": "brand_experience",
-        "🌍 Body (Impact)": "brand_impact"
+        "✨ Core Strategy Summary": "purpus_summary",
+        "🎭 Brand Identity Blueprint": "brand_identity",
+        "🌟 Brand Experience Dynamics": "brand_experience",
+        "🌍 Brand Impact Metrics": "brand_impact"
     }
     chamber_sequence = ["purpus_summary", "brand_identity", "brand_experience", "brand_impact"]
     
@@ -35,14 +35,14 @@ def run(user_id):
     col1, col2 = st.columns([3, 2])
 
     with col1:
-        st.title("🔥 The Soul Audit")
-        st.caption(f"Facilitated Unearthing: {current_label}")
+        st.title("🔥 Scriptly Labs: Discovery Audit")
+        st.caption(f"Facilitated Discovery Module: {current_label}")
         
         chamber_prompts = {
-            "purpus_summary": "Foundation Phase: Why MUST this brand exist? What internal fire drives this soul?",
-            "brand_identity": "The Foundation: If this brand were an individual, what is its identity and ethos?",
+            "purpus_summary": "Foundation Phase: Why MUST this brand exist? What internal vision drives this strategy?",
+            "brand_identity": "The Foundation: If this brand were an individual, what is its identity, voice, and ethos?",
             "brand_experience": "Remarkable Experiences: How will your brand communicate its value while putting your audience first?",
-            "brand_impact": "The Legacy: What urgent community problems are you solving to create ongoing impact?"
+            "brand_impact": "The Legacy: What urgent market or community problems are you solving to create ongoing impact?"
         }
         
         if not any(m.get("chamber") == current_chamber_key for m in st.session_state.messages):
@@ -70,9 +70,9 @@ def run(user_id):
             with st.chat_message("assistant"):
                 with st.spinner("Updating strategic vision..."):
                     methodology = f"""
-                    ROLE: Godzspeed Facilitator. 
+                    ROLE: Elite Brand Strategy Director at Scriptly Labs. 
                     CURRENT PHASE: {current_label} ({current_chamber_key})
-                    TASK: Challenge the user's input. Probe for deeper layers. 
+                    TASK: Challenge the user's input. Probe for deeper strategic layers. 
                     MANDATORY: Synthesize the current conversation into a cumulative summary for this phase.
                     Wrap the updated synthesis in [STRATEGY]...[/STRATEGY] tags.
                     """
@@ -127,16 +127,16 @@ def run(user_id):
                 if display_text:
                     st.markdown(display_text)
                 else:
-                    st.caption("Awaiting Facilitator synthesis...")
+                    st.caption("Awaiting consultant strategy synthesis...")
                 final_text = display_text
 
         # 3. THE COMMIT & GLOBAL TRANSITION GATE
         if final_text and not edit_mode:
             is_last_phase = (current_idx == 3)
-            button_label = "🔥 Finalize Audit & Open Soul Guide" if is_last_phase else "🔥 Commit & Advance Phase"
+            button_label = "🔥 Finalize Audit & Open Blueprint Workspace" if is_last_phase else "🔥 Commit & Advance Phase"
             
             if st.button(button_label, use_container_width=True, key=f"commit_btn_{current_chamber_key}"):
-                # 1. Save finalized data
+                # Save finalized data
                 st.session_state.brand_soul[current_chamber_key] = final_text
                 save_brand_data(user_id, final_text, chamber=current_chamber_key)
                 
@@ -149,23 +149,20 @@ def run(user_id):
                     time.sleep(0.5)
                     st.rerun()
                 else:
-                    # THE PERSISTENT GLOBAL REDIRECT
+                    # REBRANDED STATE ROUTING
                     st.balloons()
+                    target_label = "2. Master Voice Blueprint"
                     
-                    target_label = "2. The Soul Guide"
-                    
-                    # 1. Update DB so the app remembers this when you log back in
                     try:
                         from utils.supabase_db import supabase
                         supabase.table("profiles").update({"last_nav": target_label}).eq("user_id", user_id).execute()
                     except Exception as e:
                         st.error(f"Persistence Error: {e}")
 
-                    # 2. Update local state for the current session
                     st.session_state.target_page = target_label
                     st.session_state.audit_complete = True
                     
-                    st.success("Soul Audit Documented! Memory locked in.")
+                    st.success("Discovery Audit Documented! Memory locked into Scriptly Labs framework.")
                     time.sleep(1.5)
                     st.rerun()
 
@@ -175,4 +172,4 @@ def run(user_id):
             if key != current_chamber_key:
                 with st.expander(label):
                     hist = st.session_state.brand_soul.get(key, "")
-                    st.markdown(hist if hist else "*Awaiting unearthing...*")
+                    st.markdown(hist if hist else "*Awaiting discovery analysis...*")
